@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vedic Birth Chart</title>
+<!--
+  COZALYZE · VEDIC BIRTH CHART · BC2.0 master port
+  Single-document port of CozAlyze-Vedic-Birth-Chart-Claude-Handoff for the
+  NEWEST-MASTER-File architecture (GitHub Pages, no build step).
+
+  DATA CONTRACT (localStorage key "cozChartJSON", written by the master
+  sidereal-reveal exporter — renderer only, this page never calculates
+  astronomy):
+  {
+    version: 1,
+    generatedAt: ISO string,
+    reportId: string,
+    person: { name: string, note?: string },
+    birth: { date: string, time: string, location: string, timezone: string },
+    calculation: { ayanamsha: string, houses: "Whole Sign", nodes: "Mean Rahu & Ketu" },
+    ascendantSignNumber: 1-12,
+    planets: [ { name, signNumber (1-12), degrees, minutes, house (1-12),
+                 nakshatra, pada (1-4), retrograde? } x10,
+               order: Ascendant, Sun, Moon, Mars, Mercury, Jupiter, Venus,
+               Saturn, Rahu, Ketu ],
+    panchanga?: [ { label, value, explanation?, meta? } ],   // rows omitted when absent
+    mahadasha?: [ { label, value, explanation?, meta? } ],   // major periods only
+    alignments?: [ { label, value, explanation?, meta?, swatches? } ] // approved layer only
+  }
+  Rows without an approved explanation render as static lines (answer visible,
+  no accordion). Sections with no rows are omitted entirely. Demo data renders
+  ONLY via ?chart=demo (explicit non-production preview) or ?chart=stellium
+  (collision QA), never as a fallback for a real visitor.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --background:#061326; --foreground:#f7f1e7;
+  --coz-paper:#f7f1e7; --coz-ink:#07162b; --coz-ink-soft:#314456;
+  --coz-gold:#b88a55; --coz-rose:#a66559; --coz-rule:#d6c4a7;
+  --font-sans:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+*{box-sizing:border-box}
+html{background:var(--background)}
+body{
+  min-width:320px; margin:0;
+  background:
+    radial-gradient(circle at 50% 10%, rgb(37 74 111 / .5), transparent 38rem),
+    linear-gradient(180deg,#061326 0%,#020914 100%);
+  color:var(--foreground); font-family:var(--font-sans);
+}
+button{font:inherit}
+.report-shell{width:100%; min-height:100vh; padding:2rem 1rem 4rem}
+.report-toolbar{display:flex; align-items:center; justify-content:space-between; gap:1rem; width:min(100%,56rem); margin:0 auto 1rem}
+.report-toolbar p{margin:0; color:#d8c4a4; font-size:.8rem; letter-spacing:.11em; text-transform:uppercase}
+.print-button{
+  display:inline-flex; align-items:center; gap:.5rem;
+  min-height:2.75rem; padding:.45rem 1rem; cursor:pointer;
+  border:1px solid rgb(217 184 129 / .6); border-radius:.4rem;
+  background:rgb(4 17 34 / .84); color:#f7f1e7; font-size:.88rem;
+}
+.print-button:hover{background:#122b48; color:#fffaf2}
+.print-button:focus-visible{outline:2px solid var(--coz-gold); outline-offset:2px}
+.print-button svg{width:1rem; height:1rem}
+.sample-banner{
+  width:min(100%,56rem); margin:0 auto .8rem; padding:.55rem .9rem;
+  border:1px solid rgb(184 138 85 / .55); border-radius:.4rem;
+  background:rgb(184 138 85 / .14); color:#e8d5b4;
+  font-size:.74rem; letter-spacing:.09em; text-transform:uppercase; text-align:center;
+}
+.empty-card{
+  width:min(100%,34rem); margin:4rem auto; padding:2rem 1.6rem; text-align:center;
+  border:1px solid rgb(217 184 129 / .5); background:rgb(4 17 34 / .7); color:#e9ddc8;
+  font-size:.95rem; line-height:1.6;
+}
+.empty-card h2{margin:0 0 .6rem; font-family:Georgia,"Times New Roman",serif; font-weight:400; font-size:1.35rem; color:#f7f1e7}
+.birth-report{
+  position:relative; width:min(100%,56rem); margin:0 auto; overflow:hidden;
+  border:1px solid var(--coz-rule);
+  background:linear-gradient(rgb(184 138 85 / .035) 1px, transparent 1px), var(--coz-paper);
+  background-size:100% 1.55rem;
+  box-shadow:0 2rem 5rem rgb(0 0 0 / .38);
+  color:var(--coz-ink);
+}
+.birth-report::before{position:absolute; inset:.75rem; border:1px solid rgb(184 138 85 / .48); content:""; pointer-events:none}
+.report-inner{position:relative; padding:2.5rem 3rem 2rem}
+.report-header,.section-heading,.report-footer{display:flex; align-items:flex-end; justify-content:space-between; gap:1rem}
+.wordmark{margin:0; color:var(--coz-gold); font-family:Georgia,"Times New Roman",serif; font-size:.85rem; letter-spacing:.18em}
+.report-header h1{margin:.45rem 0 0; font-family:Georgia,"Times New Roman",serif; font-size:clamp(2rem,5vw,3.25rem); font-weight:400; letter-spacing:-.03em; line-height:1}
+.chart-type{margin:0; color:var(--coz-gold); font-size:.8rem; letter-spacing:.14em; text-transform:uppercase}
+.birth-identity{display:grid; grid-template-columns:minmax(12rem,.8fr) 1.7fr; gap:2rem; margin-top:1.75rem; padding:1.2rem 0; border-block:1px solid var(--coz-rule)}
+.birth-identity h2{margin:0; font-family:Georgia,"Times New Roman",serif; font-size:1.45rem; font-weight:400}
+.birth-identity p{margin:.35rem 0 0; color:var(--coz-ink-soft); font-size:.78rem}
+.birth-identity dl{display:grid; grid-template-columns:1fr .8fr 1.4fr; gap:1rem; margin:0}
+.birth-identity dl div{min-width:0}
+.birth-identity dt,.calculation-strip span{color:var(--coz-gold); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase}
+.birth-identity dd{margin:.35rem 0 0; font-size:.9rem; line-height:1.45}
+.birth-timezone{display:block; margin-top:.12rem; color:var(--coz-ink-soft); font-size:.72rem}
+.ornamental-rule{width:100%; height:1px; margin:1.75rem 0; background:linear-gradient(90deg,transparent,var(--coz-gold),transparent)}
+.report-section{margin-top:2rem}
+.chart-section{margin-top:0}
+.section-heading{margin-bottom:.8rem; padding-bottom:.65rem; border-bottom:1px solid var(--coz-rule)}
+.section-heading h2{margin:.18rem 0 0; font-family:Georgia,"Times New Roman",serif; font-size:1.55rem; font-weight:400}
+.section-heading > p,.section-kicker{margin:0; color:var(--coz-gold); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase}
+.chart-frame{position:relative; width:min(100%,31rem); margin:1.35rem auto 0; padding:1rem; border:1px solid rgb(184 138 85 / .72); background:rgb(255 252 246 / .46)}
+.chart-frame::before,.chart-frame::after{position:absolute; top:-.3rem; width:.55rem; height:.55rem; transform:rotate(45deg); border:1px solid var(--coz-gold); background:var(--coz-paper); content:""}
+.chart-frame::before{left:1.5rem}
+.chart-frame::after{right:1.5rem}
+.north-indian-chart{display:block; width:100%; color:var(--coz-ink)}
+.chart-line{fill:none; stroke:currentColor; stroke-width:1.05; opacity:.67}
+.chart-sign,.chart-planet,.chart-degree{text-anchor:middle; dominant-baseline:middle; font-family:var(--font-sans)}
+.chart-sign{fill:rgb(7 22 43 / .74); font-size:.58rem; font-weight:600; paint-order:stroke; stroke:var(--coz-paper); stroke-linejoin:round; stroke-width:2.5px}
+.chart-planet{fill:var(--coz-ink); font-size:.61rem; font-weight:600}
+.chart-degree{fill:rgb(7 22 43 / .66); font-size:.46rem}
+.chart-ascendant{fill:var(--coz-gold)}
+.chart-planet.compact{font-size:5.8px} /* SVG user units: stable against the viewBox at every width */
+.chart-degree.compact{font-size:4.4px}
+.accordion-heading{margin-bottom:0}
+.insight-list{border-bottom:1px solid var(--coz-rule)}
+.insight-item{border-top:1px solid var(--coz-rule)}
+.insight-h{margin:0}
+.insight-trigger{
+  display:grid; grid-template-columns:minmax(10rem,.65fr) minmax(0,1.35fr) 1rem;
+  align-items:center; gap:1rem; width:100%; min-height:4.25rem; padding:.85rem .25rem;
+  border:0; background:none; text-align:left; color:var(--coz-ink); cursor:pointer;
+}
+.insight-trigger.insight-static{cursor:default}
+.insight-trigger:focus-visible{outline:2px solid var(--coz-gold); outline-offset:-2px}
+.insight-trigger > svg{width:1rem; height:1rem; color:var(--coz-gold); transition:transform .2s ease}
+.insight-trigger[aria-expanded="true"] > svg{transform:rotate(180deg)}
+.insight-label{color:var(--coz-gold); font-size:.75rem; font-weight:500; letter-spacing:.09em; line-height:1.35; text-transform:uppercase}
+.insight-answer{display:flex; align-items:center; flex-wrap:wrap; gap:.5rem; font-family:Georgia,"Times New Roman",serif; font-size:1.18rem; font-weight:400; line-height:1.3}
+.color-swatches{display:inline-flex; gap:.25rem}
+.color-swatch{width:.9rem; height:.9rem; border:1px solid rgb(7 22 43 / .16); border-radius:999px}
+.insight-content{margin-left:calc(32.5% + .5rem); padding:0 2rem .85rem 0; color:var(--coz-ink-soft); font-size:.92rem; line-height:1.65}
+.insight-content p{margin:0}
+.insight-content span{display:block; margin-top:.45rem; color:rgb(49 68 86 / .74); font-size:.76rem}
+@media screen{
+  .insight-content[hidden]{display:none}
+}
+.positions-scroll{width:100%; overflow-x:auto; -webkit-overflow-scrolling:touch}
+.positions-table{width:100%; min-width:39rem; border-collapse:collapse; font-size:.86rem}
+.positions-table th,.positions-table td{padding:.65rem .55rem; border-bottom:1px solid rgb(214 196 167 / .63); text-align:left}
+.positions-table thead th{color:var(--coz-gold); font-size:.7rem; font-weight:500; letter-spacing:.08em; text-transform:uppercase}
+.positions-table tbody th{color:var(--coz-rose); font-weight:500}
+.calculation-strip{display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; padding:1.1rem 0; border-block:1px solid var(--coz-rule)}
+.calculation-strip div{min-width:0}
+.calculation-strip strong{display:block; margin-top:.35rem; font-size:.82rem; font-weight:500; line-height:1.4}
+.report-footer{margin-top:1.5rem; color:rgb(49 68 86 / .76); font-size:.72rem; line-height:1.5}
+.report-footer p{margin:0}
+.report-footer p:first-child{max-width:34rem}
+.report-footer p:last-child{flex:0 0 auto; text-align:right}
+.build-stamp{position:fixed; right:.55rem; bottom:.4rem; z-index:60; color:rgb(184 138 85 / .5); font-size:.58rem; letter-spacing:.08em; pointer-events:none}
+@media (max-width:700px){
+  .report-shell{padding:1rem .5rem 3rem}
+  .report-toolbar{padding-inline:.4rem; justify-content:flex-end}
+  .report-toolbar > p{display:none}
+  .report-inner{padding:2rem 1.5rem 1.5rem}
+  .birth-identity{grid-template-columns:1fr; gap:1rem}
+  .birth-identity dl{grid-template-columns:1fr .8fr 1.4fr}
+  .insight-trigger{grid-template-columns:minmax(7.5rem,.7fr) minmax(0,1.3fr) 1rem; gap:.75rem}
+  .insight-content{margin-left:calc(35% + .35rem); padding-right:1.2rem}
+  .calculation-strip{grid-template-columns:1fr 1fr}
+  .report-footer{display:block}
+  .report-footer p:last-child{margin-top:.7rem; text-align:left}
+}
+@media (max-width:460px){
+  .report-header{align-items:flex-start}
+  .report-header h1{font-size:2rem}
+  .report-inner{padding-inline:1.15rem}
+  .birth-identity dl{grid-template-columns:1fr 1fr}
+  .birth-identity dl div:last-child{grid-column:1 / -1}
+  .section-heading{align-items:flex-start}
+  .section-heading > p{text-align:right}
+  .chart-frame{padding:.6rem}
+  .insight-trigger{grid-template-columns:minmax(0,1fr) 1rem; gap:.35rem .75rem; min-height:5rem}
+  .insight-label,.insight-answer{grid-column:1}
+  .insight-trigger > svg{grid-column:2; grid-row:1 / 3}
+  .insight-content{margin-left:0; padding-right:1.6rem}
+}
+@page{size:Letter; margin:.35in}
+@media print{
+  :root{--background:#ffffff; --foreground:#07162b}
+  html,body{background:#ffffff !important}
+  .screen-only,.report-toolbar,.sample-banner,.build-stamp{display:none !important}
+  .report-shell{min-height:0; padding:0}
+  .birth-report{width:100%; max-width:none; overflow:visible; border:0; box-shadow:none; print-color-adjust:exact; -webkit-print-color-adjust:exact}
+  .birth-report::before{inset:.2in}
+  .report-inner{padding:.3in .42in}
+  .report-section,.birth-identity,.calculation-strip{break-inside:avoid}
+  .chart-frame{width:3.9in; margin-top:.1in; padding:.09in}
+  .ornamental-rule{margin-block:.16in}
+  .report-section{margin-top:.2in}
+  .section-heading{margin-bottom:.04in; padding-bottom:.05in}
+  .insight-trigger{min-height:0; padding-block:.07in}
+  .insight-trigger > svg{display:none}
+  .insight-content{display:block !important}
+  .insight-content[hidden]{display:block !important}
+  .insight-content{padding-bottom:.08in; font-size:.72rem; line-height:1.45}
+  .positions-scroll{overflow:visible}
+  .positions-table{min-width:0; font-size:.69rem}
+  .positions-table th,.positions-table td{padding:.05in .04in}
+  .report-footer{font-size:.6rem}
+}
+</style>
+</head>
+<body>
+<div class="report-shell">
+  <div class="report-toolbar">
+    <p>BIRTH-CHART PRINT PREVIEW</p>
+    <button type="button" class="print-button" id="printBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-3M7 14h10v7H7z"/></svg>
+      Print / Save PDF
+    </button>
+  </div>
+  <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
+  <div id="reportMount"></div>
+</div>
+<div class="build-stamp">BIRTH CHART · BC2.0 · master port</div>
+<script>
+"use strict";
+/* Renderer only. This page never calculates astronomy; every value comes from
+   the cozChartJSON payload written by the master engine, or from the explicit
+   non-production fixtures below. */
+
+var SIGN_NAMES = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+var PLANET_ORDER = ["Ascendant","Sun","Moon","Mars","Mercury","Jupiter","Venus","Saturn","Rahu","Ketu"];
+var ABBREV = {Ascendant:"As",Sun:"Su",Moon:"Mo",Mars:"Ma",Mercury:"Me",Jupiter:"Ju",Venus:"Ve",Saturn:"Sa",Rahu:"Ra",Ketu:"Ke"};
+var DISCLOSURE = "This AI-generated astrological content is provided for reflection and entertainment only. It is not scientific, medical, legal, financial, or professional advice.";
+
+function mod(n,m){return ((n%m)+m)%m;}
+function signOccupyingHouse(house,ascendantSign){return mod(ascendantSign+house-2,12)+1;}
+function pad2(n){return (n<10?"0":"")+n;}
+function fmtDegree(deg,min){return pad2(deg)+"\u00B0"+pad2(min)+"\u2032";}
+
+/* ---------- North Indian chart slot engine ----------
+   Fixed house compartments; per-house slot plans indexed by body count.
+   Plans for houses 1-4 are authored (single-body positions match the approved
+   mockup); the mirrored houses derive by reflection. A plan marked compact
+   renders with the reduced label classes. Counts beyond the largest plan reuse
+   the last plan and offset the overflow downward - a documented degradation
+   for beyond-stellium cases. */
+var PLANS_H1 = [
+  {pts:[[150,68]]},
+  {pts:[[116,69],[184,69]]},
+  {pts:[[150,42],[112,82],[188,82]]},
+  {pts:[[120,44],[180,44],[108,88],[192,88]]},
+  {pts:[[150,38],[108,70],[192,70],[130,100],[170,100]],compact:true},
+  {pts:[[128,40],[172,40],[102,70],[198,70],[132,100],[168,100]],compact:true}
+];
+var PLANS_H2 = [
+  {pts:[[67,30]]},
+  {pts:[[43,25],[91,25]]},
+  {pts:[[43,25],[91,25],[67,53]]},
+  {pts:[[46,15],[77,15],[108,15],[76,40]],compact:true}
+];
+var PLANS_H3 = [
+  {pts:[[27,88]]},
+  {pts:[[27,54],[27,103]]},
+  {pts:[[20,44],[20,78],[15,106]],compact:true},
+  {pts:[[18,34],[18,58],[17,82],[15,106]],compact:true},
+  {pts:[[16,34],[16,52],[16,70],[16,88],[15,106]],compact:true}
+];
+var PLANS_H4 = [
+  {pts:[[61,150]]},
+  {pts:[[61,128],[61,172]]},
+  {pts:[[38,150],[72,122],[72,178]]},
+  {pts:[[52,130],[52,168],[90,130],[90,168]],compact:true},
+  {pts:[[38,150],[54,126],[54,168],[94,126],[94,168]],compact:true},
+  {pts:[[30,150],[54,124],[54,174],[96,126],[96,174],[76,150]],compact:true}
+];
+function flipPlans(plans,fx,fy){
+  return plans.map(function(p){
+    return {compact:p.compact,pts:p.pts.map(function(pt){
+      return [fx?300-pt[0]:pt[0], fy?300-pt[1]:pt[1]];
+    })};
+  });
+}
+var HOUSE_PLANS = {
+  1:PLANS_H1, 2:PLANS_H2, 3:PLANS_H3, 4:PLANS_H4,
+  5:flipPlans(PLANS_H3,false,true), 6:flipPlans(PLANS_H2,false,true),
+  7:flipPlans(PLANS_H1,false,true), 8:flipPlans(PLANS_H2,true,true),
+  9:flipPlans(PLANS_H3,true,true), 10:flipPlans(PLANS_H4,true,false),
+  11:flipPlans(PLANS_H3,true,false), 12:flipPlans(PLANS_H2,true,false)
+};
+/* single-body positions from the approved mockup override the mirrors */
+[[5,27,224],[6,73,270],[7,150,238],[8,227,270],[9,245,224],[12,227,25]].forEach(function(o){
+  HOUSE_PLANS[o[0]][0] = {pts:[[o[1],o[2]]]};
+});
+var SIGN_POINTS = {1:[150,132],2:[72,61],3:[55,76],4:[132,150],5:[55,224],6:[72,239],7:[150,168],8:[228,239],9:[245,224],10:[168,150],11:[245,76],12:[228,61]};
+
+/* ---------- Fixtures (explicit non-production preview only) ---------- */
+var DEMO_BIRTH_CHART = {
+  version:1, reportId:"DEMO-D1-001",
+  person:{name:"Sample Client", note:"Illustrative chart data for design review"},
+  birth:{date:"December 1, 1978", time:"5:45 AM", location:"Rochester, New York", timezone:"EST \u00B7 UTC\u221205:00"},
+  calculation:{ayanamsha:"Lahiri \u00B7 23\u00B032\u203235\u2033", houses:"Whole Sign", nodes:"Mean Rahu & Ketu"},
+  ascendantSignNumber:7,
+  planets:[
+    {name:"Ascendant",signNumber:7,degrees:25,minutes:21,house:1,nakshatra:"Vishakha",pada:2},
+    {name:"Sun",signNumber:8,degrees:15,minutes:21,house:2,nakshatra:"Anuradha",pada:4},
+    {name:"Moon",signNumber:9,degrees:0,minutes:19,house:3,nakshatra:"Mula",pada:1},
+    {name:"Mars",signNumber:8,degrees:27,minutes:59,house:2,nakshatra:"Jyeshtha",pada:4},
+    {name:"Mercury",signNumber:8,degrees:25,minutes:23,house:2,nakshatra:"Jyeshtha",pada:3},
+    {name:"Jupiter",signNumber:4,degrees:15,minutes:28,house:10,nakshatra:"Pushya",pada:4},
+    {name:"Venus",signNumber:7,degrees:13,minutes:58,house:1,nakshatra:"Swati",pada:3},
+    {name:"Saturn",signNumber:5,degrees:19,minutes:54,house:11,nakshatra:"Purva Phalguni",pada:2},
+    {name:"Rahu",signNumber:5,degrees:29,minutes:18,house:11,nakshatra:"Uttara Phalguni",pada:1},
+    {name:"Ketu",signNumber:11,degrees:29,minutes:18,house:5,nakshatra:"Purva Bhadrapada",pada:3}
+  ],
+  panchanga:[
+    {label:"Vara \u00B7 Birth Weekday",value:"Thursday \u00B7 Jupiter",explanation:"Traditionally associated with learning, guidance and the desire to understand life through a wider lens."},
+    {label:"Tithi \u00B7 Lunar Day",value:"Shukla Dwitiya",explanation:"The second day of the waxing Moon suggests gradual development, building momentum and allowing something time to take form.",meta:"Second lunar day \u00B7 Waxing Moon"},
+    {label:"Birth Star",value:"Mula \u00B7 Pada 1",explanation:"Mula may describe an instinct to question appearances, remove what is unnecessary and reach the root of an experience.",meta:"Ruled by Ketu"},
+    {label:"Yoga \u00B7 Sun\u2013Moon Pattern",value:"Dhriti",explanation:"Traditionally linked with steadiness, resolve and the ability to hold a chosen direction when patience is required."},
+    {label:"Karana \u00B7 Half Lunar Day",value:"Balava",explanation:"Karana describes the active quality within half of a lunar day. Balava is traditionally associated with developing strength through steady participation."}
+  ],
+  mahadasha:[
+    {label:"Mahadasha at Birth",value:"Ketu \u00B7 6y 10m remaining",explanation:"The Moon's birth nakshatra determines the first Vimshottari major period and the proportion of that period remaining at birth.",meta:"Calculated from Mula \u00B7 Pada 1"},
+    {label:"Current Mahadasha",value:"Mars \u00B7 Oct 2021\u2013Oct 2028",explanation:"This is the major Vimshottari period active on the report date. Subperiods and their interpretation remain within Current Life Cycle.",meta:"Calculated as of September 8, 2026 \u00B7 No subperiods shown"}
+  ],
+  alignments:[
+    {label:"Supportive Weekday",value:"Friday",explanation:"Friday is linked with Venus, ruler of this Libra Ascendant, and may support connection, cooperation, beauty and restoration."},
+    {label:"Symbolic Colors",value:"Ivory \u00B7 Soft Blue \u00B7 Rose",swatches:["#ede4d5","#b7cbd6","#d3aaa4"],explanation:"These are traditional Venus and Libra correspondences for personal use and reflection\u2014not guaranteed lucky colors."},
+    {label:"Supportive Environment",value:"Balanced \u00B7 Walkable \u00B7 Connected",explanation:"A visually harmonious place with culture, community and comfortable shared spaces may feel supportive. An exact city requires a separate relocation analysis."},
+    {label:"Annual Timing \u00B7 2026",value:"Supportive: May & October \u00B7 More demanding: February & August",explanation:"These month-level themes apply only to the named year and must be recalculated for each new annual report rather than treated as permanent birth-chart facts.",meta:"Illustrative design values \u00B7 Replace with approved annual-timing output"}
+  ]
+};
+
+/* Collision-QA fixture: four bodies stacked in a corner house (2) and three in
+   a diamond house (10), per the handoff's mandatory multi-body test. */
+var STELLIUM_QA = (function(){
+  var d = JSON.parse(JSON.stringify(DEMO_BIRTH_CHART));
+  d.reportId = "QA-STELLIUM-001";
+  d.person = {name:"Collision QA", note:"Non-production fixture \u00B7 four bodies in house 2"};
+  d.ascendantSignNumber = 1;
+  d.planets = [
+    {name:"Ascendant",signNumber:1,degrees:5,minutes:10,house:1,nakshatra:"Ashwini",pada:2},
+    {name:"Sun",signNumber:2,degrees:11,minutes:2,house:2,nakshatra:"Rohini",pada:1},
+    {name:"Moon",signNumber:2,degrees:19,minutes:44,house:2,nakshatra:"Rohini",pada:3},
+    {name:"Mars",signNumber:2,degrees:3,minutes:8,house:2,nakshatra:"Krittika",pada:2},
+    {name:"Mercury",signNumber:2,degrees:27,minutes:31,house:2,nakshatra:"Mrigashira",pada:1},
+    {name:"Jupiter",signNumber:10,degrees:15,minutes:0,house:10,nakshatra:"Shravana",pada:2},
+    {name:"Venus",signNumber:10,degrees:2,minutes:20,house:10,nakshatra:"Uttara Ashadha",pada:2},
+    {name:"Saturn",signNumber:10,degrees:22,minutes:5,house:10,nakshatra:"Shravana",pada:4},
+    {name:"Rahu",signNumber:12,degrees:8,minutes:0,house:12,nakshatra:"Uttara Bhadrapada",pada:2},
+    {name:"Ketu",signNumber:6,degrees:8,minutes:0,house:6,nakshatra:"Uttara Phalguni",pada:4}
+  ];
+  d.panchanga = null; d.mahadasha = null; d.alignments = null;
+  return d;
+})();
+
+/* ---------- Payload validation ---------- */
+function validatePayload(c){
+  var errs = [];
+  if (!c || typeof c !== "object") return ["no payload"];
+  if (!c.person || !c.person.name) errs.push("person.name missing");
+  if (!c.birth || !c.birth.date || !c.birth.time || !c.birth.location || !c.birth.timezone) errs.push("birth facts incomplete");
+  if (!c.calculation || !c.calculation.ayanamsha) errs.push("calculation settings missing");
+  if (!(c.ascendantSignNumber >= 1 && c.ascendantSignNumber <= 12)) errs.push("ascendantSignNumber invalid");
+  if (!Array.isArray(c.planets) || c.planets.length !== 10) errs.push("planets must list the Ascendant and nine grahas");
+  else c.planets.forEach(function(p){
+    if (PLANET_ORDER.indexOf(p.name) < 0) errs.push("unknown body " + p.name);
+    if (!(p.signNumber >= 1 && p.signNumber <= 12)) errs.push(p.name + " signNumber invalid");
+    if (!(p.house >= 1 && p.house <= 12)) errs.push(p.name + " house invalid");
+    if (!(p.pada >= 1 && p.pada <= 4)) errs.push(p.name + " pada invalid");
+    if (!(p.degrees >= 0 && p.degrees <= 29) || !(p.minutes >= 0 && p.minutes <= 59)) errs.push(p.name + " degree display invalid");
+    if (!p.nakshatra) errs.push(p.name + " nakshatra missing");
+    /* renderer-side consistency: the house must agree with the payload's own
+       ascendant, since the table and the diagram share one dataset */
+    if (p.signNumber >= 1 && p.house >= 1 && c.ascendantSignNumber >= 1){
+      if (signOccupyingHouse(p.house, c.ascendantSignNumber) !== p.signNumber)
+        errs.push(p.name + " sign/house disagree with the Ascendant");
+    }
+  });
+  return errs;
+}
+
+/* ---------- Rendering ---------- */
+function el(tag,cls,text){
+  var n = document.createElement(tag);
+  if (cls) n.className = cls;
+  if (text != null) n.textContent = text;
+  return n;
+}
+function svgEl(tag,attrs){
+  var n = document.createElementNS("http://www.w3.org/2000/svg",tag);
+  for (var k in attrs) n.setAttribute(k,attrs[k]);
+  return n;
+}
+
+function renderChartSVG(chart){
+  var frame = el("div","chart-frame");
+  var svg = svgEl("svg",{class:"north-indian-chart",viewBox:"0 0 300 300",role:"img","aria-label":"North Indian D1 birth chart with the Ascendant in "+SIGN_NAMES[chart.ascendantSignNumber-1]});
+  svg.appendChild(svgEl("rect",{class:"chart-line",x:1,y:1,width:298,height:298}));
+  svg.appendChild(svgEl("path",{class:"chart-line",d:"M150 1 L299 150 L150 299 L1 150 Z"}));
+  svg.appendChild(svgEl("path",{class:"chart-line",d:"M1 1 L150 150 L299 1 M299 299 L150 150 L1 299"}));
+
+  /* group bodies by house in deterministic production order */
+  var byHouse = {};
+  PLANET_ORDER.forEach(function(name){
+    chart.planets.forEach(function(p){
+      if (p.name === name){
+        (byHouse[p.house] = byHouse[p.house] || []).push(p);
+      }
+    });
+  });
+  Object.keys(byHouse).forEach(function(hk){
+    var h = Number(hk), bodies = byHouse[h];
+    var plans = HOUSE_PLANS[h];
+    var plan = plans[Math.min(bodies.length, plans.length) - 1];
+    bodies.forEach(function(p,i){
+      var pt, overflow = 0;
+      if (i < plan.pts.length) pt = plan.pts[i];
+      else { pt = plan.pts[plan.pts.length-1]; overflow = 20*(i - plan.pts.length + 1); }
+      var compact = plan.compact ? " compact" : "";
+      var nameCls = (p.name === "Ascendant" ? "chart-planet chart-ascendant" : "chart-planet") + compact;
+      var t1 = svgEl("text",{class:nameCls,x:pt[0],y:pt[1]+overflow});
+      t1.textContent = p.name;
+      var t2 = svgEl("text",{class:"chart-degree"+compact,x:pt[0],y:pt[1]+12+overflow});
+      t2.textContent = fmtDegree(p.degrees,p.minutes) + " \u00B7 P" + p.pada;
+      svg.appendChild(t1); svg.appendChild(t2);
+    });
+  });
+
+  /* sign numerals last so they stay on top */
+  for (var house = 1; house <= 12; house++){
+    var sp = SIGN_POINTS[house];
+    var s = svgEl("text",{class:"chart-sign",x:sp[0],y:sp[1]});
+    s.textContent = String(signOccupyingHouse(house,chart.ascendantSignNumber));
+    svg.appendChild(s);
+  }
+  frame.appendChild(svg);
+  return frame;
+}
+
+function sectionHeading(kicker,title,id,side,sideScreenOnly){
+  var head = el("div","section-heading" + (sideScreenOnly ? " accordion-heading" : ""));
+  var left = el("div");
+  left.appendChild(el("p","section-kicker",kicker));
+  var h2 = el("h2",null,title); h2.id = id;
+  left.appendChild(h2);
+  head.appendChild(left);
+  var p = el("p",sideScreenOnly ? "screen-only" : null,side);
+  head.appendChild(p);
+  return head;
+}
+
+var accordionSeq = 0;
+function renderInsightList(items,prefix){
+  var list = el("div","insight-list");
+  items.forEach(function(item){
+    var wrap = el("div","insight-item");
+    var hasBody = !!(item.explanation || item.meta);
+    var answer = el("span","insight-answer");
+    answer.appendChild(document.createTextNode(item.value));
+    if (item.swatches && item.swatches.length){
+      var sw = el("span","color-swatches");
+      sw.setAttribute("aria-label",item.value + " color samples");
+      item.swatches.forEach(function(color){
+        var dot = el("span","color-swatch");
+        dot.style.backgroundColor = color;
+        dot.setAttribute("aria-hidden","true");
+        sw.appendChild(dot);
+      });
+      answer.appendChild(sw);
+    }
+    if (hasBody){
+      var cid = prefix + "-c" + (++accordionSeq);
+      var h3 = el("h3","insight-h");
+      var btn = el("button","insight-trigger");
+      btn.type = "button";
+      btn.setAttribute("aria-expanded","false");
+      btn.setAttribute("aria-controls",cid);
+      btn.appendChild(el("span","insight-label",item.label));
+      btn.appendChild(answer);
+      var chev = svgEl("svg",{viewBox:"0 0 24 24",fill:"none",stroke:"currentColor","stroke-width":"2","aria-hidden":"true"});
+      chev.appendChild(svgEl("path",{d:"M6 9l6 6 6-6"}));
+      btn.appendChild(chev);
+      h3.appendChild(btn);
+      wrap.appendChild(h3);
+      var content = el("div","insight-content");
+      content.id = cid;
+      content.hidden = true;
+      if (item.explanation) content.appendChild(el("p",null,item.explanation));
+      if (item.meta) content.appendChild(el("span",null,item.meta));
+      wrap.appendChild(content);
+      btn.addEventListener("click",function(){
+        var open = btn.getAttribute("aria-expanded") === "true";
+        /* single-open per section */
+        list.querySelectorAll('.insight-trigger[aria-expanded="true"]').forEach(function(other){
+          other.setAttribute("aria-expanded","false");
+          document.getElementById(other.getAttribute("aria-controls")).hidden = true;
+        });
+        if (!open){
+          btn.setAttribute("aria-expanded","true");
+          content.hidden = false;
+        }
+      });
+    } else {
+      var row = el("div","insight-trigger insight-static");
+      row.appendChild(el("span","insight-label",item.label));
+      row.appendChild(answer);
+      row.appendChild(el("span"));
+      wrap.appendChild(row);
+    }
+    list.appendChild(wrap);
+  });
+  return list;
+}
+
+function renderReport(chart){
+  var article = el("article","birth-report");
+  article.setAttribute("aria-label","Vedic birth chart report");
+  var inner = el("div","report-inner");
+
+  var header = el("header","report-header");
+  var hl = el("div");
+  hl.appendChild(el("p","wordmark","COZALYZE"));
+  hl.appendChild(el("h1",null,"Vedic Birth Chart"));
+  header.appendChild(hl);
+  header.appendChild(el("p","chart-type","D1 \u00B7 Rashi"));
+  inner.appendChild(header);
+
+  var identity = el("section","birth-identity");
+  identity.setAttribute("aria-label","Verified birth information");
+  var who = el("div");
+  who.appendChild(el("h2",null,chart.person.name));
+  if (chart.person.note) who.appendChild(el("p",null,chart.person.note));
+  identity.appendChild(who);
+  var dl = el("dl");
+  [["Date",chart.birth.date,null],["Time",chart.birth.time,chart.birth.timezone],["Location",chart.birth.location,null]].forEach(function(row){
+    var d = el("div");
+    d.appendChild(el("dt",null,row[0]));
+    var dd = el("dd",null,row[1]);
+    if (row[2]) dd.appendChild(el("span","birth-timezone",row[2]));
+    d.appendChild(dd);
+    dl.appendChild(d);
+  });
+  identity.appendChild(dl);
+  inner.appendChild(identity);
+
+  inner.appendChild(el("div","ornamental-rule"));
+
+  var chartSec = el("section","chart-section report-section");
+  chartSec.setAttribute("aria-labelledby","chart-heading");
+  chartSec.appendChild(sectionHeading("Your celestial blueprint","Rashi Chart","chart-heading","North Indian format",false));
+  chartSec.appendChild(renderChartSVG(chart));
+  inner.appendChild(chartSec);
+
+  if (chart.panchanga && chart.panchanga.length){
+    var pan = el("section","report-section");
+    pan.setAttribute("aria-labelledby","panchanga-heading");
+    pan.appendChild(sectionHeading("The quality of your birth moment","Birth Panchanga","panchanga-heading","Select a line for its meaning",true));
+    pan.appendChild(renderInsightList(chart.panchanga,"panchanga"));
+    inner.appendChild(pan);
+  }
+  if (chart.mahadasha && chart.mahadasha.length){
+    var md = el("section","report-section");
+    md.setAttribute("aria-labelledby","mahadasha-heading");
+    md.appendChild(sectionHeading("Your major timing cycle","Vimshottari Mahadasha","mahadasha-heading","Major periods only",true));
+    md.appendChild(renderInsightList(chart.mahadasha,"mahadasha"));
+    inner.appendChild(md);
+  }
+  if (chart.alignments && chart.alignments.length){
+    var al = el("section","report-section");
+    al.setAttribute("aria-labelledby","alignments-heading");
+    al.appendChild(sectionHeading("Traditional correspondences","Personal Alignments","alignments-heading","Your answers remain visible",true));
+    al.appendChild(renderInsightList(chart.alignments,"alignment"));
+    inner.appendChild(al);
+  }
+
+  var pos = el("section","report-section positions-section");
+  pos.setAttribute("aria-labelledby","positions-heading");
+  pos.appendChild(sectionHeading("Reference data","Planetary Positions","positions-heading","D1 only",false));
+  var scroll = el("div","positions-scroll");
+  var table = el("table","positions-table");
+  var thead = el("thead"); var trh = el("tr");
+  ["Graha","Sign & degree","House","Nakshatra","Pada"].forEach(function(t){
+    var th = el("th",null,t); th.setAttribute("scope","col"); trh.appendChild(th);
+  });
+  thead.appendChild(trh); table.appendChild(thead);
+  var tbody = el("tbody");
+  chart.planets.forEach(function(p){
+    var tr = el("tr");
+    var th = el("th",null,p.name); th.setAttribute("scope","row"); tr.appendChild(th);
+    tr.appendChild(el("td",null,SIGN_NAMES[p.signNumber-1] + " " + fmtDegree(p.degrees,p.minutes)));
+    tr.appendChild(el("td",null,String(p.house)));
+    tr.appendChild(el("td",null,p.nakshatra));
+    tr.appendChild(el("td",null,String(p.pada)));
+    tbody.appendChild(tr);
+  });
+  table.appendChild(tbody);
+  scroll.appendChild(table);
+  pos.appendChild(scroll);
+  inner.appendChild(pos);
+
+  var calc = el("section","calculation-strip report-section");
+  calc.setAttribute("aria-label","Calculation settings");
+  [["Ayanamsha",chart.calculation.ayanamsha],["Houses",chart.calculation.houses],["Nodes",chart.calculation.nodes],["Time zone",chart.birth.timezone]].forEach(function(row){
+    var d = el("div");
+    d.appendChild(el("span",null,row[0]));
+    d.appendChild(el("strong",null,row[1]));
+    calc.appendChild(d);
+  });
+  inner.appendChild(calc);
+
+  var footer = el("footer","report-footer");
+  footer.appendChild(el("p",null,DISCLOSURE));
+  footer.appendChild(el("p",null,"Generated by CozAlyze \u00B7 " + chart.reportId));
+  inner.appendChild(footer);
+
+  article.appendChild(inner);
+  return article;
+}
+
+function renderEmptyState(){
+  var card = el("div","empty-card");
+  card.appendChild(el("h2",null,"No saved birth chart yet"));
+  card.appendChild(el("p",null,"Your chart is saved to this device when your reading is prepared. Open your reading first, then return here for your printable birth chart."));
+  return card;
+}
+
+/* ---------- Boot ---------- */
+(function(){
+  var mount = document.getElementById("reportMount");
+  var banner = document.getElementById("sampleBanner");
+  document.getElementById("printBtn").addEventListener("click",function(){window.print();});
+
+  var qp = new URLSearchParams(location.search);
+  var chart = null, isSample = false;
+
+  if (qp.get("chart") === "demo"){ chart = DEMO_BIRTH_CHART; isSample = true; }
+  else if (qp.get("chart") === "stellium"){ chart = STELLIUM_QA; isSample = true; }
+  else {
+    var raw = null;
+    try { raw = localStorage.getItem("cozChartJSON"); } catch(e){}
+    if (raw){
+      try {
+        var parsed = JSON.parse(raw);
+        var errs = validatePayload(parsed);
+        if (errs.length === 0) chart = parsed;
+        else if (window.console) console.warn("cozChartJSON rejected: " + errs.join("; "));
+      } catch(e){ if (window.console) console.warn("cozChartJSON unreadable"); }
+    }
+  }
+
+  if (!chart){
+    if (!isSample && !qp.get("chart")){ mount.appendChild(renderEmptyState()); return; }
+    mount.appendChild(renderEmptyState()); return;
+  }
+  var errsFinal = validatePayload(chart);
+  if (errsFinal.length){ mount.appendChild(renderEmptyState()); return; }
+  if (isSample) banner.hidden = false;
+  mount.appendChild(renderReport(chart));
+})();
+
+</script>
+</body>
+</html>
