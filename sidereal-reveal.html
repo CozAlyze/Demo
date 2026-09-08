@@ -1031,7 +1031,7 @@ var BIRTH = __ok ? {
 console.log('[EMERGE FLOW] 5. sidereal-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 document.getElementById('stamp').textContent =
-  'SIDEREAL v19.90 mobile page two · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'SIDEREAL v19.91 mobile page two · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -4036,6 +4036,146 @@ function sdZoomWire(){
   function end(e){ if (e.touches.length < 2) pinch = null; }
   page.addEventListener('touchend', end); page.addEventListener('touchcancel', end);
 }
+
+/* ============================================================
+   v19.91 BIRTH-CHART EXPORTER — writes the resolved D1 chart to
+   localStorage "cozChartJSON" for vedic-birth-chart.html (renderer only).
+   Runs once per load, real user birth data only — the QA fallback profile
+   is never exported. Everything here reuses the engine's already-resolved
+   values (ascSid, GRAHAS, AYAN, sixVimshottari); no second calculation
+   path is created. Panchanga arithmetic (Tithi, Yoga, Karana) is pure
+   longitude math on the engine's own Sun/Moon values per the approved
+   handoff formulas; Vara uses the sunrise rule via astronomy-engine and
+   is omitted when sunrise cannot be established. Rows carry values only
+   (plus factual meta) until the approved CozAlyze copy library supplies
+   explanations; Personal Alignments is omitted entirely until approved
+   interpretation content exists.
+   ============================================================ */
+(function cozBirthChartExport(){
+  try {
+    if (!__ok) { console.log('[EMERGE FLOW] 8. birth-chart export skipped: QA fallback profile, nothing written'); return; }
+
+    var FULL_NAK = ['Ashwini','Bharani','Krittika','Rohini','Mrigashira','Ardra','Punarvasu','Pushya','Ashlesha','Magha','Purva Phalguni','Uttara Phalguni','Hasta','Chitra','Swati','Vishakha','Anuradha','Jyeshtha','Mula','Purva Ashadha','Uttara Ashadha','Shravana','Dhanishtha','Shatabhisha','Purva Bhadrapada','Uttara Bhadrapada','Revati'];
+    var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    var MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var WEEKDAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var WEEKDAY_LORDS = ['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn'];
+    var TITHI_NAMES = ['Pratipada','Dwitiya','Tritiya','Chaturthi','Panchami','Shashthi','Saptami','Ashtami','Navami','Dashami','Ekadashi','Dwadashi','Trayodashi','Chaturdashi'];
+    var TITHI_ORDINALS = ['First','Second','Third','Fourth','Fifth','Sixth','Seventh','Eighth','Ninth','Tenth','Eleventh','Twelfth','Thirteenth','Fourteenth','Fifteenth'];
+    var YOGA_NAMES = ['Vishkambha','Priti','Ayushman','Saubhagya','Shobhana','Atiganda','Sukarma','Dhriti','Shula','Ganda','Vriddhi','Dhruva','Vyaghata','Harshana','Vajra','Siddhi','Vyatipata','Variyana','Parigha','Shiva','Siddha','Sadhya','Shubha','Shukla','Brahma','Indra','Vaidhriti'];
+    var KARANA_CYCLE = ['Bava','Balava','Kaulava','Taitila','Garaja','Vanija','Vishti'];
+
+    /* verified local birth facts, strictly parsed from the stored record */
+    var dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(SAVED.birthDate || ''));
+    var tm = /^(\d{1,2}):(\d{2})/.exec(String(SAVED.birthTime || ''));
+    var locName = (SAVED.location && (SAVED.location.name || SAVED.location.country)) || '';
+    if (!dm || !tm || !locName) { console.log('[EMERGE FLOW] 8. birth-chart export skipped: stored birth record not display-parseable, nothing invented'); return; }
+    var by = +dm[1], bmo = +dm[2], bd = +dm[3], bh = +tm[1], bmin = +tm[2];
+    var offsetMin = Math.round((Date.UTC(by, bmo - 1, bd, bh, bmin) - BIRTH.utc.getTime()) / 60000);
+    if (!isFinite(offsetMin) || Math.abs(offsetMin) > 14 * 60) { console.log('[EMERGE FLOW] 8. birth-chart export skipped: UTC offset unresolvable'); return; }
+    var oa = Math.abs(offsetMin);
+    var tzDisplay = 'UTC' + (offsetMin < 0 ? '\u2212' : '+') + ('0' + Math.floor(oa / 60)).slice(-2) + ':' + ('0' + (oa % 60)).slice(-2);
+    var h12 = bh % 12 === 0 ? 12 : bh % 12;
+    var dateDisplay = MONTHS[bmo - 1] + ' ' + bd + ', ' + by;
+    var timeDisplay = h12 + ':' + ('0' + bmin).slice(-2) + ' ' + (bh < 12 ? 'AM' : 'PM');
+
+    function nakPada(sid){
+      return { idx: Math.floor(sid / (360 / 27)) % 27, pada: Math.floor(sid / (360 / 108)) % 4 + 1 };
+    }
+    function planetEntry(name, sid, house){
+      var within = sid % 30, np = nakPada(sid);
+      return { name: name, signNumber: Math.floor(sid / 30) + 1,
+               degrees: Math.floor(within),
+               /* handoff display rounding; clamped at 59 so the display sign never
+                  disagrees with the classification sign and house */
+               minutes: Math.min(59, Math.round((within - Math.floor(within)) * 60)),
+               house: house, nakshatra: FULL_NAK[np.idx], pada: np.pada };
+    }
+    var planets = [planetEntry('Ascendant', ascSid, 1)];
+    ['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn','Rahu','Ketu'].forEach(function(k){
+      var g = findGraha(k);
+      planets.push(planetEntry(k, g.sid, g.house));
+    });
+
+    /* Birth Panchanga — approved handoff arithmetic on the engine's longitudes */
+    var sunSid = findGraha('Sun').sid, moonSid = findGraha('Moon').sid;
+    var elong = norm360(moonSid - sunSid);
+    var panchanga = [];
+
+    /* Vara: local sunrise-to-sunrise Jyotish day; omitted cleanly if sunrise is unavailable */
+    if (Astronomy.SearchRiseSet){
+      try {
+        var midnightLocalUtcMs = Date.UTC(by, bmo - 1, bd, 0, 0) - offsetMin * 60000;
+        var sr = Astronomy.SearchRiseSet('Sun', observer, +1, Astronomy.MakeTime(new Date(midnightLocalUtcMs)), 1);
+        if (sr && sr.date){
+          var preSunrise = BIRTH.utc.getTime() < sr.date.getTime();
+          var wd = new Date(Date.UTC(by, bmo - 1, bd) - (preSunrise ? 86400000 : 0)).getUTCDay();
+          panchanga.push({ label: 'Vara \u00B7 Birth Weekday', value: WEEKDAYS[wd] + ' \u00B7 ' + WEEKDAY_LORDS[wd] });
+        }
+      } catch(_){}
+    }
+
+    var ti = Math.floor(elong / 12);
+    var tithiValue = ti === 14 ? 'Purnima' : ti === 29 ? 'Amavasya'
+                   : (ti < 15 ? 'Shukla ' : 'Krishna ') + TITHI_NAMES[ti % 15];
+    panchanga.push({ label: 'Tithi \u00B7 Lunar Day', value: tithiValue,
+                     meta: TITHI_ORDINALS[ti % 15] + ' lunar day \u00B7 ' + (ti < 15 ? 'Waxing' : 'Waning') + ' Moon' });
+
+    var mNP = nakPada(moonSid);
+    panchanga.push({ label: 'Birth Star', value: FULL_NAK[mNP.idx] + ' \u00B7 Pada ' + mNP.pada,
+                     meta: 'Ruled by ' + SIX_VIM_LORDS[mNP.idx % 9] });
+
+    panchanga.push({ label: 'Yoga \u00B7 Sun\u2013Moon Pattern', value: YOGA_NAMES[Math.floor(norm360(moonSid + sunSid) / (360 / 27)) % 27] });
+
+    var k1 = Math.floor(elong / 6) + 1;
+    var karanaValue = k1 === 1 ? 'Kimstughna' : k1 <= 57 ? KARANA_CYCLE[(k1 - 2) % 7]
+                    : ['Shakuni','Chatushpada','Naga'][k1 - 58];
+    panchanga.push({ label: 'Karana \u00B7 Half Lunar Day', value: karanaValue });
+
+    /* Vimshottari — major periods only, straight from the engine's own math */
+    var V = sixVimshottari(moonSid, BIRTH.utc.getTime(), READING_AS_OF_MS);
+    var balY = Math.floor(V.birth_mahadasha_balance_years);
+    var balM = Math.round((V.birth_mahadasha_balance_years - balY) * 12);
+    if (balM === 12){ balY++; balM = 0; }
+    var mahadasha = [{
+      label: 'Mahadasha at Birth',
+      value: V.birth_mahadasha_lord + ' \u00B7 ' + balY + 'y ' + balM + 'm remaining',
+      explanation: "The Moon's birth nakshatra determines the first Vimshottari major period and the proportion of that period remaining at birth.",
+      meta: 'Calculated from ' + FULL_NAK[mNP.idx] + ' \u00B7 Pada ' + mNP.pada
+    }];
+    if (V.current_mahadasha){
+      var cs = new Date(V.current_mahadasha.start), ce = new Date(V.current_mahadasha.end), ao = new Date(READING_AS_OF_MS);
+      mahadasha.push({
+        label: 'Current Mahadasha',
+        value: V.current_mahadasha.lord + ' \u00B7 ' + MONTHS_SHORT[cs.getUTCMonth()] + ' ' + cs.getUTCFullYear() + '\u2013' + MONTHS_SHORT[ce.getUTCMonth()] + ' ' + ce.getUTCFullYear(),
+        explanation: 'This is the major Vimshottari period active on the report date. Subperiods and their interpretation remain within Current Life Cycle.',
+        meta: 'Calculated as of ' + MONTHS[ao.getUTCMonth()] + ' ' + ao.getUTCDate() + ', ' + ao.getUTCFullYear() + ' \u00B7 No subperiods shown'
+      });
+    }
+
+    var ay = AYAN, ayd = Math.floor(ay), aym = Math.floor((ay - ayd) * 60), ays = Math.round(((ay - ayd) * 60 - aym) * 60);
+    if (ays === 60){ ays = 0; aym++; }
+    if (aym === 60){ aym = 0; ayd++; }
+
+    var payload = {
+      version: 1,
+      generatedAt: GENERATED_AT_ISO,
+      reportId: 'COZ-D1-' + BIRTH.utc.getTime().toString(36).toUpperCase(),
+      birth: { date: dateDisplay, time: timeDisplay, location: locName, timezone: tzDisplay },
+      calculation: { ayanamsha: 'Lahiri \u00B7 ' + ayd + '\u00B0' + ('0' + aym).slice(-2) + '\u2032' + ('0' + ays).slice(-2) + '\u2033',
+                     houses: 'Whole Sign', nodes: 'Mean Rahu & Ketu' },
+      ascendantSignNumber: ascSign + 1,
+      planets: planets,
+      panchanga: panchanga,
+      mahadasha: mahadasha
+      /* alignments intentionally absent until approved interpretation content exists */
+    };
+    localStorage.setItem('cozChartJSON', JSON.stringify(payload));
+    console.log('[EMERGE FLOW] 8. birth-chart export written: cozChartJSON', payload.reportId, '\u00B7', planets.length, 'bodies \u00B7 panchanga', panchanga.length, 'rows');
+  } catch (e) {
+    console.log('[EMERGE FLOW] 8. birth-chart export failed safely, nothing written:', e && e.message);
+  }
+})();
 
 </script>
 </body>

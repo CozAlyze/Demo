@@ -16,7 +16,7 @@
     version: 1,
     generatedAt: ISO string,
     reportId: string,
-    person: { name: string, note?: string },
+    person?: { name: string, note?: string },   // optional: master stores no person record yet; identity block omitted cleanly when absent
     birth: { date: string, time: string, location: string, timezone: string },
     calculation: { ayanamsha: string, houses: "Whole Sign", nodes: "Mean Rahu & Ketu" },
     ascendantSignNumber: 1-12,
@@ -92,6 +92,7 @@ button{font:inherit}
 .report-header h1{margin:.45rem 0 0; font-family:Georgia,"Times New Roman",serif; font-size:clamp(2rem,5vw,3.25rem); font-weight:400; letter-spacing:-.03em; line-height:1}
 .chart-type{margin:0; color:var(--coz-gold); font-size:.8rem; letter-spacing:.14em; text-transform:uppercase}
 .birth-identity{display:grid; grid-template-columns:minmax(12rem,.8fr) 1.7fr; gap:2rem; margin-top:1.75rem; padding:1.2rem 0; border-block:1px solid var(--coz-rule)}
+.birth-identity.no-person{grid-template-columns:1fr}
 .birth-identity h2{margin:0; font-family:Georgia,"Times New Roman",serif; font-size:1.45rem; font-weight:400}
 .birth-identity p{margin:.35rem 0 0; color:var(--coz-ink-soft); font-size:.78rem}
 .birth-identity dl{display:grid; grid-template-columns:1fr .8fr 1.4fr; gap:1rem; margin:0}
@@ -219,7 +220,7 @@ button{font:inherit}
   <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
   <div id="reportMount"></div>
 </div>
-<div class="build-stamp">BIRTH CHART · BC2.0 · master port</div>
+<div class="build-stamp">BIRTH CHART · BC2.1 · engine wired</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -357,7 +358,7 @@ var STELLIUM_QA = (function(){
 function validatePayload(c){
   var errs = [];
   if (!c || typeof c !== "object") return ["no payload"];
-  if (!c.person || !c.person.name) errs.push("person.name missing");
+  if (c.person && !c.person.name) errs.push("person.name empty");
   if (!c.birth || !c.birth.date || !c.birth.time || !c.birth.location || !c.birth.timezone) errs.push("birth facts incomplete");
   if (!c.calculation || !c.calculation.ayanamsha) errs.push("calculation settings missing");
   if (!(c.ascendantSignNumber >= 1 && c.ascendantSignNumber <= 12)) errs.push("ascendantSignNumber invalid");
@@ -525,12 +526,15 @@ function renderReport(chart){
   header.appendChild(el("p","chart-type","D1 \u00B7 Rashi"));
   inner.appendChild(header);
 
-  var identity = el("section","birth-identity");
+  var hasPerson = !!(chart.person && chart.person.name);
+  var identity = el("section","birth-identity" + (hasPerson ? "" : " no-person"));
   identity.setAttribute("aria-label","Verified birth information");
-  var who = el("div");
-  who.appendChild(el("h2",null,chart.person.name));
-  if (chart.person.note) who.appendChild(el("p",null,chart.person.note));
-  identity.appendChild(who);
+  if (hasPerson){
+    var who = el("div");
+    who.appendChild(el("h2",null,chart.person.name));
+    if (chart.person.note) who.appendChild(el("p",null,chart.person.note));
+    identity.appendChild(who);
+  }
   var dl = el("dl");
   [["Date",chart.birth.date,null],["Time",chart.birth.time,chart.birth.timezone],["Location",chart.birth.location,null]].forEach(function(row){
     var d = el("div");
