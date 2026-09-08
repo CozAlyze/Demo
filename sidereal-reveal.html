@@ -848,7 +848,7 @@ try { if (window.parent !== window && window.parent.EMERGE_SOUND) window.EMERGE_
   <div id="cardEmerge"><div id="cardFloat">
     <article class="chart-summary-card">
       <div class="summary-star t" aria-hidden="true"></div>
-      <h2 class="t">Your Chart Summary</h2>
+      <h2 class="t" id="sumTitle">Your Chart Summary</h2>
       <div class="summary-divider t" aria-hidden="true"></div>
       <div class="summary-copy">
         <p id="summary-paragraph-one" class="t"></p>
@@ -1031,7 +1031,7 @@ var BIRTH = __ok ? {
 console.log('[EMERGE FLOW] 5. sidereal-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 document.getElementById('stamp').textContent =
-  'SIDEREAL v19.92 export scoped · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'SIDEREAL v19.93 named · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -3925,6 +3925,17 @@ ctaEl.addEventListener('click', function(){
    explanations; Personal Alignments is omitted entirely until approved
    interpretation content exists.
    ============================================================ */
+/* v19.93: the summary card greets the person by the name captured in Scene 1.
+   First name only on the greeting line; the full name goes to the birth-chart
+   page below. No stored name: the original title stands unchanged. */
+try {
+  var __nmFull = (SAVED && SAVED.name) ? String(SAVED.name).trim() : '';
+  if (__nmFull){
+    var __t = document.getElementById('sumTitle');
+    if (__t) __t.textContent = 'Your Chart Summary is ready, ' + __nmFull.split(/\s+/)[0];
+  }
+} catch(_){}
+
 (function cozBirthChartExport(){
   try {
     if (!__ok) { console.log('[EMERGE FLOW] 8. birth-chart export skipped: QA fallback profile, nothing written'); return; }
@@ -4044,6 +4055,9 @@ ctaEl.addEventListener('click', function(){
       mahadasha: mahadasha
       /* alignments intentionally absent until approved interpretation content exists */
     };
+    /* v19.93: full name onto the printable chart's identity block (BC2.1 renders
+       person.name when present, omits the block cleanly when absent) */
+    if (SAVED.name && String(SAVED.name).trim()) payload.person = { name: String(SAVED.name).trim() };
     localStorage.setItem('cozChartJSON', JSON.stringify(payload));
     console.log('[EMERGE FLOW] 8. birth-chart export written: cozChartJSON', payload.reportId, '\u00B7', planets.length, 'bodies \u00B7 panchanga', panchanga.length, 'rows');
   } catch (e) {
