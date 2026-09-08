@@ -1031,7 +1031,7 @@ var BIRTH = __ok ? {
 console.log('[EMERGE FLOW] 5. sidereal-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 document.getElementById('stamp').textContent =
-  'SIDEREAL v19.91 mobile page two · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'SIDEREAL v19.92 export scoped · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -3908,137 +3908,11 @@ ctaEl.addEventListener('click', function(){
 });
 /* ================== END NEW: 3D CHART SUMMARY REVEAL ================== */
 
-
-})();
-
-/* zoom lock (Sep 1): iOS lets a two-finger pinch zoom the whole page even with
-   user-scalable=no, and that zoom survives a reload, which is what threw the globe
-   off on the second run. Native page zoom is refused here; the dashboards keep
-   their own two-finger art zoom. */
-(function(){
-  ['gesturestart','gesturechange','gestureend'].forEach(function(t){ document.addEventListener(t, function(e){ e.preventDefault(); }, { passive:false }); });
-  document.addEventListener('touchmove', function(e){ if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive:false });
-})();
-
 /* ============================================================
-   SKIP (Sep 1 ruling): the chart drawing can be skipped from the second time on.
-   ?skip=1 (Go to my chart from the opening) lands on the result page at once;
-   otherwise, on a device that has seen this reveal, a subtle Skip appears once
-   the tap-to-reveal gate is up. Same result page, same sound handoff.
-   ============================================================ */
-(function(){
-  var KEY = 'cozSeenReveal_sidereal';
-  var seen = false; try { seen = localStorage.getItem(KEY) === '1'; } catch(_){}
-  var auto = false; try { auto = new URLSearchParams(location.search).get('skip') === '1'; } catch(_){}
-  var el = document.createElement('button'); el.type = 'button'; el.className = 'coz-skip'; el.textContent = 'Skip'; el.setAttribute('aria-label', 'Skip to your chart');
-  document.body.appendChild(el);
-  window.addEventListener('EMERGE_FREE_SUMMARY_COMPLETE', function(){ try { localStorage.setItem(KEY, '1'); } catch(_){} });
-  function skipToChart(){
-    if (resultOpened) return;
-    el.classList.remove('on');
-    revealGateArmed = false;
-    var g = document.getElementById('soundGate'); if (g){ try { g.remove(); } catch(_){} }
-    window.__numPulsed = 12;
-    t0 = performance.now() - 600000;                 /* every timeline beat is in the past */
-    window.EMERGE_HOLD_AMBIENT = false;
-    try { EMERGE_SOUND.stopLoop('voidatm', 1.0); EMERGE_SOUND.loop('ambient', 1.4); } catch(_){}
-    if (!resultBuilt){ try { buildResultPage(); resultBuilt = true; } catch(e){ console.log('[EMERGE FLOW] result page build error:', e); } }
-    try { promptEl.classList.remove('show'); } catch(_){}
-    finishRevealTransition(REDUCED ? 0 : 400);
-    console.log('[EMERGE FLOW] skip -> result page');
-  }
-  el.addEventListener('click', skipToChart);
-  if (auto) setTimeout(skipToChart, 500);
-  else if (seen) setTimeout(function(){ if (!resultOpened) el.classList.add('on'); }, 5800);
-})();
-
-
-/* ============================================================
-   PRICING PAGE ZOOM (Sep 1 ruling): two fingers scale the pricing art 1x-3x
-   about the pinch point, one finger pans while zoomed, pinch back to 1x for
-   normal scrolling. The tap targets live inside the art, so they scale with it.
-   ============================================================ */
-(function(){
-  var z = 1, tx = 0, ty = 0, pinch = null, pan = null;
-  function wrapEl(){ var d = document.getElementById('unlockDash'); return d && d.querySelector('.dash-art'); }
-  function dist(a, b){ return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
-  function mid(a, b){ return { x:(a.clientX + b.clientX)/2, y:(a.clientY + b.clientY)/2 }; }
-  function apply(){
-    var d = document.getElementById('unlockDash'), w = wrapEl(); if (!d || !w) return;
-    if (z <= 1.001){ z = 1; tx = 0; ty = 0; w.style.transform = ''; w.style.transformOrigin = ''; d.style.overflowY = 'auto'; }
-    else { w.style.transformOrigin = '0 0'; w.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + z.toFixed(4) + ')'; d.style.overflowY = 'hidden'; }
-  }
-  function clamp(){
-    var d = document.getElementById('unlockDash'), w = wrapEl(); if (!d || !w) return;
-    var vw = d.clientWidth, vh = d.clientHeight, cw = w.offsetWidth * z, ch = w.offsetHeight * z;
-    tx = Math.min(0, Math.max(vw - cw, tx));
-    ty = Math.min(0, Math.max(vh - ch, ty));
-  }
-  function wire(){
-    var d = document.getElementById('unlockDash'); if (!d || d.__pzWired) return; d.__pzWired = true;
-    d.addEventListener('touchstart', function(e){
-      var w = wrapEl(); if (!w || d.__introLock) return;
-      if (e.touches.length === 2){
-        if (z === 1){ ty = -d.scrollTop; tx = 0; }
-        var m = mid(e.touches[0], e.touches[1]);
-        pinch = { d:dist(e.touches[0], e.touches[1]) || 1, z:z, tx:tx, ty:ty, m:m }; pan = null;
-        e.preventDefault();
-      } else if (e.touches.length === 1 && z > 1){
-        pan = { x:e.touches[0].clientX, y:e.touches[0].clientY, tx:tx, ty:ty, moved:false };
-      }
-    }, { passive:false });
-    d.addEventListener('touchmove', function(e){
-      if (pinch && e.touches.length === 2){
-        var k = dist(e.touches[0], e.touches[1]) / pinch.d;
-        var nz = Math.max(1, Math.min(3, pinch.z * k));
-        var cx = (pinch.m.x - pinch.tx) / pinch.z, cy = (pinch.m.y - pinch.ty) / pinch.z;
-        var m = mid(e.touches[0], e.touches[1]);
-        z = nz; tx = m.x - cx * nz; ty = m.y - cy * nz;
-        if (z <= 1.001){ z = 1; }
-        clamp(); apply(); e.preventDefault();
-      } else if (pan && e.touches.length === 1 && z > 1){
-        tx = pan.tx + (e.touches[0].clientX - pan.x); ty = pan.ty + (e.touches[0].clientY - pan.y);
-        if (Math.abs(e.touches[0].clientX - pan.x) + Math.abs(e.touches[0].clientY - pan.y) > 8) pan.moved = true;
-        clamp(); apply(); e.preventDefault();
-      }
-    }, { passive:false });
-    function end(e){ if (e.touches.length < 2) pinch = null; if (e.touches.length === 0){ if (pan && pan.moved) d.__pzSwallow = true; pan = null; } clamp(); apply(); }
-    d.addEventListener('touchend', end); d.addEventListener('touchcancel', end);
-    /* a pan must not fire the button underneath when the finger lifts */
-    d.addEventListener('click', function(e){ if (d.__pzSwallow){ d.__pzSwallow = false; e.stopPropagation(); e.preventDefault(); } }, true);
-  }
-  window.addEventListener('EMERGE_UNLOCK_READING_REQUESTED', function(){ setTimeout(wire, 50); });
-  var mo = new MutationObserver(function(){ if (document.getElementById('unlockDash')) { wire(); mo.disconnect(); } });
-  mo.observe(document.body, { childList:true });
-})();
-
-/* ============================================================
-   RESULT PAGE ZOOM, reflow version (Sep 1): replaces the transform zoom, which
-   could slide the page into black. Two fingers scale the text 1x-2.2x with CSS
-   zoom, so it reflows to the screen width and the page keeps scrolling normally.
-   ============================================================ */
-function sdZoomWire(){
-  var page = document.getElementById('chartResultPage');
-  if (!page || page.__zoomWired) return;
-  page.__zoomWired = true;
-  var inner = page.querySelector('.sd-page');
-  var z = 1, pinch = null;
-  function dist(a, b){ return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
-  page.addEventListener('touchstart', function(e){
-    if (e.touches.length === 2){ pinch = { d:dist(e.touches[0], e.touches[1]) || 1, z:z }; e.preventDefault(); }
-  }, { passive:false });
-  page.addEventListener('touchmove', function(e){
-    if (!pinch || e.touches.length !== 2 || !inner) return;
-    z = Math.max(1, Math.min(2.2, pinch.z * dist(e.touches[0], e.touches[1]) / pinch.d));
-    inner.style.zoom = z.toFixed(3);
-    e.preventDefault();
-  }, { passive:false });
-  function end(e){ if (e.touches.length < 2) pinch = null; }
-  page.addEventListener('touchend', end); page.addEventListener('touchcancel', end);
-}
-
-/* ============================================================
-   v19.91 BIRTH-CHART EXPORTER — writes the resolved D1 chart to
+   v19.92 BIRTH-CHART EXPORTER (moved INSIDE the engine scope —
+   v19.91 appended it after the engine function closed, so its first
+   reference threw "__ok is not defined", the safety catch swallowed it,
+   and nothing was ever written) — writes the resolved D1 chart to
    localStorage "cozChartJSON" for vedic-birth-chart.html (renderer only).
    Runs once per load, real user birth data only — the QA fallback profile
    is never exported. Everything here reuses the engine's already-resolved
@@ -4176,6 +4050,136 @@ function sdZoomWire(){
     console.log('[EMERGE FLOW] 8. birth-chart export failed safely, nothing written:', e && e.message);
   }
 })();
+
+})();
+
+/* zoom lock (Sep 1): iOS lets a two-finger pinch zoom the whole page even with
+   user-scalable=no, and that zoom survives a reload, which is what threw the globe
+   off on the second run. Native page zoom is refused here; the dashboards keep
+   their own two-finger art zoom. */
+(function(){
+  ['gesturestart','gesturechange','gestureend'].forEach(function(t){ document.addEventListener(t, function(e){ e.preventDefault(); }, { passive:false }); });
+  document.addEventListener('touchmove', function(e){ if (e.touches && e.touches.length > 1) e.preventDefault(); }, { passive:false });
+})();
+
+/* ============================================================
+   SKIP (Sep 1 ruling): the chart drawing can be skipped from the second time on.
+   ?skip=1 (Go to my chart from the opening) lands on the result page at once;
+   otherwise, on a device that has seen this reveal, a subtle Skip appears once
+   the tap-to-reveal gate is up. Same result page, same sound handoff.
+   ============================================================ */
+(function(){
+  var KEY = 'cozSeenReveal_sidereal';
+  var seen = false; try { seen = localStorage.getItem(KEY) === '1'; } catch(_){}
+  var auto = false; try { auto = new URLSearchParams(location.search).get('skip') === '1'; } catch(_){}
+  var el = document.createElement('button'); el.type = 'button'; el.className = 'coz-skip'; el.textContent = 'Skip'; el.setAttribute('aria-label', 'Skip to your chart');
+  document.body.appendChild(el);
+  window.addEventListener('EMERGE_FREE_SUMMARY_COMPLETE', function(){ try { localStorage.setItem(KEY, '1'); } catch(_){} });
+  function skipToChart(){
+    if (resultOpened) return;
+    el.classList.remove('on');
+    revealGateArmed = false;
+    var g = document.getElementById('soundGate'); if (g){ try { g.remove(); } catch(_){} }
+    window.__numPulsed = 12;
+    t0 = performance.now() - 600000;                 /* every timeline beat is in the past */
+    window.EMERGE_HOLD_AMBIENT = false;
+    try { EMERGE_SOUND.stopLoop('voidatm', 1.0); EMERGE_SOUND.loop('ambient', 1.4); } catch(_){}
+    if (!resultBuilt){ try { buildResultPage(); resultBuilt = true; } catch(e){ console.log('[EMERGE FLOW] result page build error:', e); } }
+    try { promptEl.classList.remove('show'); } catch(_){}
+    finishRevealTransition(REDUCED ? 0 : 400);
+    console.log('[EMERGE FLOW] skip -> result page');
+  }
+  el.addEventListener('click', skipToChart);
+  if (auto) setTimeout(skipToChart, 500);
+  else if (seen) setTimeout(function(){ if (!resultOpened) el.classList.add('on'); }, 5800);
+})();
+
+
+/* ============================================================
+   PRICING PAGE ZOOM (Sep 1 ruling): two fingers scale the pricing art 1x-3x
+   about the pinch point, one finger pans while zoomed, pinch back to 1x for
+   normal scrolling. The tap targets live inside the art, so they scale with it.
+   ============================================================ */
+(function(){
+  var z = 1, tx = 0, ty = 0, pinch = null, pan = null;
+  function wrapEl(){ var d = document.getElementById('unlockDash'); return d && d.querySelector('.dash-art'); }
+  function dist(a, b){ return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+  function mid(a, b){ return { x:(a.clientX + b.clientX)/2, y:(a.clientY + b.clientY)/2 }; }
+  function apply(){
+    var d = document.getElementById('unlockDash'), w = wrapEl(); if (!d || !w) return;
+    if (z <= 1.001){ z = 1; tx = 0; ty = 0; w.style.transform = ''; w.style.transformOrigin = ''; d.style.overflowY = 'auto'; }
+    else { w.style.transformOrigin = '0 0'; w.style.transform = 'translate(' + tx.toFixed(1) + 'px,' + ty.toFixed(1) + 'px) scale(' + z.toFixed(4) + ')'; d.style.overflowY = 'hidden'; }
+  }
+  function clamp(){
+    var d = document.getElementById('unlockDash'), w = wrapEl(); if (!d || !w) return;
+    var vw = d.clientWidth, vh = d.clientHeight, cw = w.offsetWidth * z, ch = w.offsetHeight * z;
+    tx = Math.min(0, Math.max(vw - cw, tx));
+    ty = Math.min(0, Math.max(vh - ch, ty));
+  }
+  function wire(){
+    var d = document.getElementById('unlockDash'); if (!d || d.__pzWired) return; d.__pzWired = true;
+    d.addEventListener('touchstart', function(e){
+      var w = wrapEl(); if (!w || d.__introLock) return;
+      if (e.touches.length === 2){
+        if (z === 1){ ty = -d.scrollTop; tx = 0; }
+        var m = mid(e.touches[0], e.touches[1]);
+        pinch = { d:dist(e.touches[0], e.touches[1]) || 1, z:z, tx:tx, ty:ty, m:m }; pan = null;
+        e.preventDefault();
+      } else if (e.touches.length === 1 && z > 1){
+        pan = { x:e.touches[0].clientX, y:e.touches[0].clientY, tx:tx, ty:ty, moved:false };
+      }
+    }, { passive:false });
+    d.addEventListener('touchmove', function(e){
+      if (pinch && e.touches.length === 2){
+        var k = dist(e.touches[0], e.touches[1]) / pinch.d;
+        var nz = Math.max(1, Math.min(3, pinch.z * k));
+        var cx = (pinch.m.x - pinch.tx) / pinch.z, cy = (pinch.m.y - pinch.ty) / pinch.z;
+        var m = mid(e.touches[0], e.touches[1]);
+        z = nz; tx = m.x - cx * nz; ty = m.y - cy * nz;
+        if (z <= 1.001){ z = 1; }
+        clamp(); apply(); e.preventDefault();
+      } else if (pan && e.touches.length === 1 && z > 1){
+        tx = pan.tx + (e.touches[0].clientX - pan.x); ty = pan.ty + (e.touches[0].clientY - pan.y);
+        if (Math.abs(e.touches[0].clientX - pan.x) + Math.abs(e.touches[0].clientY - pan.y) > 8) pan.moved = true;
+        clamp(); apply(); e.preventDefault();
+      }
+    }, { passive:false });
+    function end(e){ if (e.touches.length < 2) pinch = null; if (e.touches.length === 0){ if (pan && pan.moved) d.__pzSwallow = true; pan = null; } clamp(); apply(); }
+    d.addEventListener('touchend', end); d.addEventListener('touchcancel', end);
+    /* a pan must not fire the button underneath when the finger lifts */
+    d.addEventListener('click', function(e){ if (d.__pzSwallow){ d.__pzSwallow = false; e.stopPropagation(); e.preventDefault(); } }, true);
+  }
+  window.addEventListener('EMERGE_UNLOCK_READING_REQUESTED', function(){ setTimeout(wire, 50); });
+  var mo = new MutationObserver(function(){ if (document.getElementById('unlockDash')) { wire(); mo.disconnect(); } });
+  mo.observe(document.body, { childList:true });
+})();
+
+/* ============================================================
+   RESULT PAGE ZOOM, reflow version (Sep 1): replaces the transform zoom, which
+   could slide the page into black. Two fingers scale the text 1x-2.2x with CSS
+   zoom, so it reflows to the screen width and the page keeps scrolling normally.
+   ============================================================ */
+function sdZoomWire(){
+  var page = document.getElementById('chartResultPage');
+  if (!page || page.__zoomWired) return;
+  page.__zoomWired = true;
+  var inner = page.querySelector('.sd-page');
+  var z = 1, pinch = null;
+  function dist(a, b){ return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY); }
+  page.addEventListener('touchstart', function(e){
+    if (e.touches.length === 2){ pinch = { d:dist(e.touches[0], e.touches[1]) || 1, z:z }; e.preventDefault(); }
+  }, { passive:false });
+  page.addEventListener('touchmove', function(e){
+    if (!pinch || e.touches.length !== 2 || !inner) return;
+    z = Math.max(1, Math.min(2.2, pinch.z * dist(e.touches[0], e.touches[1]) / pinch.d));
+    inner.style.zoom = z.toFixed(3);
+    e.preventDefault();
+  }, { passive:false });
+  function end(e){ if (e.touches.length < 2) pinch = null; }
+  page.addEventListener('touchend', end); page.addEventListener('touchcancel', end);
+}
+
+
 
 </script>
 </body>
