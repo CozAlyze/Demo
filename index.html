@@ -384,10 +384,11 @@
     border-color:transparent; box-shadow:0 0 18px rgba(214,169,134,.45); }
   .entry-enter-under { position:absolute; left:50%; top:calc(100% + 14px); transform:translateX(-50%); }
   .entry-enter-under:active { transform:translateX(-50%) scale(.96); }
-  #locEnter { display:none; margin:14px auto 0; }
-  #locEnter.ready { display:block; }
-  #dropdown .opt.picked { color:#F5E2C4; border-color:rgba(232,199,166,.9);
-    box-shadow:0 0 0 1px rgba(232,199,166,.6), 0 0 14px rgba(214,169,134,.4); }
+  /* v19.97: picking a city clears the list — BACK and ENTER arrive together
+     right under the box, impossible to miss. BACK restores the options. */
+  #locActions { display:none; margin:16px auto 0; justify-content:center; gap:14px; }
+  #locActions.on { display:flex; }
+  #locBack { opacity:1; pointer-events:auto; }
   /* v19.96 name step: the exact date/time bar treatment, one text field */
   #namebar { position:fixed; left:50%; transform:translate(-50%, 24px); width:min(93vw,326px); bottom:25vh; z-index:14;
     display:flex; align-items:center; justify-content:flex-start; gap:10px;
@@ -625,7 +626,10 @@
       <input id="search" type="text" autocomplete="off" placeholder="City, state, country, or ZIP code">
     </div>
     <div id="dropdown"></div>
-    <button type="button" id="locEnter" class="entry-enter" aria-label="Confirm birthplace">ENTER</button>
+    <div id="locActions">
+      <button type="button" id="locBack" class="entry-enter" aria-label="Change birthplace">BACK</button>
+      <button type="button" id="locEnter" class="entry-enter" aria-label="Confirm birthplace">ENTER</button>
+    </div>
   </div>
 </div>
 
@@ -760,7 +764,7 @@
   </div>
 </div>
 
-<div id="ver">SCENE 1 · v19.96 · firm enter · routes 1870 1975</div>
+<div id="ver">SCENE 1 · v19.97 · location confirm · routes 1870 1975</div>
 
 <script>
 /* v19.75: the two-perspectives page owns its own zoom.
@@ -1728,39 +1732,62 @@ function sceneComplete(){
       });
     });
     dropEl.innerHTML = '';
-    pending = null;
-    locEnterEl.classList.remove('ready');
+    hideLocActions();
     document.getElementById('namebar').classList.remove('show', 'done');   /* v19.96 */
     window.__setEntryStep('location');
     console.log('[EMERGE FLOW] back — birthplace entry reopened');
   };
 
-  /* v19.96 firm enter: tapping a suggestion only fills the box and marks the
-     pick — nothing flies until ENTER. Editing the text clears the pick. */
-  let pending = null;
+  /* v19.97 (his ruling): tapping a suggestion fills the box, the remaining
+     options DISAPPEAR, and BACK + ENTER pop up right under the box. ENTER
+     commits the flight; BACK undoes the pick and brings the options back. */
+  let pending = null, lastItems = [];
   const locEnterEl = document.getElementById('locEnter');
-  function stageResult(it, optEl){
+  const locBackEl = document.getElementById('locBack');
+  const locActionsEl = document.getElementById('locActions');
+  function hideLocActions(){
+    pending = null;
+    locActionsEl.classList.remove('on');
+    locEnterEl.classList.remove('ready');
+  }
+  function renderOptions(items){
+    dropEl.innerHTML = '';
+    items.forEach(it => {
+      const o = document.createElement('div');
+      o.className = 'opt';
+      o.textContent = it.formatted;
+      o.onclick = () => stageResult(it);
+      dropEl.appendChild(o);
+    });
+  }
+  function stageResult(it){
     if (chosen) return;
     pending = it;
     inputEl.value = it.formatted;
-    dropEl.querySelectorAll('.opt').forEach(x => x.classList.remove('picked'));
-    if (optEl) optEl.classList.add('picked');
+    dropEl.innerHTML = '';
+    locActionsEl.classList.add('on');
     locEnterEl.classList.add('ready');
     try { EMERGE_SOUND.play('pulse'); } catch(_){}
   }
   function commitLocation(){
     if (!pending || chosen) return;
-    locEnterEl.classList.remove('ready');
-    const it = pending; pending = null;
+    const it = pending;
+    hideLocActions();
     selectResult(it);
   }
   locEnterEl.addEventListener('click', commitLocation);
+  locBackEl.addEventListener('click', () => {
+    if (chosen) return;
+    hideLocActions();
+    renderOptions(lastItems);
+    try { inputEl.focus({ preventScroll:true }); inputEl.select(); } catch(_){}
+    try { EMERGE_SOUND.play('pulse'); } catch(_){}
+  });
   inputEl.addEventListener('keydown', e => { if (e.key === 'Enter') commitLocation(); });
 
   let timer = null;
   inputEl.addEventListener('input', () => {
-    pending = null;
-    locEnterEl.classList.remove('ready');
+    hideLocActions();
     clearTimeout(timer);
     const text = inputEl.value.trim();
     if (text.length < 3) { dropEl.innerHTML = ''; return; }
@@ -1810,14 +1837,8 @@ function sceneComplete(){
     catch (e) { dropEl.innerHTML = '<div class="hint err">Bad JSON: ' + e.message + '</div>'; return; }
     const items = normalize(data);
     if (!items.length) { dropEl.innerHTML = '<div class="hint">No matches for "' + text + '".</div>'; return; }
-    dropEl.innerHTML = '';
-    items.forEach(it => {
-      const o = document.createElement('div');
-      o.className = 'opt';
-      o.textContent = it.formatted;
-      o.onclick = () => stageResult(it, o);
-      dropEl.appendChild(o);
-    });
+    lastItems = items;
+    renderOptions(items);
   }
 
   function easeInOutCubicV12(x){ return x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3)/2; }
