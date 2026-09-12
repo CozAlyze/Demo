@@ -886,7 +886,7 @@ console.log('[EMERGE FLOW] 5. tropical-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 console.log('[EMERGE FLOW] 6. calculation branch: TROPICAL — no ayanamsa (true tropical longitudes)');
 document.getElementById('stamp').textContent =
-  'TROPICAL v18.86 mobile page two · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'TROPICAL v18.88 balance · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -1072,6 +1072,183 @@ BODIES.unshift({ key:'Rising', ab:'AC', label: SIGNS[ascSign] + ' Rising',
   var tog = document.getElementById('qaToggle');
   if (!ascOK) tog.classList.add('err');
   tog.addEventListener('click', function(){ qa.classList.toggle('open'); });
+})();
+
+/* ============================================================
+   v18.87 — MOTION + ASPECTS + cozTropicalChartJSON EXPORT
+   (TROPICAL working copy, patched by Claude — inserted inside
+   the v18.86 engine IIFE so BODIES/ASC/HOUSE_CUSPS/SAVED/BIRTH
+   stay in scope; this file's IIFE runs lines 823-3548, do not
+   append new engine code after that close.)
+
+   Adds three things the birth-chart print page needs that the
+   engine did not compute before:
+     1. motion (Direct / Retrograde / Stationary) per body
+     2. principal aspects (conjunction/opposition/trine/square/
+        sextile) under a DEFAULT orb policy — see note below
+     3. cozTropicalChartJSON, written to localStorage the same
+        way cozBirthChartExport writes cozChartJSON for Vedic:
+        fail-closed, never exports the QA fallback chart
+   Nothing above this block is recalculated or touched.
+   ============================================================ */
+(function(){
+  function signPos(lon){
+    lon = norm360(lon);
+    var s = Math.floor(lon/30), d = lon - s*30;
+    var dd = Math.floor(d), mm = Math.round((d - dd)*60);
+    if (mm === 60){ dd++; mm = 0; }
+    return { longitude: lon, sign: SIGNS[s], degree: dd, minute: mm,
+             display: dd + '\u00B0' + (mm<10?'0':'') + mm + '\u2032 ' + SIGNS[s] };
+  }
+  window.cozSignPos = signPos;   // exposed for the print page to reuse, not to recompute
+
+  /* ---------- MOTION ----------
+     Sun/Moon: geocentric apparent motion is always direct, never retrograde.
+     Mean nodes: always regress by definition -> always Retrograde.
+     Everything else: finite difference of tropical longitude across +1 day.
+     |daily motion| under STATIONARY_DEG reads Stationary (a station day). */
+  var STATIONARY_DEG = 0.01;
+  var ONE_DAY_TIME = Astronomy.MakeTime(new Date(BIRTH.utc.getTime() + 86400000));
+  function motionOf(key){
+    if (key === 'Sun' || key === 'Moon') return 'direct';
+    if (key === 'NNode' || key === 'SNode') return 'retrograde';
+    var lon1 = tropLonOf(key);
+    var v2 = Astronomy.GeoVector(key, ONE_DAY_TIME, true);
+    var lon2 = norm360(Astronomy.Ecliptic(v2).elon);
+    var diff = ((lon2 - lon1 + 540) % 360) - 180;
+    if (Math.abs(diff) < STATIONARY_DEG) return 'stationary';
+    return diff < 0 ? 'retrograde' : 'direct';
+  }
+  for (var mi = 0; mi < BODIES.length; mi++){
+    var mb = BODIES[mi];
+    mb.motion = mb.key === 'Rising' ? 'not_applicable' : motionOf(mb.key);
+  }
+
+  /* ---------- ASPECTS ----------
+     DEFAULT ORB POLICY — flat per-aspect-type, no luminary/outer-planet
+     widening. This is a placeholder pending Jason's approved orb policy
+     (handoff doc section 5/11 calls this out explicitly as something the
+     UI must not invent). Priority order for tie-breaks/sorting follows
+     the order the handoff doc itself lists the five aspects in. */
+  var ASPECT_DEFS = [
+    { type:'conjunction', angle:0,   orb:8, priority:1 },
+    { type:'opposition',  angle:180, orb:8, priority:2 },
+    { type:'trine',       angle:120, orb:8, priority:3 },
+    { type:'square',      angle:90,  orb:7, priority:4 },
+    { type:'sextile',     angle:60,  orb:6, priority:5 }
+  ];
+  var ASPECT_BODIES = BODIES.filter(function(b){ return b.key !== 'Rising'; });
+  var ASPECTS = [];
+  for (var ai = 0; ai < ASPECT_BODIES.length; ai++){
+    for (var bi = ai + 1; bi < ASPECT_BODIES.length; bi++){
+      var A = ASPECT_BODIES[ai], B = ASPECT_BODIES[bi];
+      var raw = Math.abs(A.trop - B.trop);
+      var sep = raw > 180 ? 360 - raw : raw;
+      var best = null;
+      for (var di = 0; di < ASPECT_DEFS.length; di++){
+        var def = ASPECT_DEFS[di];
+        var delta = Math.abs(sep - def.angle);
+        if (delta <= def.orb && (!best || delta < best.delta)) best = { def:def, delta:delta };
+      }
+      if (best){
+        var od = Math.floor(best.delta), om = Math.round((best.delta - od) * 60);
+        if (om === 60){ od++; om = 0; }
+        ASPECTS.push({
+          bodyA: A.key, bodyB: B.key, type: best.def.type,
+          orbDegrees: best.delta,
+          orbDisplay: od + '\u00B0' + (om < 10 ? '0' : '') + om + '\u2032',
+          priority: best.def.priority
+        });
+      }
+    }
+  }
+  ASPECTS.sort(function(x, y){ return x.priority - y.priority || x.orbDegrees - y.orbDegrees; });
+  window.COZ_TROPICAL_ASPECTS = ASPECTS;   // QA/debug visibility only
+
+  /* ---------- ELEMENT & MODALITY BALANCE ----------
+     Deterministic sign categorization, not an astronomical calculation —
+     counted across the 10 classical bodies (Sun..Pluto), Ascendant/nodes
+     excluded, a common convention but his call to change. Chart Emphasis
+     is intentionally left out: the handoff explicitly forbids inventing
+     flattering labels, and no approved vocabulary exists yet for it. */
+  var ELEMENT_OF = ['Fire','Earth','Air','Water','Fire','Earth','Air','Water','Fire','Earth','Air','Water'];
+  var MODE_OF     = ['Cardinal','Fixed','Mutable','Cardinal','Fixed','Mutable','Cardinal','Fixed','Mutable','Cardinal','Fixed','Mutable'];
+  var BALANCE_KEYS = ['Sun','Moon','Mercury','Venus','Mars','Jupiter','Saturn','Uranus','Neptune','Pluto'];
+  var elCounts = {Fire:0,Earth:0,Air:0,Water:0}, modeCounts = {Cardinal:0,Fixed:0,Mutable:0};
+  ASPECT_BODIES.forEach(function(b){
+    if (BALANCE_KEYS.indexOf(b.key) < 0) return;
+    var s = Math.floor(norm360(b.trop)/30);
+    elCounts[ELEMENT_OF[s]]++; modeCounts[MODE_OF[s]]++;
+  });
+  function topOf(counts){
+    var keys = Object.keys(counts), max = Math.max.apply(null, keys.map(function(k){return counts[k];}));
+    var tied = keys.filter(function(k){ return counts[k] === max; });
+    return tied.length === 1 ? tied[0] : 'Balanced';
+  }
+  var BALANCE = {
+    element: { result: topOf(elCounts), counts: elCounts },
+    modality: { result: topOf(modeCounts), counts: modeCounts },
+    emphasis: { labels: [], trace: [] }   /* no approved vocabulary yet — stays empty, never invented */
+  };
+  window.COZ_TROPICAL_BALANCE = BALANCE;
+
+  console.log('[EMERGE FLOW] 6c. motion + aspects: ' + ASPECTS.length + ' principal aspects found (default orb policy, pending approval)');
+
+  /* ---------- cozTropicalChartJSON export ----------
+     Mirrors the Vedic cozBirthChartExport rule exactly: real user data only,
+     never the QA fallback chart. balance (element/modality) and interpretations
+     are intentionally left for the approved interpretation source to fill —
+     never generated or hardcoded here. */
+  if (__ok && SAVED){
+    try {
+      var bodyRows = ASPECT_BODIES.map(function(b){
+        var id = b.key === 'NNode' ? 'northNode' : b.key === 'SNode' ? 'southNode' : b.key.toLowerCase();
+        return { id: id, position: signPos(b.trop), house: b.house, motion: b.motion };
+      });
+      var cuspRows = [];
+      if (HOUSE_SYSTEM_USED === 'placidus'){
+        for (var hc = 1; hc <= 12; hc++) cuspRows.push({ house: hc, position: signPos(HOUSE_CUSPS[hc]) });
+      }
+      var payload = {
+        documentId: 'COZ-T-' + Date.now().toString(36).toUpperCase(),
+        generatedAt: new Date().toISOString(),
+        client: {
+          displayName: (SAVED.name || '').trim(),
+          birthDate: SAVED.birthDate || '',
+          birthTime: SAVED.birthTime || '',
+          locationLabel: [SAVED.location && SAVED.location.name, SAVED.location && SAVED.location.country].filter(Boolean).join(', '),
+          timezoneAbbreviation: (SAVED.timezoneResolution && SAVED.timezoneResolution.abbreviation) || '',
+          utcOffset: (SAVED.timezoneResolution && SAVED.timezoneResolution.utcOffset) || ''
+        },
+        settings: {
+          zodiac: 'Tropical',
+          requestedHouseSystem: 'Placidus',
+          resolvedHouseSystem: HOUSE_SYSTEM_USED === 'placidus' ? 'Placidus' : 'Whole Sign',
+          usedHouseFallback: HOUSE_SYSTEM_USED !== 'placidus',
+          /* FLAG FOR JASON: handoff spec requires True North & South Node;
+             this engine has only mean-node math built. Ships as 'Mean' so
+             nothing is mislabeled — swap to 'True' once true-node math
+             is built and approved. */
+          nodeType: 'Mean'
+        },
+        angles: {
+          ascendant: signPos(ASC), descendant: signPos(DSC),
+          midheaven: signPos(MC), imumCoeli: signPos(IC)
+        },
+        bodies: bodyRows,
+        houseCusps: cuspRows,
+        aspects: ASPECTS.map(function(a){
+          return { bodyA: a.bodyA, bodyB: a.bodyB, type: a.type, orbDegrees: a.orbDegrees, orbDisplay: a.orbDisplay };
+        }),
+        balance: BALANCE,
+        interpretations: {}     /* filled by the approved interpretation source only, never here */
+      };
+      localStorage.setItem('cozTropicalChartJSON', JSON.stringify(payload));
+      console.log('[EMERGE TRACE tropical-chart-export] wrote cozTropicalChartJSON — ' + bodyRows.length + ' bodies, ' + cuspRows.length + ' cusps, ' + ASPECTS.length + ' aspects');
+    } catch(e){
+      console.log('[EMERGE TRACE tropical-chart-export] export failed', e);
+    }
+  }
 })();
 
 /* ============================================================
