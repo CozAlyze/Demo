@@ -245,7 +245,7 @@ button{font:inherit}
   <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
   <div id="reportMount"></div>
 </div>
-<div class="build-stamp">BIRTH CHART · TBC1.1 · glyph fix</div>
+<div class="build-stamp">BIRTH CHART · TBC1.2 · wheel radius fix</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -382,7 +382,7 @@ function wheelTheta(lon, asc){ return mod(180 + mod(lon - asc, 360), 360); }
 function renderWheel(chart){
   var frame = el("div","chart-frame");
   var cx = 150, cy = 150;
-  var rOuter = 145, rSignRing = 128, rHouseRing = 108, rPlanetTrue = 96, rPlanetLabel = 78, rAspect = 96;
+  var rOuter = 122, rSignRing = 108, rHouseRing = 92, rPlanetTrue = 82, rPlanetLabel = 66, rAspect = 82;
   var asc = chart.angles.ascendant.longitude;
   var svg = svgEl("svg",{class:"western-wheel", viewBox:"0 0 300 300", role:"img",
     "aria-label":"Circular Western natal chart with the Ascendant in " + chart.angles.ascendant.sign});
@@ -424,7 +424,7 @@ function renderWheel(chart){
     /* angle labels (ASC/DSC/MC/IC) just outside the sign ring */
     [["ASC","1","ascendant"],["DSC","7","descendant"],["MC","10","midheaven"],["IC","4","imumCoeli"]].forEach(function(a){
       var pos = chart.angles[a[2]];
-      var lp = wheelPoint(pos.longitude, asc, cx, cy, rOuter + 14);
+      var lp = wheelPoint(pos.longitude, asc, cx, cy, rOuter + 16);
       var t1 = svgEl("text",{class:"wheel-anglelabel", x:lp.x, y:lp.y - 4});
       t1.textContent = a[0];
       var t2 = svgEl("text",{class:"wheel-angledeg", x:lp.x, y:lp.y + 4});
