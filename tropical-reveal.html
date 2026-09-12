@@ -740,7 +740,7 @@ try { if (window.parent !== window && window.parent.EMERGE_SOUND) window.EMERGE_
   <div id="cardEmerge"><div id="cardFloat">
     <article class="chart-summary-card">
       <div class="summary-star t" aria-hidden="true"></div>
-      <h2 class="t">Your Chart Summary</h2>
+      <h2 class="t" id="summaryTitle">Your Chart Summary</h2>
       <div class="summary-divider t" aria-hidden="true"></div>
       <div class="summary-copy">
         <p id="summary-paragraph-one" class="t"></p>
@@ -886,7 +886,7 @@ console.log('[EMERGE FLOW] 5. tropical-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 console.log('[EMERGE FLOW] 6. calculation branch: TROPICAL — no ayanamsa (true tropical longitudes)');
 document.getElementById('stamp').textContent =
-  'TROPICAL v18.88 balance · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'TROPICAL v18.89 named+stamp · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -3178,6 +3178,14 @@ window.addEventListener('EMERGE_FREE_SUMMARY_COMPLETE', function(){
   if (v && resultOpened){ try { v.play().catch(function(){}); } catch(_){} }
 });
 function buildResultPage(){
+  /* v18.89: name greeting, same rule as the Sidereal build (v19.93 "named") —
+     first name only, falls back to the plain title when no name is stored. */
+  try {
+    var titleEl = document.getElementById('summaryTitle');
+    var firstName = (SAVED && SAVED.name) ? String(SAVED.name).trim().split(/\s+/)[0] : '';
+    if (titleEl) titleEl.textContent = firstName ? ('Your Chart Summary is ready, ' + firstName) : 'Your Chart Summary';
+  } catch(_){}
+
   var bd = rpBirthDisplay();
   document.getElementById('trDetails').innerHTML =
       '<div class="tr-dcell">' + rpEsc(bd.date).toUpperCase() + '</div>'

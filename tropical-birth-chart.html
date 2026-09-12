@@ -124,11 +124,11 @@ button{font:inherit}
 .wheel-cusp{fill:none; stroke:currentColor; stroke-width:.5; opacity:.55}
 .wheel-axis{fill:none; stroke:var(--coz-rose); stroke-width:1.1; opacity:.85}
 .wheel-signdiv{fill:none; stroke:currentColor; stroke-width:.4; opacity:.4}
-.wheel-sign{text-anchor:middle; dominant-baseline:middle; font-family:var(--font-sans); font-size:6.4px; font-weight:600; fill:rgb(7 22 43 / .8)}
+.wheel-sign{text-anchor:middle; dominant-baseline:middle; font-family:"Apple Symbols","Segoe UI Symbol","Noto Sans Symbols2",var(--font-sans); font-size:6.4px; font-weight:600; fill:rgb(7 22 43 / .8)}
 .wheel-housenum{text-anchor:middle; dominant-baseline:middle; font-family:var(--font-sans); font-size:5px; fill:rgb(49 68 86 / .78)}
 .wheel-anglelabel{text-anchor:middle; dominant-baseline:middle; font-family:var(--font-sans); font-size:5.6px; font-weight:600; fill:var(--coz-rose)}
 .wheel-angledeg{text-anchor:middle; dominant-baseline:middle; font-family:var(--font-sans); font-size:4.6px; fill:var(--coz-rose)}
-.wheel-planet{text-anchor:middle; dominant-baseline:middle; font-family:var(--font-sans); font-size:7px; font-weight:600; fill:var(--coz-ink)}
+.wheel-planet{text-anchor:middle; dominant-baseline:middle; font-family:"Apple Symbols","Segoe UI Symbol","Noto Sans Symbols2",var(--font-sans); font-size:7px; font-weight:600; fill:var(--coz-ink)}
 .wheel-leader{fill:none; stroke:rgb(7 22 43 / .35); stroke-width:.3}
 .wheel-tick{stroke:rgb(7 22 43 / .55); stroke-width:.5}
 .wheel-aspect-blue{stroke:var(--chart-aspect-blue); stroke-width:.45; opacity:.7}
@@ -245,7 +245,7 @@ button{font:inherit}
   <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
   <div id="reportMount"></div>
 </div>
-<div class="build-stamp">BIRTH CHART · TBC1.0 · master port</div>
+<div class="build-stamp">BIRTH CHART · TBC1.1 · glyph fix</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -253,11 +253,11 @@ button{font:inherit}
    explicit non-production fixtures below. */
 
 var SIGN_NAMES = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
-var SIGN_GLYPH = ["\u2648","\u2649","\u264A","\u264B","\u264C","\u264D","\u264E","\u264F","\u2650","\u2651","\u2652","\u2653"];
+var SIGN_GLYPH = ["\u2648\uFE0E","\u2649\uFE0E","\u264A\uFE0E","\u264B\uFE0E","\u264C\uFE0E","\u264D\uFE0E","\u264E\uFE0E","\u264F\uFE0E","\u2650\uFE0E","\u2651\uFE0E","\u2652\uFE0E","\u2653\uFE0E"];
 var BODY_ORDER = ["sun","moon","mercury","venus","mars","jupiter","saturn","uranus","neptune","pluto","northNode","southNode","chiron"];
 var BODY_LABEL = {sun:"Sun",moon:"Moon",mercury:"Mercury",venus:"Venus",mars:"Mars",jupiter:"Jupiter",saturn:"Saturn",uranus:"Uranus",neptune:"Neptune",pluto:"Pluto",northNode:"North Node",southNode:"South Node",chiron:"Chiron"};
-var BODY_GLYPH = {sun:"\u2609",moon:"\u263D",mercury:"\u263F",venus:"\u2640",mars:"\u2642",jupiter:"\u2643",saturn:"\u2644",uranus:"\u2645",neptune:"\u2646",pluto:"\u2647",northNode:"\u260A",southNode:"\u260B",chiron:"\u26B7"};
-var ASPECT_GLYPH = {conjunction:"\u260C",opposition:"\u260D",trine:"\u25B3",square:"\u25A1",sextile:"\u2736"};
+var BODY_GLYPH = {sun:"\u2609\uFE0E",moon:"\u263D\uFE0E",mercury:"\u263F\uFE0E",venus:"\u2640\uFE0E",mars:"\u2642\uFE0E",jupiter:"\u2643\uFE0E",saturn:"\u2644\uFE0E",uranus:"\u2645\uFE0E",neptune:"\u2646\uFE0E",pluto:"\u2647\uFE0E",northNode:"\u260A\uFE0E",southNode:"\u260B\uFE0E",chiron:"\u26B7\uFE0E"};
+var ASPECT_GLYPH = {conjunction:"\u260C\uFE0E",opposition:"\u260D\uFE0E",trine:"\u25B3\uFE0E",square:"\u25A1\uFE0E",sextile:"\u2736\uFE0E"};
 var ASPECT_LABEL = {conjunction:"conjunct",opposition:"opposite",trine:"trine",square:"square",sextile:"sextile"};
 var MOTION_LABEL = {direct:"Direct",retrograde:"Retrograde",stationary:"Stationary",not_applicable:"\u2014"};
 var DISCLOSURE = "Astrological information for reflection and entertainment. It is not scientific, medical, legal or financial advice.";
