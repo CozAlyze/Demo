@@ -1114,7 +1114,15 @@ const SIGNS = {
     if (entered) return; entered = true;
     try { window.parent !== window && window.parent.EMERGE_SOUND && window.parent.EMERGE_SOUND.loop("ambient"); } catch(_){}
     buildCopy();
-    sVid.src = key + ".mp4"; if (S && S.loop) sVid.loop = true; sVid.load();
+    sVid.src = (MODE === "vedic" ? "sidereal-ascendant-" : "") + key + ".mp4";
+    /* v1.2 correction: the tropical branch here was guessed as "tropical-ascendant-"
+       before confirming what actually exists in the repo. It turns out the original
+       bare-named files (aries.mp4, leo.mp4, etc., already in master) ARE the tropical
+       set — they only ever collided with Vedic because vedic-reading.html used to read
+       those same bare names too. Now that Vedic reads sidereal-ascendant-<sign>.mp4
+       exclusively, the bare names are safely tropical-only, unchanged, no re-upload
+       needed. */
+    if (S && S.loop) sVid.loop = true; sVid.load();
     document.body.dataset.view = "ascendant";
     document.body.classList.add("asq-locked");
     window.scrollTo(0, 0);
