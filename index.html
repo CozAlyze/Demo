@@ -2335,21 +2335,20 @@ window.__handleEntryBack = function() {
   const vv = window.visualViewport;
   if (!vv) return;                                  // no visualViewport: original layout stands
   const entries = [
-    { bar: document.getElementById('bdaybar'), inp: document.getElementById('bd-typed'), prompt: document.getElementById('bdayPrompt') },
-    { bar: document.getElementById('timebar'), inp: document.getElementById('tm-typed'), prompt: document.getElementById('timePrompt') },
-    { bar: document.getElementById('namebar'), inp: document.getElementById('nm-typed'), prompt: document.getElementById('namePrompt') }   /* v19.96 */
+    { bar: document.getElementById('bdaybar'), inp: document.getElementById('bd-typed'), prompt: document.getElementById('bdayPrompt'), enter: document.getElementById('bdEnter') },
+    { bar: document.getElementById('timebar'), inp: document.getElementById('tm-typed'), prompt: document.getElementById('timePrompt'), enter: document.getElementById('tmEnter') },
+    { bar: document.getElementById('namebar'), inp: document.getElementById('nm-typed'), prompt: document.getElementById('namePrompt'), enter: document.getElementById('nmEnter') }   /* v19.96 */
   ];
   const backBtn = document.getElementById('entryBackFixed');
-  /* v19.99: measured offset from a bar's CENTER (topPx) to its own Enter button's
-     bottom edge is 82px (46px bar height / 2 = 23 to bar-bottom, + 26px gap, +
-     34px Enter height, i.e. 23+26+34-1). BACK sits a further 28px below that.
-     Previously #entryBackFixed used a plain CSS bottom:8vh, independent of this
-     keyboard-tracking system entirely — which was fine with the keyboard closed,
-     but once typing opens the keyboard, THIS system moves the bar+Enter up to
-     vv.height*0.42 while BACK stayed put, so on some devices/keyboard heights
-     they collided or Enter ended up hidden behind BACK. BACK now moves with the
-     same frozen position as the bar it's paired with. */
-  const BACK_OFFSET_BELOW_CENTER = 110;
+  /* v19.100: v19.99's fixed pixel offset (measured in a desktop headless browser)
+     did not match the real device — on-phone testing showed Enter and Back landing
+     almost flush with each other. Guessing a constant that has to match TWO
+     independent elements' real rendered heights is fragile by nature (font
+     metrics, dynamic type, safe-area insets all shift it). This instead measures
+     the ACTIVE step's own Enter button's real getBoundingClientRect() and places
+     BACK a fixed gap below THAT — self-correcting regardless of actual rendered
+     sizes, on any device. */
+  const BACK_GAP_BELOW_ENTER = 28;
   const KB_MIN = 120;                               // lost px that means the keyboard is open
   const kbOpen = () => (window.innerHeight - vv.height) > KB_MIN;
   let heldCenter = null;                            // frozen center in VISUAL coordinates
@@ -2361,6 +2360,14 @@ window.__handleEntryBack = function() {
   function applyAll(){
     const topPx = heldCenter + vv.offsetTop;        // pan-compensated layout position
     entries.forEach(b => {
+      /* v19.100 fix: transform has a CSS transition (used for the show/hide fade).
+         Changing top+transform here for repositioning, then immediately measuring
+         a child's real position for BACK's placement, was catching an in-flight
+         interpolated value mid-transition rather than the final one — an ~47px
+         error observed in testing. Restricting the transition to opacity only
+         during this repositioning keeps the fade smooth but makes position changes
+         land instantly, so any measurement taken right after is always accurate. */
+      b.bar.style.transitionProperty = 'opacity';
       b.bar.style.top = topPx + 'px';
       b.bar.style.bottom = 'auto';
       b.bar.style.transform = 'translate(-50%, -50%)';
@@ -2373,15 +2380,20 @@ window.__handleEntryBack = function() {
       }
     });
     if (backBtn){
-      backBtn.style.top = (topPx + BACK_OFFSET_BELOW_CENTER) + 'px';
-      backBtn.style.bottom = 'auto';
-      backBtn.style.transform = 'translateX(-50%)';
-      backBtn.style.zIndex = '1000';
+      const active = entries.find(b => b.bar.classList.contains('show') && !b.bar.classList.contains('done'));
+      if (active && active.enter){
+        const enterBottom = active.enter.getBoundingClientRect().bottom;
+        backBtn.style.top = (enterBottom + BACK_GAP_BELOW_ENTER) + 'px';
+        backBtn.style.bottom = 'auto';
+        backBtn.style.transform = 'translateX(-50%)';
+        backBtn.style.zIndex = '1000';
+      }
     }
   }
   function releaseAll(){
     entries.forEach(b => {
       b.bar.style.top = ''; b.bar.style.bottom = ''; b.bar.style.transform = ''; b.bar.style.zIndex = '';
+      b.bar.style.transitionProperty = '';
       if (b.prompt){
         b.prompt.style.top = ''; b.prompt.style.bottom = ''; b.prompt.style.transform = ''; b.prompt.style.zIndex = '';
       }
