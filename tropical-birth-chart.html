@@ -63,6 +63,8 @@ button{font:inherit}
 .report-shell{width:100%; min-height:100vh; padding:2rem 1rem 4rem}
 .report-toolbar{display:flex; align-items:center; justify-content:space-between; gap:1rem; width:min(100%,56rem); margin:0 auto 1rem}
 .report-toolbar p{margin:0; color:#d8c4a4; font-size:.8rem; letter-spacing:.11em; text-transform:uppercase}
+.toolbar-left{display:flex; align-items:center; gap:1rem; min-width:0}
+.back-button svg{width:1.1rem; height:1.1rem}
 .print-button{
   display:inline-flex; align-items:center; gap:.5rem;
   min-height:2.75rem; padding:.45rem 1rem; cursor:pointer;
@@ -181,7 +183,7 @@ button{font:inherit}
 @media (max-width:700px){
   .report-shell{padding:1rem .5rem 3rem}
   .report-toolbar{padding-inline:.4rem; justify-content:flex-end}
-  .report-toolbar > p{display:none}
+  .toolbar-left p{display:none}
   .report-inner{padding:2rem 1.5rem 1.5rem}
   .birth-identity{grid-template-columns:1fr; gap:1rem}
   .birth-identity dl{grid-template-columns:1fr .8fr 1.4fr}
@@ -236,7 +238,13 @@ button{font:inherit}
 <body>
 <div class="report-shell">
   <div class="report-toolbar">
-    <p>BIRTH-CHART PRINT PREVIEW</p>
+    <div class="toolbar-left">
+      <button type="button" class="print-button back-button" id="backBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        Back to Reading
+      </button>
+      <p>BIRTH-CHART PRINT PREVIEW</p>
+    </div>
     <button type="button" class="print-button" id="printBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-3M7 14h10v7H7z"/></svg>
       Print / Save PDF
@@ -760,6 +768,10 @@ function renderEmptyState(){
   var mount = document.getElementById("reportMount");
   var banner = document.getElementById("sampleBanner");
   document.getElementById("printBtn").addEventListener("click",function(){window.print();});
+  document.getElementById("backBtn").addEventListener("click",function(){location.href="tropical-reveal.html";});
+  /* Points at tropical-reveal.html for now — a confirmed-working page. Swap this
+     one line if a dedicated tropical dashboard page (parallel to vedic-reading.html)
+     turns out to exist or gets built under a different filename later. */
 
   var qp = new URLSearchParams(location.search);
   var chart = null, isSample = false;
