@@ -2209,7 +2209,7 @@ window.__setEntryStep = function(step) {
     nmEnterEl.classList.toggle('ready', nmInp.value.trim().length >= 2);
   });
   function nameCommit(){
-    const v = nmInp.value.trim();
+    
     if (v.length < 2) return;
     window.__birthName = v;
     try {
