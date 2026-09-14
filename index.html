@@ -159,9 +159,10 @@
     -webkit-background-clip:text; background-clip:text;
     -webkit-text-fill-color:transparent; color:transparent;
     filter:drop-shadow(0 0 10px rgba(214,169,134,.25)); }
-  .tl-sm { font-size:clamp(13px,3.6vw,16px); letter-spacing:.5em;  margin-right:-.5em;  margin-bottom:10px; }  /* v19.40: +20% */
-  .tl-lg { font-size:clamp(17px,4.7vw,20px); letter-spacing:.32em; margin-right:-.32em; }  /* v19.40: +20% */
-  .tl-md { font-size:clamp(17px,4.7vw,20px); letter-spacing:.26em; margin-right:-.26em; margin-bottom:12px; }   /* v19.75: matches the COSMOLOGY line */
+  .tl-sm { font-size:clamp(12px,3.2vw,14px); letter-spacing:.5em;  margin-right:-.5em;  margin-bottom:10px; }  /* v19.40: +20% */
+  .tl-lg { font-size:clamp(15px,4.2vw,18px); letter-spacing:.32em; margin-right:-.32em; }  /* v19.40: +20% */
+  .tl-md { font-size:clamp(15px,4.2vw,18px); letter-spacing:.26em; margin-right:-.26em; margin-bottom:12px; }   /* v19.75: matches the COSMOLOGY line */
+
   .tl-star { -webkit-text-fill-color:#E8A87C; color:#E8A87C; font-size:.85em; }
   .tl-divider { display:flex; align-items:center; justify-content:center; gap:10px; }
   .tl-divider .dv { display:block; height:1px; width:min(24vw,104px); }
@@ -172,7 +173,8 @@
   #invite.focus .iv-text     { opacity:1; transform:none; transition-delay:2.8s; }  /* v19.42: one beat earlier */
   #invite.gone { opacity:0; filter:blur(10px); }
   .emerge-wordmark { display:block; margin:0 auto; pointer-events:none; }
-  #invite .iv-brand { display:block; margin:0 auto 8px; width:min(62vw,273px); max-height:340px;
+  #invite .iv-brand { display:block; margin:0 auto 8px; width:min(55vw,242px); max-height:340px;
+
     /* v19.28: +30% again per Jason */
     pointer-events:none;
     filter:drop-shadow(0 0 24px rgba(214,169,134,.2)); }
@@ -210,6 +212,8 @@
 #finale .fn-pill { pointer-events:none; }  /* v19.46: pill is the banner, box opens with it */
 #search-head { display:none; }               /* v19.46: pill carries the prompt, no duplicate */
 #searchwrap { display:none; pointer-events:auto; position:relative;
+  width:min(80vw,420px); margin:6px auto 0; opacity:0; transition:opacity .6s ease; }
+
   width:min(86vw,460px); margin:6px auto 0; opacity:0; transition:opacity .6s ease; }
 #searchwrap.on { display:block; }
 #searchwrap.vis { opacity:1; }
@@ -220,7 +224,8 @@
 #search-head .spark { -webkit-text-fill-color:#D6A986; margin-right:8px; font-size:13px; }
 #searchbox { position:relative; }
 #search {
-  width:100%; box-sizing:border-box; padding:15px 16px 15px 45px; border-radius:12px;
+  width:100%; box-sizing:border-box; padding:13px 14px 13px 40px; border-radius:12px;
+
   background:rgba(18,16,10,.72); border:1px solid rgba(214,169,134,.35);
   color:#F5E9D6; font-size:19.5px; outline:none; backdrop-filter:blur(6px);   /* v19.88: was 17.5px, box grows with it */
 }
