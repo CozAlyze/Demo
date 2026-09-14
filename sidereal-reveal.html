@@ -3827,7 +3827,7 @@ function stageCardShell(){
   var div = cardEl.querySelector('.summary-divider');
   setTimeout(function(){ star.classList.add('in'); }, 1000);
   setTimeout(function(){ h2.classList.add('in'); }, 1180);
-  setTimeout(function(){ div.classList.add('in'); }, 1420);
+  setTimeout(function(){ div.classList.add('in'); }, 3180);
 }
 function finishRevealTransition(fadeMs){
   if (resultOpened) return;
@@ -3892,7 +3892,7 @@ function startRevealTransition(){
   setTimeout(function(){ bodyEl.classList.add('beamOn'); bodyEl.classList.add('fieldOn'); phase = 'tilting'; }, 800);
   setTimeout(function(){ bodyEl.classList.add('sliver'); }, 1900);
   setTimeout(function(){ bodyEl.classList.add('cardUp'); stageCardShell(); }, 5300);   /* v18.8: +3s of beam + orbiting light before the card */
-  setTimeout(function(){ finishRevealTransition(650); }, 7450);                        /* v18.8: summary arrives 3s later, same crossfade */
+  setTimeout(function(){ finishRevealTransition(650); }, 9450);                        /* v18.8→v19.94: +2s so the greeting holds alone before the divider/crossfade */
 }
 /* ================== END NEW v18.6: RESTORED REVEAL TRANSITION ================== */
 
