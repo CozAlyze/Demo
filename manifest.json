@@ -1,0 +1,24 @@
+{
+  "section1Files": [
+    "application-claims-s1-ascendant-lord-houses-batch2.json",
+    "application-claims-s1-ascendant-signs-batch2.json",
+    "application-claims-s1-guiding-planets-batch1.json",
+    "application-claims-s1-hidden-role-fixture-batch1.json",
+    "application-claims-s1-v26-compiled-overlay.json"
+  ],
+  "section2Files": [
+    "application-claims-chicago.json",
+    "application-claims-denver.json",
+    "application-claims-moon-houses-phase3-batch1.json",
+    "application-claims-moon-signs-phase3-batch2.json",
+    "application-claims-nakshatras-phase3-batch3a.json",
+    "application-claims-nakshatras-phase3-batch3b.json",
+    "application-claims-nakshatras-phase3-batch3c.json",
+    "application-claims-nakshatras-phase3-batch3d.json",
+    "application-claims-padas-batch4a.json",
+    "application-claims-padas-batch4b.json",
+    "application-claims-padas-batch4c.json",
+    "application-claims-padas-batch4d.json",
+    "application-claims.json"
+  ]
+}
