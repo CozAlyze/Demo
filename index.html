@@ -2808,7 +2808,7 @@ document.querySelectorAll('.syscard').forEach(card => {
 
     const next = (sys === 'sidereal'
       ? 'sidereal-reveal.html?v=1987'
-      : 'tropical-reveal.html?v=1883') + (window.__cozSkipReveal ? '&skip=1' : '');
+      : 'tropical-reveal.html?v=1883') + '&skip=1';   /* TEMP (his review pass): always skip; revert to (window.__cozSkipReveal ? '&skip=1' : '') before going public */
     console.log('[EMERGE FLOW] 10. living page — loading reveal in place:', next);
     const fr = document.createElement('iframe');
     fr.id = 'revealFrame';
