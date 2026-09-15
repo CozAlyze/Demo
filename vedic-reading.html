@@ -561,6 +561,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 
 <div class="vedic-stamp" aria-hidden="true">VEDIC READING · R3.4 · birth chart door</div>
 
+<script src="dev-review-engine.js"></script>
 <script>
 /* ============================================================
    SECTION DATA (spec, verbatim)
@@ -576,70 +577,66 @@ const vedicReadingSections = [
 const SECTION_TOTAL = String(vedicReadingSections.length).padStart(2, "0");
 
 /* ============================================================
-   READING SOURCE
-   The engine supplies window.COZ_VEDIC_READING before this script runs
-   (or stores it in localStorage "cozVedicReading") as
-     { "<section id>": ["paragraph", "paragraph", ...], ... }
-   A paragraph beginning "## " renders as a subheading (used by the
-   Rahu & Ketu axis section).
-   Nothing below is shown to the reader except the paragraphs.
-   The FIXTURE is the approved benchmark example reading (Pisces
-   Ascendant reference chart). It is SAMPLE content for the full
-   experience until the server generator exists. It is never a
-   customer's reading and must never be served as one.
+   READING SOURCE — DEVELOPMENT-REVIEW BUILD (v20.0)
+   No fixture, no localStorage, no server, no AI call. The chart
+   computed by sidereal-reveal.html arrives via postMessage from the
+   parent (index.html), which is the one document that survives the
+   iframe swap and holds it only as a JS variable in memory. This
+   page asks for it, matches it against the real Section 1 + Section
+   2 application-claims records (dev-review-engine.js), and shows a
+   plain calculated-fact placeholder for Sections 3-6 unless the
+   chart's identity exactly matches one of the two hand-reviewed
+   reference charts. Every reading from this build is a
+   development-review draft, pending Nina's review -- never a
+   production-verified reading.
    ============================================================ */
-const COZ_VEDIC_READING_FIXTURE = {
-  "essential-nature": [
-    "Your Vedic chart begins with Pisces rising, suggesting that you may approach life through sensitivity, intuition, imagination and an instinctive awareness of what lies beneath the surface. You can be highly receptive to people and environments, sometimes absorbing more than you immediately realize. Compassion may come naturally, but maintaining clear emotional boundaries can be an important part of protecting that sensitivity.",
-    "In Jyotish, Jupiter is your ascendant lord\u2014the planet with the greatest responsibility for guiding the direction of your chart. Jupiter is placed in Gemini in your fourth house, connecting your development with learning, communication, emotional foundations and the search for an inner sense of belonging.",
-    "Because Jupiter occupies Gemini, your wisdom may not come through accepting one fixed system. It may develop through questioning, comparing perspectives and finding the connections between seemingly different ideas. You may be most aligned when you can translate complex knowledge into language that helps other people understand themselves.",
-    "Jupiter also connects with your emotional world, vocational direction and spiritual life. This gives its influence unusual reach throughout your chart: meaning, understanding and the search for a larger perspective are not side interests for you. They may be part of the internal compass guiding many of your major choices."
-  ],
-  "mind-intuition": [
-    "Your Moon is placed in Libra in the eighth house and in Vishakha nakshatra. You may appear composed or socially balanced while processing life at a much deeper level internally. The eighth house can bring sensitivity to hidden motives, emotional undercurrents, psychological complexity and periods of profound personal reinvention.",
-    "Vishakha adds concentration and a desire to reach the truth of something. Once a question becomes meaningful to you, you may have difficulty remaining on the surface. You may feel compelled to investigate it until you understand the underlying pattern.",
-    "Because Vishakha is governed by Jupiter\u2014and Jupiter also directly influences your Moon\u2014your emotional life is strongly connected with the search for meaning. Spiritual philosophy, astrology, counseling, symbolism or other systems of self-understanding may help you organize feelings that would otherwise be difficult to explain.",
-    "Your intuition can be powerful, but intuition and certainty are not the same thing. Part of your development may involve learning when an impression contains genuine insight and when it has become entangled with hope, fear or projection. Your sensitivity becomes more dependable when it is supported by reflection, evidence and healthy boundaries."
-  ],
-  "relationships-karmic": [
-    "Relationships may serve as major catalysts in your life. Rahu\u2019s placement in your seventh house can intensify the desire for meaningful connection while also making partnership a complicated area of growth. At times, another person may seem to possess the clarity, stability or definition you are searching for within yourself.",
-    "You may be drawn toward intelligent, capable or highly particular people. Relationships can teach you about discernment, communication, equality and the importance of clear agreements. The challenge is distinguishing genuine compatibility from the magnetic pull of unfinished emotional patterns.",
-    "Venus in Gemini suggests that mental connection is essential. Conversation, curiosity and the ability to exchange ideas may be just as important as physical attraction. Because Venus occupies your fourth house, private emotional safety also matters. A relationship may look exciting from the outside, but it is unlikely to satisfy you for long if you cannot feel understood and at home within it.",
-    "The seventh-house ruler is placed in your sixth house, suggesting that relationships may require conscious maintenance. Communication, everyday responsibilities and unresolved imbalances cannot simply be left to work themselves out. Love may deepen when both people are willing to address the practical realities beneath the emotional connection."
-  ],
-  "dharma-direction": [
-    "Your life direction is again governed by Jupiter because Jupiter rules both your ascendant and your tenth house of vocation. Its placement in the fourth house suggests that your work may need to emerge from something personally meaningful rather than from ambition alone.",
-    "Teaching, advising, interpreting, communicating or creating spaces in which people feel understood may all reflect this pattern. Gemini adds the ability to work with multiple perspectives. You may function especially well as a translator\u2014someone who can take complicated information, recognize its essential meaning and make it understandable to others.",
-    "Mars, the ruler of your ninth house of dharma, is placed in your third house. This suggests that purpose is unlikely to reveal itself while you wait passively for certainty. It may develop through self-directed effort, communication, practiced skill and the courage to put your ideas into the world.",
-    "Your Sun and Mercury in the sixth house add a strong service and craftsmanship component. You may be capable of refining a skill through repetition and sustained work. The potential difficulty is becoming so occupied with responsibilities, problem-solving or serving other people that the larger meaning of the work gets buried.",
-    "Your dharma may therefore involve more than choosing the correct profession. It may be the continuing process of turning knowledge, sensitivity and lived experience into something structured and useful."
-  ],
-  "rahu-ketu": [
-    "## Rahu \u2014 Where Life Pulls You Forward",
-    "Rahu is placed in Virgo in your seventh house. Your developmental direction may involve collaboration, discernment and learning how to create relationships that function in practical reality\u2014not only emotionally or spiritually.",
-    "Virgo asks for precision, boundaries and accountability. Rahu here may push you to define expectations, evaluate compatibility carefully and turn intuition into something that can be examined and applied. Its shadow can appear as overanalysis, perfectionism or searching for another person to provide certainty.",
-    "## Ketu \u2014 What You Already Carry",
-    "Ketu is placed in Pisces almost exactly on your ascendant. This is one of the most personally significant features of your chart. It may indicate an established familiarity with introspection, intuition, spiritual searching and identities that exist outside conventional expectations.",
-    "Ketu can also create detachment from a fixed sense of self. You may periodically outgrow an identity without immediately knowing what should replace it. At other times, you may withdraw, disappear into your internal world or surrender too much of yourself to circumstances and relationships.",
-    "The movement of this axis is not asking you to abandon Pisces. Your sensitivity, compassion and intuition remain essential. The invitation is to carry those qualities toward Rahu in Virgo: into clearer language, stronger boundaries, practical service and more accountable relationships."
-  ],
-  "essential-takeaway": [
-    "Your chart does not ask you to choose between intuition and practicality. It asks you to create a bridge between them.",
-    "Pisces gives you sensitivity, imagination and spiritual receptivity. Jupiter guides you through learning, meaning and the ability to connect multiple perspectives. Ketu keeps you close to the invisible and internal dimensions of life, while Rahu pulls you toward discernment, collaboration and practical application.",
-    "Your direction may become clearer when you give structure to what you intuitively understand\u2014when compassion develops boundaries, insight acquires language and personal experience becomes something useful to others.",
-    "When you feel uncertain, one question may help bring the chart back into balance:",
-    "Does this honor what I sense internally, while also functioning clearly and responsibly in the real world?",
-    "That intersection between intuition and application may be one of the central organizing principles of your path."
-  ]
-};
+function requestChartData() {
+  return new Promise(function (resolve) {
+    var settled = false;
+    function onMsg(ev) {
+      if (ev.origin !== location.origin) return;
+      if (ev.source !== window.parent) return;
+      var d = ev.data || {};
+      if (d.type === "COZ_CHART_DATA") {
+        settled = true;
+        window.removeEventListener("message", onMsg);
+        resolve(d.payload || null);
+      }
+    }
+    window.addEventListener("message", onMsg);
+    try { window.parent.postMessage({ type: "COZ_REQUEST_CHART_DATA" }, location.origin); } catch (e) {}
+    setTimeout(function () { if (!settled) { window.removeEventListener("message", onMsg); resolve(null); } }, 4000);
+  });
+}
+
+function fetchJSON(path) {
+  return fetch(path).then(function (r) { if (!r.ok) throw new Error("fetch failed: " + path); return r.json(); });
+}
+
+var COZ_READING_READY = requestChartData().then(function (chart) {
+  if (!chart || !chart.planets) { window.COZ_VEDIC_READING_UNAVAILABLE = true; return; }
+  return fetchJSON("interpretation-data/manifest.json").then(function (manifest) {
+    return Promise.all([
+      Promise.all(manifest.section1Files.map(function (f) { return fetchJSON("interpretation-data/section1/" + f); })),
+      Promise.all(manifest.section2Files.map(function (f) { return fetchJSON("interpretation-data/section2/" + f); })),
+      fetchJSON("interpretation-data/section3-6-review-drafts.json")
+    ]);
+  }).then(function (results) {
+    var claimData = { section1Files: results[0], section2Files: results[1] };
+    var snippets36 = results[2];
+    var firstName = chart.person && chart.person.name;
+    var result = window.CozDevReview.generateDevReview(chart, claimData, snippets36, firstName);
+    window.COZ_VEDIC_READING = result.reading;
+    window.COZ_VEDIC_REVIEW_META = result.meta;
+  }).catch(function (e) {
+    console.log("[EMERGE FLOW] dev-review generation failed:", e);
+    window.COZ_VEDIC_READING_UNAVAILABLE = true;
+  });
+});
 
 function loadReading() {
   if (window.COZ_VEDIC_READING && typeof window.COZ_VEDIC_READING === "object") return window.COZ_VEDIC_READING;
-  try {
-    const stored = localStorage.getItem("cozVedicReading");
-    if (stored) { const parsed = JSON.parse(stored); if (parsed && typeof parsed === "object") return parsed; }
-  } catch (e) {}
-  return COZ_VEDIC_READING_FIXTURE;
+  return null;
 }
 
 /* ============================================================
@@ -687,7 +684,7 @@ function renderSection(section) {
   const html = `
     <header class="vedic-header">
       <img class="vedic-logo" src="vedic-logo.png" alt="CozAlyze" width="1000" height="1055">
-      <p class="vedic-eyebrow">Your Vedic Reading</p>
+      <p class="vedic-eyebrow">Your Vedic Reading \u00B7 Development-Review Draft</p>
       <p class="vedic-counter">${sectionCounter}</p>
     </header>
     <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
@@ -717,6 +714,36 @@ function renderSection(section) {
   if (finish) finish.addEventListener("click", finishReading);
 }
 
+/* Shown instead of the six sections when no chart data reaches this page
+   (e.g. the parent never received a calculated chart) or generation genuinely
+   fails. Never populates any section content, never falls back to any fixed
+   sample reading. */
+function renderUnavailableNotice() {
+  const html = `
+    <header class="vedic-header">
+      <img class="vedic-logo" src="vedic-logo.png" alt="CozAlyze" width="1000" height="1055">
+      <p class="vedic-eyebrow">Your Vedic Reading \u00B7 Development Preview</p>
+    </header>
+    <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
+    <section class="vedic-body">
+      <p>This chart was calculated successfully. A full composed reading has not yet been generated for this development sample.</p>
+      <p><button type="button" id="vedicRetry" class="vedic-nav-next">Try again</button></p>
+    </section>
+    <nav class="vedic-nav" aria-label="Reading navigation">
+      <div class="vedic-nav-rule" aria-hidden="true">${STAR_SVG}</div>
+      <div class="vedic-nav-links">
+        <a href="#/dashboard" id="vedicNavBack">${ARROW_L} Back to Your Reading</a>
+      </div>
+    </nav>`;
+  const old = document.getElementById("vedicContent");
+  const fresh = old.cloneNode(false);
+  fresh.innerHTML = html;
+  old.replaceWith(fresh);
+  document.title = "Your Vedic Reading \u00B7 CozAlyze";
+  const retry = document.getElementById("vedicRetry");
+  if (retry) retry.addEventListener("click", () => location.reload());
+}
+
 /* ============================================================
    HISTORY / ROUTING  (#/<section id>)
    ============================================================ */
@@ -738,11 +765,17 @@ function showFromHash() {
     showDashboard();
     return;
   }
+  document.body.dataset.view = "reading";
+  if (window.COZ_VEDIC_READING_UNAVAILABLE || !loadReading()) {
+    history.replaceState({ id: "essential-nature" }, "", "#/essential-nature");
+    renderUnavailableNotice();
+    window.scrollTo({ top: 0, behavior: "instant" });
+    return;
+  }
   const section = sectionById(id);
   if (id !== section.id) {
     history.replaceState({ id: section.id }, "", `#/${section.id}`);
   }
-  document.body.dataset.view = "reading";
   renderSection(section);
   window.scrollTo({ top: 0, behavior: "instant" });
 }
@@ -867,12 +900,22 @@ function finishReveal(immediate) {
   revealDone = true;
   revealTimers.forEach(clearTimeout); revealTimers = [];
   const land = () => {
-    location.hash = "#/essential-nature";          // its own history entry; renders via hashchange
-    revealEl.classList.remove("is-on", "is-closing", "asc-off");
-    try { revealVideo.pause(); } catch (e) {}
-    lockScroll(false);
-    revealActive = false;
-    syncReadyState();
+    const go = () => {
+      location.hash = "#/essential-nature";          // its own history entry; renders via hashchange
+      revealEl.classList.remove("is-on", "is-closing", "asc-off");
+      try { revealVideo.pause(); } catch (e) {}
+      lockScroll(false);
+      revealActive = false;
+      syncReadyState();
+    };
+    /* dev-review generation is async (chart request + local claim-file fetches);
+       the reveal already runs several seconds so this normally resolves long
+       before we get here, but we wait for it rather than risk a race. */
+    if (COZ_READING_READY && typeof COZ_READING_READY.then === "function") {
+      COZ_READING_READY.then(go).catch(go);
+    } else {
+      go();
+    }
   };
   if (immediate === true) { land(); return; }
   /* Sep 1 ruling: through the sun. Hold on the burst, then the camera drives into it, the light

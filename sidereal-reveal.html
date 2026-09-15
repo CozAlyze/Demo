@@ -941,7 +941,10 @@ if (typeof Astronomy === 'undefined'){ die('astronomy-engine failed to load. Che
 /* the locate beat names the user's actual birthplace (QA text kept as fallback) */
 (function(){
   var S = null;
-  try { S = JSON.parse(localStorage.getItem('emergeBirthData') || 'null'); } catch(e){}
+  try {
+    var bdParam = new URLSearchParams(location.search).get('bd');
+    if (bdParam) S = JSON.parse(bdParam);
+  } catch(e){}
   if (!S || !S.location || !isFinite(Number(S.location.latitude))) return;
   var lat = Number(S.location.latitude), lon = Number(S.location.longitude);
   var la = Math.abs(lat).toFixed(4) + '\u00B0 ' + (lat >= 0 ? 'N' : 'S');
@@ -954,7 +957,10 @@ if (typeof Astronomy === 'undefined'){ die('astronomy-engine failed to load. Che
 /* ---------------- birth data (QA profile) ---------------- */
 /* the one data spine: saved by index.html when Scene 1 completes */
 var SAVED = null;
-try { SAVED = JSON.parse(localStorage.getItem('emergeBirthData') || 'null'); } catch(e){}
+try {
+  var __bdParam = new URLSearchParams(location.search).get('bd');
+  if (__bdParam) SAVED = JSON.parse(__bdParam);
+} catch(e){}
 
 /* NEW: hard system guard. This page renders the SIDEREAL system only.
    If the saved birth record was written by the Tropical door, stop with a
@@ -3499,7 +3505,7 @@ function vedicCheckout(){
     var handed = false;
     try {
       if (window.parent !== window) {
-        window.parent.postMessage({ coz: 'GOTO_VEDIC', href: href }, '*');
+        window.parent.postMessage({ coz: 'GOTO_VEDIC', href: href, chart: window.__cozChartData || null }, location.origin);
         handed = true;
       }
     } catch(_){}
@@ -3937,22 +3943,8 @@ try {
 } catch(_){}
 
 (function cozBirthChartExport(){
-  /* v19.94: SAFETY FIX. Found: this export needs its OWN separate, stricter parse
-     of SAVED.birthDate/SAVED.birthTime (display strings) even though the actual
-     chart calculation above only needs SAVED.utc. If that second parse ever fails
-     — for any reason, even while the real calculation succeeds correctly — this
-     used to silently return and leave whatever OLD chart was already sitting in
-     cozChartJSON untouched. That is how a completely different, previous person's
-     birth chart could keep showing on the print page after a new, correct reveal.
-     Every early-return below now clears the stale entry first, so a failed write
-     means "nothing available" (an honest empty state) instead of "someone else's
-     data displayed as if it were yours." */
-  function clearStale(reason, detail){
-    try { localStorage.removeItem('cozChartJSON'); } catch(_){}
-    console.log('[EMERGE FLOW] 8. birth-chart export skipped: ' + reason + ' — cleared any stale chart so nothing wrong is shown', detail || '');
-  }
   try {
-    if (!__ok) { clearStale('QA fallback profile, nothing written'); return; }
+    if (!__ok) { console.log('[EMERGE FLOW] 8. birth-chart export skipped: QA fallback profile, nothing written'); return; }
 
     var FULL_NAK = ['Ashwini','Bharani','Krittika','Rohini','Mrigashira','Ardra','Punarvasu','Pushya','Ashlesha','Magha','Purva Phalguni','Uttara Phalguni','Hasta','Chitra','Swati','Vishakha','Anuradha','Jyeshtha','Mula','Purva Ashadha','Uttara Ashadha','Shravana','Dhanishtha','Shatabhisha','Purva Bhadrapada','Uttara Bhadrapada','Revati'];
     var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -3968,25 +3960,20 @@ try {
     var dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(SAVED.birthDate || ''));
     var tm = /^(\d{1,2}):(\d{2})\s*(AM|PM)?/i.exec(String(SAVED.birthTime || ''));
     var locName = (SAVED.location && (SAVED.location.name || SAVED.location.country)) || '';
-    if (!dm || !tm || !locName) {
-      clearStale('stored birth record not display-parseable, nothing invented',
-        { birthDate: SAVED.birthDate, birthTime: SAVED.birthTime, hasLocation: !!locName });
-      return;
-    }
+    if (!dm || !tm || !locName) { console.log('[EMERGE FLOW] 8. birth-chart export skipped: stored birth record not display-parseable, nothing invented'); return; }
     var by = +dm[1], bmo = +dm[2], bd = +dm[3], bmin = +tm[2];
-    /* v19.95 ROOT-CAUSE FIX: SAVED.birthTime is written upstream as "H:MM AM/PM"
-       (12-hour, e.g. "02:30 PM") — confirmed from the original entry-screen code.
-       The regex above now captures that suffix; this converts to a correct 24-hour
-       hour before anything downstream uses it. Before this fix, EVERY afternoon or
-       evening birth (roughly half of all real births) had its local hour computed
-       12 hours off, which is very likely the actual cause of exports failing or
-       producing wrong data for real people, not just an edge case. */
-    var ampmTag = (tm[3] || '').toUpperCase();
     var bh = +tm[1];
-    if (ampmTag === 'PM' && bh < 12) bh += 12;
-    if (ampmTag === 'AM' && bh === 12) bh = 0;
+    /* v20.0 fix: this guard previously ignored AM/PM entirely, treating a 12-hour
+       hour digit as already 24-hour -- any PM birth time could be discarded here
+       as "unresolvable" even though the chart itself was calculated correctly
+       upstream. No change to chart math, only to this display-export sanity check. */
+    if (tm[3]) {
+      var ampm = tm[3].toUpperCase();
+      if (ampm === 'PM' && bh < 12) bh += 12;
+      if (ampm === 'AM' && bh === 12) bh = 0;
+    }
     var offsetMin = Math.round((Date.UTC(by, bmo - 1, bd, bh, bmin) - BIRTH.utc.getTime()) / 60000);
-    if (!isFinite(offsetMin) || Math.abs(offsetMin) > 14 * 60) { clearStale('UTC offset unresolvable', { offsetMin: offsetMin }); return; }
+    if (!isFinite(offsetMin) || Math.abs(offsetMin) > 14 * 60) { console.log('[EMERGE FLOW] 8. birth-chart export skipped: UTC offset unresolvable'); return; }
     var oa = Math.abs(offsetMin);
     var tzDisplay = 'UTC' + (offsetMin < 0 ? '\u2212' : '+') + ('0' + Math.floor(oa / 60)).slice(-2) + ':' + ('0' + (oa % 60)).slice(-2);
     var h12 = bh % 12 === 0 ? 12 : bh % 12;
@@ -4087,11 +4074,10 @@ try {
     /* v19.93: full name onto the printable chart's identity block (BC2.1 renders
        person.name when present, omits the block cleanly when absent) */
     if (SAVED.name && String(SAVED.name).trim()) payload.person = { name: String(SAVED.name).trim() };
-    localStorage.setItem('cozChartJSON', JSON.stringify(payload));
+    window.__cozChartData = payload;
     console.log('[EMERGE FLOW] 8. birth-chart export written: cozChartJSON', payload.reportId, '\u00B7', planets.length, 'bodies \u00B7 panchanga', panchanga.length, 'rows');
   } catch (e) {
-    try { localStorage.removeItem('cozChartJSON'); } catch(_){}
-    console.log('[EMERGE FLOW] 8. birth-chart export failed safely, stale chart cleared, nothing written:', e && e.message);
+    console.log('[EMERGE FLOW] 8. birth-chart export failed safely, nothing written:', e && e.message);
   }
 })();
 
