@@ -598,7 +598,12 @@ function requestChartData() {
      resolved null. Reading the URL directly is the same reliable pattern already
      used for birth data between index.html and sidereal-reveal.html.) */
   try {
-    const cd = new URLSearchParams(location.search).get("cd");
+    const cd = null;  // localStorage approach: birth data is in emergeBirthData
+    let chartData = null;
+    try {
+      const saved = JSON.parse(localStorage.getItem('emergeBirthData') || 'null');
+      if (saved && saved.cozChartJSON) chartData = JSON.parse(saved.cozChartJSON);
+    } catch(_){}
     if (cd) return Promise.resolve(JSON.parse(cd));
   } catch (e) {}
   return Promise.resolve(null);
