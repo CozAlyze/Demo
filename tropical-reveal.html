@@ -3765,8 +3765,9 @@ ctaEl.addEventListener('click', function(){
     try { EMERGE_SOUND.stopLoop('voidatm', 1.0); EMERGE_SOUND.loop('ambient', 1.4); } catch(_){}
     if (!resultBuilt){ try { buildResultPage(); resultBuilt = true; } catch(e){ console.log('[EMERGE FLOW] result page build error:', e); } }
     try { promptEl.classList.remove('show'); } catch(_){}
+    if (auto) window.addEventListener('EMERGE_FREE_SUMMARY_COMPLETE', function(){ window.dispatchEvent(new CustomEvent('EMERGE_UNLOCK_READING_REQUESTED')); }, { once:true });
     finishRevealTransition(REDUCED ? 0 : 400);
-    console.log('[EMERGE FLOW] skip -> result page');
+    console.log('[EMERGE FLOW] skip -> result page, then straight to Conscious Expression');
   }
   el.addEventListener('click', skipToChart);
   if (auto) setTimeout(skipToChart, 500);
