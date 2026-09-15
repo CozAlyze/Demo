@@ -591,22 +591,17 @@ const SECTION_TOTAL = String(vedicReadingSections.length).padStart(2, "0");
    production-verified reading.
    ============================================================ */
 function requestChartData() {
-  return new Promise(function (resolve) {
-    var settled = false;
-    function onMsg(ev) {
-      if (ev.origin !== location.origin) return;
-      if (ev.source !== window.parent) return;
-      var d = ev.data || {};
-      if (d.type === "COZ_CHART_DATA") {
-        settled = true;
-        window.removeEventListener("message", onMsg);
-        resolve(d.payload || null);
-      }
-    }
-    window.addEventListener("message", onMsg);
-    try { window.parent.postMessage({ type: "COZ_REQUEST_CHART_DATA" }, location.origin); } catch (e) {}
-    setTimeout(function () { if (!settled) { window.removeEventListener("message", onMsg); resolve(null); } }, 4000);
-  });
+  /* v20.1 fix: chart data arrives via the ?cd= URL parameter, set by index.html's
+     GOTO_VEDIC handler directly from sidereal-reveal.html's GOTO_VEDIC message.
+     (An earlier round also wired a postMessage round-trip for this, but nothing
+     ever sent the COZ_CHART_READY message that path depended on, so it always
+     resolved null. Reading the URL directly is the same reliable pattern already
+     used for birth data between index.html and sidereal-reveal.html.) */
+  try {
+    const cd = new URLSearchParams(location.search).get("cd");
+    if (cd) return Promise.resolve(JSON.parse(cd));
+  } catch (e) {}
+  return Promise.resolve(null);
 }
 
 function fetchJSON(path) {
