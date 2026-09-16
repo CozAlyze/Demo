@@ -806,7 +806,7 @@
   </div>
 </div>
 
-<div id="ver">SCENE 1 · v20.0 · solid back · routes 1870 1975</div>
+<div id="ver">SCENE 1 · v20.1 · centred landing · routes 1870 1975</div>
 
 <script>
 /* v19.75: the two-perspectives page owns its own zoom.
@@ -837,6 +837,7 @@
     landing = null;
     if (!page || !inner) return;
     inner.style.transform = '';
+    inner.style.transformOrigin = '';
     page.style.overflowY = 'auto';
     page.style.touchAction = 'pan-y';
     page.scrollTop = landTarget;
@@ -872,6 +873,12 @@
     var HOLD = 3000, EASE = 1500, start = null;
     page.style.overflowY = 'hidden';
     page.style.touchAction = 'none';
+    /* v20.1: scale from the TOP CENTRE. Without this the browser scales from the
+       middle of the content, which threw the pulled-back view off to one side and
+       left the last frame sitting somewhere other than the scroll position this
+       hands back to — so it landed with a jump. Top centre keeps it centred the
+       whole way and makes the final frame and the handoff the same place. */
+    inner.style.transformOrigin = '50% 0';
 
     function frame(now){
       if (!landing) return;
@@ -880,9 +887,10 @@
       var p = t <= HOLD ? 0 : Math.min(1, (t - HOLD) / EASE);
       var e = p < 0.5 ? 4*p*p*p : 1 - Math.pow(-2*p + 2, 3) / 2;
       var s = fit + (1 - fit) * e;
-      var xx = (vw - inner.offsetWidth * s) / 2;
+      /* origin is top centre, so the horizontal stays centred on its own and the
+         vertical is simply the scroll distance travelled so far */
       var yy = -(landTarget * e);
-      inner.style.transform = 'translate(' + xx.toFixed(2) + 'px,' + yy.toFixed(2) + 'px) scale(' + s.toFixed(4) + ')';
+      inner.style.transform = 'translateY(' + yy.toFixed(2) + 'px) scale(' + s.toFixed(4) + ')';
       if (p < 1) landing.raf = requestAnimationFrame(frame);
       else landDone();
     }
