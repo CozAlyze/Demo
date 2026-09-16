@@ -390,9 +390,23 @@
      BACK sat inside the globe marker, so the two landed on top of each other.
      Sitting just left of centre also keeps BACK well clear of the phone's own
      back gesture at the screen edge. */
-  .entry-actions { position:absolute; left:50%; top:calc(100% + 26px);
+  .entry-actions { position:absolute; left:50%; top:calc(100% + 74px);
     transform:translateX(-50%); display:flex; justify-content:center; gap:26px; }
+  /* v20.0 (his ruling): BACK was inheriting the transparent outline treatment,
+     so the birthplace city and country read straight through it and the pill
+     was effectively invisible. It now carries the SOLID fill from his own
+     marker back pill, so it reads against anything behind it. */
   .entry-actions .entry-back { opacity:0; visibility:hidden; pointer-events:none;
+    color:#2B1D13; border-color:rgba(232,199,166,.92);
+    background:linear-gradient(
+      180deg,
+      rgba(232,199,166,.98) 0%,
+      rgba(201,147,120,.98) 100%
+    );
+    box-shadow:
+      0 0 26px rgba(214,169,134,.38),
+      0 8px 24px rgba(0,0,0,.32),
+      inset 0 1px 0 rgba(255,240,220,.72);
     transition:opacity .3s ease, visibility .3s ease, box-shadow .2s ease; }
   .entry-actions .entry-back.show { opacity:1; visibility:visible; pointer-events:auto; }
   .entry-actions .entry-back:active { transform:scale(.96); }
@@ -792,7 +806,7 @@
   </div>
 </div>
 
-<div id="ver">SCENE 1 · v19.99 · back+enter row · routes 1870 1975</div>
+<div id="ver">SCENE 1 · v20.0 · solid back · routes 1870 1975</div>
 
 <script>
 /* v19.75: the two-perspectives page owns its own zoom.
