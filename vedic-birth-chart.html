@@ -185,10 +185,38 @@ button{font:inherit}
   .insight-content{margin-left:0; padding-right:1.6rem}
 }
 @page{size:Letter; margin:.35in}
+
+/* ---------- v20.1 shared reading footer (his ruling) ----------
+   The same CozAlyze line and Home / Saved / Account bar that now runs across
+   the reading. It is navigation, so it never prints — the printed page keeps
+   the CozAlyze mark in the report itself. */
+#cozFoot{
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  padding-bottom:env(safe-area-inset-bottom);
+  background:rgb(8 11 17 / .86);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border-top:1px solid rgb(201 161 94 / .18);
+}
+#cozFoot .coz-foot-tag{
+  text-align:center; font-style:italic; font-size:13px; letter-spacing:.04em;
+  color:#8b8272; padding:11px 20px 3px;
+}
+#cozFoot .coz-foot-links{display:flex; height:64px}
+#cozFoot a{
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:4px; text-decoration:none; color:#8b8272; font-size:10.5px; letter-spacing:.06em;
+  -webkit-tap-highlight-color:transparent;
+}
+#cozFoot a svg{width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round}
+#cozFoot a:active{color:var(--coz-gold,#b88a55)}
+/* the footer owns the bottom of the screen, so the report clears it */
+.report-shell{padding-bottom:calc(env(safe-area-inset-bottom) + 124px)}
+
 @media print{
   :root{--background:#ffffff; --foreground:#07162b}
   html,body{background:#ffffff !important}
-  .screen-only,.report-toolbar,.sample-banner,.build-stamp{display:none !important}
+  .screen-only,.report-toolbar,.sample-banner,.build-stamp,#cozFoot{display:none !important}
+  .report-shell{padding-bottom:0}
   .report-shell{min-height:0; padding:0}
   .birth-report{width:100%; max-width:none; overflow:visible; border:0; box-shadow:none; print-color-adjust:exact; -webkit-print-color-adjust:exact}
   .birth-report::before{inset:.2in}
@@ -214,10 +242,6 @@ button{font:inherit}
 <div class="report-shell">
   <div class="report-toolbar">
     <div class="toolbar-left">
-      <button type="button" class="print-button back-button" id="backBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
-        Back to Reading
-      </button>
       <p>BIRTH-CHART PRINT PREVIEW</p>
     </div>
     <button type="button" class="print-button" id="printBtn">
@@ -228,7 +252,15 @@ button{font:inherit}
   <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
   <div id="reportMount"></div>
 </div>
-<div class="build-stamp">BIRTH CHART · BC2.1 · engine wired</div>
+<div id="cozFoot">
+  <div class="coz-foot-tag">CozAlyze helps you see it all</div>
+  <div class="coz-foot-links">
+    <a href="vedic-reading.html" id="cozFootHome"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9h13v-9"/></svg>Home</a>
+    <a href="#" data-foot="saved"><svg viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z"/></svg>Saved</a>
+    <a href="#" data-foot="account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
+  </div>
+</div>
+<div class="build-stamp">BIRTH CHART · BC2.2 · shared footer</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -641,7 +673,7 @@ function renderEmptyState(){
   var mount = document.getElementById("reportMount");
   var banner = document.getElementById("sampleBanner");
   document.getElementById("printBtn").addEventListener("click",function(){window.print();});
-  document.getElementById("backBtn").addEventListener("click",function(){location.href="vedic-reading.html";});
+  /* v20.1: the top Back button is gone; the footer Home link returns to the reading */
 
   var qp = new URLSearchParams(location.search);
   var chart = null, isSample = false;
@@ -671,6 +703,15 @@ function renderEmptyState(){
   mount.appendChild(renderReport(chart));
 })();
 
+
+/* v20.1: Saved and Account mirror the dashboard hotspots — same events, still
+   decorative until those screens exist. */
+document.querySelectorAll('#cozFoot a[data-foot]').forEach(function(a){
+  a.addEventListener('click', function(ev){
+    ev.preventDefault();
+    try { window.dispatchEvent(new CustomEvent('COZ_DASH_' + a.dataset.foot.toUpperCase())); } catch (e) {}
+  });
+});
 </script>
 </body>
 </html>

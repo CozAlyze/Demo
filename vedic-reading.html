@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE VEDIC READING · R3.4 · birth chart door
+   COZALYZE · COMPLETE VEDIC READING · R3.5 · shared footer
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -376,10 +376,50 @@ body.scroll-locked { overflow: hidden; touch-action: none; }
   .vedic-header, .vedic-counter, .vedic-title, .vedic-divider { break-inside: avoid; break-after: avoid; }
   .vedic-body p, .vedic-subhead { break-inside: avoid; orphans: 3; widows: 3; }
   .vedic-subhead { break-after: avoid; }
-  .vedic-nav, .vedic-stamp, .coz-skip, .dash, .reveal { display: none !important; }
+  .vedic-nav, .vedic-stamp, .coz-skip, .dash, .reveal,
+  #cozFoot { display: none !important; }
   .vedic-bg { position: absolute; }
   body { background: #fff; color: #111; }
   .vedic-body, .vedic-body p { color: #111; }
+}
+
+
+/* ---------- v20.1 shared reading footer (his ruling) ----------
+   One footer across the whole reading: the CozAlyze line plus Home, Saved and
+   Account. It reuses the #asqNav treatment already in this file rather than
+   introducing a new look. The dashboard keeps its own painted footer, so this
+   one stays hidden there, and it never prints. */
+#cozFoot {
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  padding-bottom:env(safe-area-inset-bottom);
+  background:rgba(8,11,17,.86);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border-top:1px solid rgba(201,161,94,.18);
+  display:none;
+}
+#cozFoot .coz-foot-tag {
+  text-align:center; font-family:'EB Garamond',serif; font-style:italic;
+  font-size:13px; letter-spacing:.04em; color:#8b8272;
+  padding:11px 20px 3px;
+}
+#cozFoot .coz-foot-links { display:flex; height:var(--asq-nav-h,64px); }
+#cozFoot a {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:4px; text-decoration:none; color:#8b8272; font-size:10.5px; letter-spacing:.06em;
+  font-family:'EB Garamond',serif; -webkit-tap-highlight-color:transparent;
+}
+#cozFoot a svg {
+  width:21px; height:21px; stroke:currentColor; fill:none;
+  stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round;
+}
+#cozFoot a:active { color:var(--asq-gold,#c9a15e); }
+#cozFoot a:focus-visible { outline:1px solid var(--asq-gold,#c9a15e); outline-offset:-4px; }
+/* shown on the reading and, once the ascendant has settled, on the ascendant */
+body[data-view="reading"] #cozFoot { display:block; }
+body[data-view="ascendant"].asq-done #cozFoot { display:block; }
+/* the footer owns the bottom of the screen, so the content clears it */
+body[data-view="reading"] .vedic-reading-page {
+  padding-bottom:calc(env(safe-area-inset-bottom) + var(--asq-nav-h,64px) + 60px);
 }
 
 /* ---------- build stamp (project standing rule) ---------- */
@@ -564,15 +604,16 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
     <div id="asqSections"></div>
   </div>
 </div>
-<nav id="asqNav" class="asq">
-  <a href="#" id="asqHome"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9h13v-9"/></svg>Home</a>
-  <a href="#" class="active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18"/></svg>My Chart</a>
-  <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2.2 5-4.8 2 2.2-5z"/></svg>Explore</a>
-  <a href="#"><svg viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z"/></svg>Saved</a>
-  <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
-</nav>
+<div id="cozFoot">
+  <div class="coz-foot-tag">CozAlyze helps you see it all</div>
+  <div class="coz-foot-links">
+    <a href="#" id="asqHome"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9h13v-9"/></svg>Home</a>
+    <a href="#" data-foot="saved"><svg viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z"/></svg>Saved</a>
+    <a href="#" data-foot="account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
+  </div>
+</div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R3.4 · birth chart door</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R3.5 · shared footer</div>
 
 <script src="dev-review-engine.js?v=6"></script>
 <script>
@@ -1613,6 +1654,15 @@ document.getElementById("hotReading").addEventListener("click", function(){
   document.addEventListener("touchend", end); document.addEventListener("touchcancel", end);
 })();
 
+
+/* v20.1: Saved and Account mirror the dashboard hotspots — same events, still
+   decorative until those screens exist. */
+document.querySelectorAll('#cozFoot a[data-foot]').forEach(a => {
+  a.addEventListener('click', ev => {
+    ev.preventDefault();
+    try { window.dispatchEvent(new CustomEvent('COZ_DASH_' + a.dataset.foot.toUpperCase())); } catch (e) {}
+  });
+});
 </script>
 </body>
 </html>
