@@ -369,6 +369,19 @@ body[data-view="reading"] .dash { display: none; }
 }
 body.scroll-locked { overflow: hidden; touch-action: none; }
 
+@media print {
+  /* keep a reading section whole so nothing repeats across a page break,
+     and never orphan the counter, title, label or cost line from its text */
+  .vedic-reading-content { break-inside: auto; }
+  .vedic-header, .vedic-counter, .vedic-title, .vedic-divider { break-inside: avoid; break-after: avoid; }
+  .vedic-body p, .vedic-subhead { break-inside: avoid; orphans: 3; widows: 3; }
+  .vedic-subhead { break-after: avoid; }
+  .vedic-nav, .vedic-stamp, .coz-skip, .dash, .reveal { display: none !important; }
+  .vedic-bg { position: absolute; }
+  body { background: #fff; color: #111; }
+  .vedic-body, .vedic-body p { color: #111; }
+}
+
 /* ---------- build stamp (project standing rule) ---------- */
 .vedic-stamp {
   position: fixed;
@@ -561,7 +574,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 
 <div class="vedic-stamp" aria-hidden="true">VEDIC READING · R3.4 · birth chart door</div>
 
-<script src="dev-review-engine.js"></script>
+<script src="dev-review-engine.js?v=6"></script>
 <script>
 /* ============================================================
    SECTION DATA (spec, verbatim)
@@ -597,40 +610,298 @@ function requestChartData() {
      ever sent the COZ_CHART_READY message that path depended on, so it always
      resolved null. Reading the URL directly is the same reliable pattern already
      used for birth data between index.html and sidereal-reveal.html.) */
+  let chartData = null;
   try {
-    const cd = null;  // localStorage approach: birth data is in emergeBirthData
-    let chartData = null;
-    try {
-      const saved = JSON.parse(localStorage.getItem('emergeBirthData') || 'null');
-      if (saved && saved.cozChartJSON) chartData = JSON.parse(saved.cozChartJSON);
-    } catch(_){}
-    if (cd) return Promise.resolve(JSON.parse(cd));
-  } catch (e) {}
-  return Promise.resolve(null);
+    chartData = JSON.parse(localStorage.getItem('cozChartJSON') || 'null');
+  } catch(_){}
+  return Promise.resolve(chartData);
+}
+
+
+/* ============================================================
+   LIVE DRAFT GENERATOR (development review only, Sep 15 2026)
+   Sections 3-6 written by the model for any chart that has no hand-reviewed
+   draft. Direct browser call to the Anthropic API using the person's own
+   test key (stored only in this browser's localStorage by test-index.html).
+   Output is labeled unverified development copy. Cached per chart so a
+   reload never re-spends. Prompt + raw response kept in COZ_VEDIC_GEN_TRACE.
+   ============================================================ */
+var COZ_GEN_SYSTEM = [
+"You write the Vedic reading for CozAlyze. You are writing Sections 3 through 6 of a six-section reading. Sections 1 and 2 are already written and given to you; continue them, do not restate them.",
+"",
+"VOICE. Sound like a person speaking, not a lecture. Establish the frame once with a phrase like 'your chart suggests' and then write with natural confidence; do not hedge every sentence. Roughly 7th to 8th grade reading level: familiar words, mostly short sentences (average well under 20 words), concrete human situations. No academic psychology, no vague filler ('a quieter thread underneath'), no sentence written only to fill space.",
+"",
+"PLAIN LANGUAGE. Planets appear only as influences ('Venus's influence', 'Saturn's influence'). The Sun and the Moon always take the article: write 'the Sun's influence' and 'the Moon's influence', never 'Sun's influence' or 'Moon's influence'. Never house numbers, rulerships, aspects, 'sits in', sign relationships, or any technical mechanics. Do not name any nakshatra. Never use the word 'pada'. The reader never learns where a statement comes from.",
+"",
+"GROUNDING. Every claim must trace to the chart placements given. Every important conclusion needs two distinct chart factors behind it; single-factor conclusions take lighter language. Include contradicting or softening factors so the chart is not flattened. No biography, profession, or life events are known to you; never invent them. Never guarantee events; specificity comes from the nature of a pattern, where it operates, what strengthens or complicates it. No 6+ word phrase may repeat across sections.",
+"",
+"SECTION 3, Relationships, Desire & Karmic Exchange: discuss relationships directly, no mechanics lecture. Balanced framing: fairness and equal participation; shared values, money, family responsibilities, promises, communication as central; wanting problems addressed directly; honesty without needing to win; independence and closeness both needing room; practical commitment mattering as much as attraction. Never portray the person as selfish, controlling, manipulative, or careless. Do not moralize.",
+"",
+"SECTION 4, Dharma, Work & Life Direction: discuss purpose, abilities, working conditions and fields directly, no lecture. Must include: what kind of contribution feels purposeful; the person's strongest useful abilities; the working conditions those abilities need; specific reasonable fields (never guaranteed careers); the main work-related challenge; a practical direction for handling it.",
+"",
+"SECTION 5, Rahu & Ketu: OPEN by naming them in full on first reference: Rahu (North Node) and Ketu (South Node). Explain that they are not physical bodies, they are the two points where the Moon's orbit crosses the Sun's path (the eclipse alignment); in Vedic tradition Ketu points to gifts already carried into this life (familiar, available without much effort) and Rahu to what is being actively grown into (less familiar, more effort, real potential); one sentence on the push-pull is allowed. Then apply the specific placements without re-teaching. Do not assert a universal growth-versus-release psychology as fact. No vague predictions like 'success may come'.",
+"",
+"SECTION 5 SUBHEAD FORMAT, follow exactly. The rahu-ketu array must contain these five separate array entries, in this order, and the two subhead entries must each be a string containing ONLY the subhead and nothing else: (1) the opening explanation paragraph; (2) the exact string \"## Rahu \u2014 Where Life Pulls You Forward\"; (3) the Rahu paragraph; (4) the exact string \"## Ketu \u2014 What You Already Carry\"; (5) the Ketu paragraph. Never join a subhead to the paragraph that follows it in the same string.",
+"",
+"SECTION 6, Your Essential Takeaway: pure synthesis of threads already in Sections 1 through 5. No new chart factor, no new technical explanation, not a repeat of earlier sentences. End with one practical direction.",
+"",
+"LENGTH. Every section, 3 through 6, must land between 245 and 290 words. That includes Section 5 (count the two subheads as part of it) and Section 6. Section 6 is a full synthesis at that same length, not a short closing note: draw together the threads from Sections 1 through 5, name the central tension, and end with one practical direction. Do not pad and do not run long.",
+"",
+"OUTPUT. Return ONLY a JSON object, no prose before or after, no code fences: {\"relationships-karmic\": [paragraph strings], \"dharma-direction\": [...], \"rahu-ketu\": [...], \"essential-takeaway\": [...]}. Each array holds plain paragraph strings; in rahu-ketu, the two subhead strings begin with '## '."
+].join("\n");
+
+function cozGenChartFacts(chart) {
+  var S = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+  var H = ["1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th","11th","12th"];
+  return (chart.planets || []).map(function (p) {
+    return p.name + ": " + S[(p.signNumber || 1) - 1] + ", " + H[(p.house || 1) - 1] + " house" +
+      (p.nakshatra ? ", nakshatra " + p.nakshatra + (p.pada ? " pada " + p.pada : "") : "");
+  }).join("\n");
+}
+
+function cozRepairSections(sections) {
+  var SUBHEADS = ["Rahu \u2014 Where Life Pulls You Forward", "Ketu \u2014 What You Already Carry"];
+  Object.keys(sections).forEach(function (id) {
+    var out = [];
+    (sections[id] || []).forEach(function (para) {
+      var t = String(para).trim();
+      if (!t) return;
+      var split = false;
+      for (var i = 0; i < SUBHEADS.length && !split; i++) {
+        var head = SUBHEADS[i];
+        var bare = t.replace(/^##\s*/, "");
+        if (bare.indexOf(head) === 0) {
+          var rest = bare.slice(head.length).replace(/^[\s:.\u2014-]+/, "").trim();
+          out.push("## " + head);
+          if (rest) out.push(rest);
+          split = true;
+        }
+      }
+      if (!split) out.push(t);
+    });
+    var seen = {}, deduped = [];
+    out.forEach(function (p) {
+      var norm = p.replace(/\s+/g, " ").trim().toLowerCase();
+      var k = norm.length <= 80 ? norm : norm.slice(0, 60);
+      if (seen[k]) return;
+      seen[k] = true; deduped.push(p);
+    });
+    sections[id] = deduped;
+  });
+  return sections;
+}
+
+var cozCurrentSectionId = null;
+function cozGenUsageLine() {
+  var t = window.COZ_VEDIC_GEN_TRACE; if (!t) return "";
+  var c = (t.estimatedCostUSD != null) ? "$" + t.estimatedCostUSD.toFixed(4) : "n/a";
+  return '<p style="text-align:center;font-size:12px;color:var(--vedic-gold-muted);margin:0 0 10px">' +
+    esc(t.model) + " · in " + (t.inputTokens || 0) + " · out " + (t.outputTokens || 0) + " tokens · est. " + c +
+    (t.fromCache ? " · from cache (no new charge)" : " · generated now") +
+    (t.sectionWordCounts && t.sectionWordCounts[cozCurrentSectionId] ?
+      " · " + t.sectionWordCounts[cozCurrentSectionId].words + " words" +
+      (t.sectionWordCounts[cozCurrentSectionId].inBand ? "" :
+        " · OUT OF BAND (" + t.sectionWordCounts[cozCurrentSectionId].band + ") after retry") : "") + "</p>";
+}
+function cozGenHash(s) { var h = 0; for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; } return (h >>> 0).toString(36); }
+
+function generateSections3to6(chart, reading12, firstName) {
+  var key = null, model = "claude-sonnet-4-6";
+  try { key = localStorage.getItem("cozTestApiKey"); model = localStorage.getItem("cozTestModel") || model; } catch (_) {}
+  if (!key) return Promise.reject(new Error("No API key set. Open test-index.html and enter your test key first."));
+
+  var facts = cozGenChartFacts(chart);
+  var cacheKey = "cozGenDraft:" + cozGenHash(facts + "|" + (firstName || "") + "|" + model);
+  try {
+    var cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
+    if (cached && cached.sections) { cached.trace.fromCache = true; return Promise.resolve(cached); }
+  } catch (_) {}
+
+  var userMsg = [
+    "Chart (sidereal, Lahiri, whole sign):",
+    facts,
+    "",
+    "Name for the reading: " + (firstName || "(none; do not use a name)") + ". Do not use the name in Sections 3 through 6.",
+    "",
+    "SECTION 1 (already written):",
+    (reading12["essential-nature"] || []).join("\n\n"),
+    "",
+    "SECTION 2 (already written):",
+    (reading12["mind-intuition"] || []).join("\n\n"),
+    "",
+    "Write Sections 3, 4, 5, 6 now. JSON only."
+  ].join("\n");
+
+  window.COZ_GEN_IN_FLIGHT = true;
+  return cozGenerateOnce(key, model, userMsg, false);
+
+  function cozGenerateOnce(key, model, userMsg, retrying) {
+  var body = { model: model, max_tokens: 4000, system: COZ_GEN_SYSTEM, messages: [{ role: "user", content: userMsg }] };
+  return fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": key,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
+      "content-type": "application/json"
+    },
+    body: JSON.stringify(body)
+  }).then(function (r) {
+    return r.text().then(function (t) {
+      if (!r.ok) throw new Error("API " + r.status + ": " + t.slice(0, 300));
+      return JSON.parse(t);
+    });
+  }).then(function (data) {
+    var text = (data.content || []).filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("\n");
+    var clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+    var s = clean.indexOf("{"), e = clean.lastIndexOf("}");
+    if (s < 0 || e < 0) throw new Error("Model did not return JSON. Raw: " + text.slice(0, 200));
+    var sections = JSON.parse(clean.slice(s, e + 1));
+    ["relationships-karmic","dharma-direction","rahu-ketu","essential-takeaway"].forEach(function (id) {
+      if (!Array.isArray(sections[id]) || !sections[id].length) throw new Error("Model output missing section: " + id);
+    });
+    /* Repair pass, always applied so a model slip can never reach the page:
+       split a subhead that got joined to its paragraph, and drop any paragraph
+       that duplicates one already in the same section. */
+    sections = cozRepairSections(sections);
+    Object.keys(sections).forEach(function (id) {
+      sections[id] = sections[id].map(function (p) {
+        var s = String(p);
+        /* "Sun's influence" -> "the Sun's influence", including at the start of a
+           paragraph or sentence, without touching an existing "the Sun's ..." */
+        s = s.replace(/(^|[\s(“"'‘])(Sun|Moon)'s influence/g, function (m, pre, body) {
+          return pre + (/\bthe\s$/i.test(pre) ? "" : "the ") + body + "'s influence";
+        });
+        s = s.replace(/\bthe the\b/gi, "the");
+        /* sentence-initial "the Sun" keeps its capital */
+        s = s.replace(/(^|[.!?]\s+)the (Sun|Moon)'s influence/g, function (m, pre, body) {
+          return pre + "The " + body + "'s influence";
+        });
+        return s;
+      });
+    });
+    var lens = cozSectionLengths(sections);
+    var bad = Object.keys(lens).filter(function (k) {
+      var b = COZ_BANDS[k]; return b && b[2] === "generated" && (lens[k] < b[0] || lens[k] > b[1]);
+    });
+    if (bad.length && !retrying) {
+      /* one retry, telling the model exactly which sections missed and by how much */
+      var note = bad.map(function (k) { return k + " was " + lens[k] + " words"; }).join("; ");
+      return cozGenerateOnce(key, model, userMsg + "\n\nYour previous attempt missed the length rule: " + note +
+        ". Every section must be between 245 and 290 words. Keep the same substance and voice; tighten what ran long and develop what ran short. Return the full JSON again.", true);
+    }
+    var u = data.usage || {}, inTok = u.input_tokens || 0, outTok = u.output_tokens || 0;
+    var PRICE = { input: 3.00, output: 15.00 };   /* USD per million tokens, Sonnet 4.x list price */
+    var cost = inTok / 1e6 * PRICE.input + outTok / 1e6 * PRICE.output;
+    var out = { sections: sections, trace: { model: model, generatedAt: new Date().toISOString(), usage: data.usage || null,
+      inputTokens: inTok, outputTokens: outTok, estimatedCostUSD: Math.round(cost * 10000) / 10000,
+      chartFacts: facts, systemPrompt: COZ_GEN_SYSTEM, userMessage: userMsg, rawResponse: text, fromCache: false } };
+    try { localStorage.setItem(cacheKey, JSON.stringify(out)); } catch (_) {}
+    return out;
+  });
+  }
+}
+
+/* Option C (Nina review build): Sections 1-2 are assembled from matched claim
+   records and are NOT capped or trimmed; their measured band is 215-360 words.
+   Sections 3-6 are generated and held to 245-290. Every count is recorded. */
+var COZ_BANDS = {
+  "essential-nature":    [215, 360, "assembled from claim records (not capped)"],
+  "mind-intuition":      [215, 360, "assembled from claim records (not capped)"],
+  "relationships-karmic":[245, 290, "generated"],
+  "dharma-direction":    [245, 290, "generated"],
+  "rahu-ketu":           [245, 290, "generated"],
+  "essential-takeaway":  [245, 290, "generated"]
+};
+function cozWordCountReport(assembled, generated) {
+  var all = {}, report = {};
+  ["essential-nature","mind-intuition"].forEach(function (id) { all[id] = assembled[id] || []; });
+  Object.keys(generated || {}).forEach(function (id) { all[id] = generated[id]; });
+  var lens = cozSectionLengths(all);
+  Object.keys(COZ_BANDS).forEach(function (id) {
+    if (lens[id] === undefined) return;
+    var b = COZ_BANDS[id];
+    report[id] = { words: lens[id], band: b[0] + "-" + b[1], source: b[2],
+                   inBand: lens[id] >= b[0] && lens[id] <= b[1] };
+  });
+  try { console.log("[COZ WORD COUNTS]", JSON.stringify(report)); } catch (_) {}
+  return report;
+}
+function cozSectionLengths(sections) {
+  var out = {};
+  Object.keys(sections).forEach(function (id) {
+    out[id] = (sections[id] || []).filter(function (p) { return String(p).indexOf("## ") !== 0; })
+      .join(" ").trim().split(/\s+/).filter(Boolean).length;
+  });
+  return out;
 }
 
 function fetchJSON(path) {
-  return fetch(path).then(function (r) { if (!r.ok) throw new Error("fetch failed: " + path); return r.json(); });
+  return fetch(path).then(function (r) {
+    if (!r.ok) throw new Error("fetch failed (" + r.status + "): " + path);
+    return r.text().then(function (t) {
+      try { return JSON.parse(t); }
+      catch (pe) { throw new Error("NOT JSON: " + path + " starts with: " + JSON.stringify(t.slice(0, 60))); }
+    });
+  });
 }
 
 var COZ_READING_READY = requestChartData().then(function (chart) {
-  if (!chart || !chart.planets) { window.COZ_VEDIC_READING_UNAVAILABLE = true; return; }
-  return fetchJSON("interpretation-data/manifest.json").then(function (manifest) {
-    return Promise.all([
-      Promise.all(manifest.section1Files.map(function (f) { return fetchJSON("interpretation-data/section1/" + f); })),
-      Promise.all(manifest.section2Files.map(function (f) { return fetchJSON("interpretation-data/section2/" + f); })),
-      fetchJSON("interpretation-data/section3-6-review-drafts.json")
-    ]);
-  }).then(function (results) {
+  if (!chart || !chart.planets) { window.COZ_VEDIC_READING_UNAVAILABLE = true; window.COZ_VEDIC_DEBUG = "No chart in localStorage.cozChartJSON (got: " + JSON.stringify(chart).slice(0,80) + ")"; return; }
+  var SECTION1_FILES = [
+    "application-claims-s1-ascendant-lord-houses-batch2.json",
+    "application-claims-s1-ascendant-signs-batch2.json",
+    "application-claims-s1-guiding-planets-batch1.json",
+    "application-claims-s1-hidden-role-fixture-batch1.json",
+    "application-claims-s1-v26-compiled-overlay.json"
+];
+  var SECTION2_FILES = [
+    "application-claims-chicago.json",
+    "application-claims-denver.json",
+    "application-claims-moon-houses-phase3-batch1.json",
+    "application-claims-moon-signs-phase3-batch2.json",
+    "application-claims-nakshatras-phase3-batch3a.json",
+    "application-claims-nakshatras-phase3-batch3b.json",
+    "application-claims-nakshatras-phase3-batch3c.json",
+    "application-claims-nakshatras-phase3-batch3d.json",
+    "application-claims-padas-batch4a.json",
+    "application-claims-padas-batch4b.json",
+    "application-claims-padas-batch4c.json",
+    "application-claims-padas-batch4d.json",
+    "application-claims.json"
+];
+  return Promise.all([
+    Promise.all(SECTION1_FILES.map(function (f) { return fetchJSON(f); })),
+    Promise.all(SECTION2_FILES.map(function (f) { return fetchJSON(f); })),
+    fetchJSON("section3-6-review-drafts.json")
+  ]).then(function (results) {
     var claimData = { section1Files: results[0], section2Files: results[1] };
     var snippets36 = results[2];
-    var firstName = chart.person && chart.person.name;
+    if (!window.CozDevReview) throw new Error("dev-review-engine.js did not load (window.CozDevReview missing)");
+    var firstName = chart.person && (chart.person.firstName || String(chart.person.name || "").split(/\s+/)[0]);
     var result = window.CozDevReview.generateDevReview(chart, claimData, snippets36, firstName);
-    window.COZ_VEDIC_READING = result.reading;
     window.COZ_VEDIC_REVIEW_META = result.meta;
+    var hasReviewed = !/no identity match/i.test(String(result.meta.sections3to6Source || ""));
+    if (hasReviewed) { if (result.meta.sections3to6Unverified) result.reading._generated36 = true; window.COZ_VEDIC_READING = result.reading; return; }
+    /* No hand-reviewed draft for this chart: generate Sections 3-6 as unverified
+       development copy so every chart produces all six sections. */
+    return generateSections3to6(chart, result.reading, firstName).then(function (gen) {
+      window.COZ_GEN_IN_FLIGHT = false;
+      gen.trace.sectionWordCounts = cozWordCountReport(result.reading, gen.sections);
+      gen.trace.outOfBand = Object.keys(gen.trace.sectionWordCounts).filter(function (k) {
+        return !gen.trace.sectionWordCounts[k].inBand && COZ_BANDS[k] && COZ_BANDS[k][2] === "generated";
+      });
+      var reading = Object.assign({}, result.reading, gen.sections);
+      reading._generated36 = true;
+      window.COZ_VEDIC_READING = reading;
+      window.COZ_VEDIC_GEN_TRACE = gen.trace;
+      try { console.log("[COZ GEN TRACE]", JSON.stringify(gen.trace)); } catch (_) {}
+    });
   }).catch(function (e) {
     console.log("[EMERGE FLOW] dev-review generation failed:", e);
+    window.COZ_GEN_IN_FLIGHT = false;
     window.COZ_VEDIC_READING_UNAVAILABLE = true;
+    window.COZ_VEDIC_DEBUG = "Generation error: " + (e && ((e.message || String(e)) + " @ " + (e.stack || "")));
   });
 });
 
@@ -671,6 +942,7 @@ function esc(s) {
 function sectionById(id) { return vedicReadingSections.find(s => s.id === id) || vedicReadingSections[0]; }
 
 function renderSection(section) {
+  cozCurrentSectionId = section.id;
   const reading = loadReading();
   const paragraphs = Array.isArray(reading[section.id]) ? reading[section.id] : [];
   const sectionCounter = `${String(section.number).padStart(2, "0")} OF ${SECTION_TOTAL}`;
@@ -690,6 +962,7 @@ function renderSection(section) {
     <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
     <h1 class="${titleClass}">${esc(section.title)}</h1>
     <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
+    ${(section.number >= 3 && reading._generated36) ? '<p style="text-align:center;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--vedic-gold-muted);margin:0 0 6px">Unverified development copy · generated for review</p>' + cozGenUsageLine() : ''}
     <section class="vedic-body">
       ${paragraphs.map(p => p.startsWith("## ")
         ? `<h3 class="vedic-subhead">${esc(p.slice(3))}</h3>`
@@ -727,6 +1000,7 @@ function renderUnavailableNotice() {
     <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
     <section class="vedic-body">
       <p>This chart was calculated successfully. A full composed reading has not yet been generated for this development sample.</p>
+      <p style="font-size:14px;opacity:.7;word-break:break-all">DEBUG: ${esc(window.COZ_VEDIC_DEBUG || "no debug info captured")}</p>
       <p><button type="button" id="vedicRetry" class="vedic-nav-next">Try again</button></p>
     </section>
     <nav class="vedic-nav" aria-label="Reading navigation">
@@ -766,18 +1040,33 @@ function showFromHash() {
     return;
   }
   document.body.dataset.view = "reading";
-  if (window.COZ_VEDIC_READING_UNAVAILABLE || !loadReading()) {
-    history.replaceState({ id: "essential-nature" }, "", "#/essential-nature");
-    renderUnavailableNotice();
+  /* wait for generation to settle before deciding placeholder vs reading
+     (direct load / reload lands here before the fetches finish) */
+  if (window.COZ_GEN_IN_FLIGHT && !loadReading()) {
+    const old = document.getElementById("vedicContent");
+    const fresh = old.cloneNode(false);
+    fresh.innerHTML = `<header class="vedic-header"><img class="vedic-logo" src="vedic-logo.png" alt="CozAlyze" width="1000" height="1055"></header>
+      <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
+      <section class="vedic-body"><p>Writing Sections 3 through 6 for this chart. This takes about 10 to 20 seconds.</p></section>`;
+    old.replaceWith(fresh);
+  }
+  const proceed = () => {
+    if (window.COZ_VEDIC_READING_UNAVAILABLE || !loadReading()) {
+      if (!window.COZ_VEDIC_DEBUG) window.COZ_VEDIC_DEBUG = "Generation finished but no reading was stored (COZ_VEDIC_READING=" + typeof window.COZ_VEDIC_READING + ")";
+      history.replaceState({ id: "essential-nature" }, "", "#/essential-nature");
+      renderUnavailableNotice();
+      window.scrollTo({ top: 0, behavior: "instant" });
+      return;
+    }
+    const section = sectionById(id);
+    if (id !== section.id) {
+      history.replaceState({ id: section.id }, "", `#/${section.id}`);
+    }
+    renderSection(section);
     window.scrollTo({ top: 0, behavior: "instant" });
-    return;
-  }
-  const section = sectionById(id);
-  if (id !== section.id) {
-    history.replaceState({ id: section.id }, "", `#/${section.id}`);
-  }
-  renderSection(section);
-  window.scrollTo({ top: 0, behavior: "instant" });
+  };
+  if (COZ_READING_READY && typeof COZ_READING_READY.then === "function") COZ_READING_READY.then(proceed).catch(proceed);
+  else proceed();
 }
 
 document.getElementById("vedicBack").addEventListener("click", goDashboard);
@@ -870,7 +1159,7 @@ function startReveal() {
   document.getElementById("revealLive").textContent = "Opening your Vedic reading";
 
   // if the clip cannot even start (no network, blocked), move on rather than trap anyone
-  revealTimers.push(setTimeout(() => { if (!revealStarted) finishReveal(false); }, 7000));
+  revealTimers.push(setTimeout(() => { if (!revealStarted) finishReveal(false); }, 2500));
 
   revealStarted = false;
   try { revealVideo.currentTime = 0; } catch (e) {}
@@ -911,11 +1200,9 @@ function finishReveal(immediate) {
     /* dev-review generation is async (chart request + local claim-file fetches);
        the reveal already runs several seconds so this normally resolves long
        before we get here, but we wait for it rather than risk a race. */
-    if (COZ_READING_READY && typeof COZ_READING_READY.then === "function") {
-      COZ_READING_READY.then(go).catch(go);
-    } else {
-      go();
-    }
+    /* land immediately: showFromHash renders a waiting screen if generation is
+       still running, so the reveal never stalls on a black screen. */
+    go();
   };
   if (immediate === true) { land(); return; }
   /* Sep 1 ruling: through the sun. Hold on the burst, then the camera drives into it, the light
