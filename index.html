@@ -384,6 +384,21 @@
     border-color:transparent; box-shadow:0 0 18px rgba(214,169,134,.45); }
   .entry-enter-under { position:absolute; left:50%; top:calc(100% + 26px); transform:translateX(-50%); }
   .entry-enter-under:active { transform:translateX(-50%) scale(.96); }
+  /* v19.99 (his ruling): the date, time and name steps now carry BACK and ENTER
+     in ONE centred row, exactly like the birthplace step — BACK left, ENTER
+     right, same gap. Before this the ENTER pill was anchored under the bar while
+     BACK sat inside the globe marker, so the two landed on top of each other.
+     Sitting just left of centre also keeps BACK well clear of the phone's own
+     back gesture at the screen edge. */
+  .entry-actions { position:absolute; left:50%; top:calc(100% + 26px);
+    transform:translateX(-50%); display:flex; justify-content:center; gap:26px; }
+  .entry-actions .entry-back { opacity:0; visibility:hidden; pointer-events:none;
+    transition:opacity .3s ease, visibility .3s ease, box-shadow .2s ease; }
+  .entry-actions .entry-back.show { opacity:1; visibility:visible; pointer-events:auto; }
+  .entry-actions .entry-back:active { transform:scale(.96); }
+  /* the marker's own BACK pill is retired by the row above; the step logic that
+     toggles .show on it is left untouched so nothing else has to change */
+  .marker .entry-back { display:none; }
   /* v19.97: picking a city clears the list — BACK and ENTER arrive together
      right under the box, impossible to miss. BACK restores the options. */
   #locActions { display:none; margin:16px auto 0; justify-content:center; gap:26px; }
@@ -433,8 +448,12 @@
       rgba(3,5,12,.5) 58%, rgba(2,3,8,.72) 100%); }
   #systembar.show { opacity:1; pointer-events:auto; }
   /* v19.75: this wrapper exists purely so the page can transform its own content for zoom */
+  /* v19.98: flex-shrink was squashing this wrapper to the screen height, so the
+     cards were clipped and #systembar reported nothing to scroll — the page felt
+     locked. Holding its natural height lets the container actually overflow and
+     scroll, and gives the landing a real height to pull back from. */
   #sysZoomInner { display:flex; flex-direction:column; align-items:center; width:100%;
-    transform-origin:0 0; }
+    flex:0 0 auto; transform-origin:0 0; }
   .sys-logo { width:min(42vw,188px); margin-bottom:6px;
     filter:drop-shadow(0 0 18px rgba(214,169,134,.35)); }
   .sys-heading { font-family:Georgia,'Times New Roman',serif; font-size:clamp(20px,5.6vw,30px);
@@ -673,7 +692,10 @@
     <input type="text" id="bd-typed" inputmode="numeric" autocomplete="off"
            placeholder="" aria-label="Birthdate" maxlength="14">
   </span>
-  <button type="button" id="bdEnter" class="entry-enter entry-enter-under" aria-label="Confirm date of birth">ENTER</button>
+  <div class="entry-actions">
+    <button type="button" class="entry-enter entry-back" aria-label="Back to birthplace">BACK</button>
+    <button type="button" id="bdEnter" class="entry-enter" aria-label="Confirm date of birth">ENTER</button>
+  </div>
 </div>
 <div id="timePrompt" class="bd-prompt">✦&nbsp;&nbsp;What time were you born?</div>
 <div id="timebar">
@@ -684,7 +706,10 @@
          placeholder="" aria-label="Birth time" maxlength="7">
   </span>
   <div id="ampm"><span data-v="AM">AM</span><span data-v="PM">PM</span></div>
-  <button type="button" id="tmEnter" class="entry-enter entry-enter-under" aria-label="Confirm birth time">ENTER</button>
+  <div class="entry-actions">
+    <button type="button" class="entry-enter entry-back" aria-label="Back to date of birth">BACK</button>
+    <button type="button" id="tmEnter" class="entry-enter" aria-label="Confirm birth time">ENTER</button>
+  </div>
 </div>
 <div id="namePrompt" class="bd-prompt">✦&nbsp;&nbsp;What is your full name?</div>
 <div id="namebar">
@@ -693,7 +718,10 @@
     <input type="text" id="nm-typed" autocomplete="name" autocapitalize="words" spellcheck="false"
          placeholder="Full name" aria-label="Full name" maxlength="60">
   </span>
-  <button type="button" id="nmEnter" class="entry-enter entry-enter-under" aria-label="Confirm name">ENTER</button>
+  <div class="entry-actions">
+    <button type="button" class="entry-enter entry-back" aria-label="Back to birth time">BACK</button>
+    <button type="button" id="nmEnter" class="entry-enter" aria-label="Confirm name">ENTER</button>
+  </div>
 </div>
 <div id="systembar">
  <div id="sysZoomInner">
@@ -764,7 +792,7 @@
   </div>
 </div>
 
-<div id="ver">SCENE 1 · v19.97 · location confirm · routes 1870 1975</div>
+<div id="ver">SCENE 1 · v19.99 · back+enter row · routes 1870 1975</div>
 
 <script>
 /* v19.75: the two-perspectives page owns its own zoom.
@@ -781,6 +809,71 @@
   var z = 1, tx = 0, ty = 0, pinch = null, pan = null;
   function el(){ return document.getElementById('systembar'); }
   function innerEl(){ return document.getElementById('sysZoomInner'); }
+
+  /* v19.98 (his ruling): this page opens PULLED BACK so the whole composition
+     is visible at once, holds ~3s while the cards arrive, then eases in toward
+     the cards so they can be read and chosen — and normal scrolling is handed
+     back at the end. Same open-whole-then-ease-in landing the three dashboards
+     use. Any touch during the sequence ends it immediately at its final state,
+     so a reader who wants to scroll or choose early is never fighting it. */
+  var landing = null, landTarget = 0;
+
+  function landDone(){
+    var page = el(), inner = innerEl();
+    landing = null;
+    if (!page || !inner) return;
+    inner.style.transform = '';
+    page.style.overflowY = 'auto';
+    page.style.touchAction = 'pan-y';
+    page.scrollTop = landTarget;
+    z = 1; tx = 0; ty = 0;
+  }
+
+  function cancelLanding(){
+    if (!landing) return;
+    if (landing.raf) cancelAnimationFrame(landing.raf);
+    landDone();
+  }
+
+  function runLanding(){
+    var page = el(), inner = innerEl();
+    if (!page || !inner || landing) return;
+    if (page.__landed) return;
+    page.__landed = true;
+    try {
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    } catch(_){}
+
+    var vw = page.clientWidth, vh = page.clientHeight;
+    var ch = page.scrollHeight;
+    /* nothing to pull back from when it already fits the screen */
+    if (!vh || !ch || ch <= vh + 8) return;
+
+    var fit = Math.max(0.5, Math.min(1, vh / ch));
+    var maxScroll = Math.max(0, ch - vh);
+    var slot = page.querySelector('.sc-slot');
+    landTarget = slot ? Math.max(0, slot.offsetTop - Math.round(vh * 0.10)) : maxScroll;
+    if (landTarget > maxScroll) landTarget = maxScroll;
+
+    var HOLD = 3000, EASE = 1500, start = null;
+    page.style.overflowY = 'hidden';
+    page.style.touchAction = 'none';
+
+    function frame(now){
+      if (!landing) return;
+      if (start === null) start = now;
+      var t = now - start;
+      var p = t <= HOLD ? 0 : Math.min(1, (t - HOLD) / EASE);
+      var e = p < 0.5 ? 4*p*p*p : 1 - Math.pow(-2*p + 2, 3) / 2;
+      var s = fit + (1 - fit) * e;
+      var xx = (vw - inner.offsetWidth * s) / 2;
+      var yy = -(landTarget * e);
+      inner.style.transform = 'translate(' + xx.toFixed(2) + 'px,' + yy.toFixed(2) + 'px) scale(' + s.toFixed(4) + ')';
+      if (p < 1) landing.raf = requestAnimationFrame(frame);
+      else landDone();
+    }
+    landing = { raf: requestAnimationFrame(frame) };
+  }
 
   function apply(){
     var page = el(), inner = innerEl();
@@ -816,7 +909,16 @@
     if (!page || page.__zoomWired) return;
     page.__zoomWired = true;
 
+    /* start the landing the moment the page is shown, from either entry point */
+    try {
+      if (page.classList.contains('show')) requestAnimationFrame(runLanding);
+      new MutationObserver(function(){
+        if (page.classList.contains('show')) requestAnimationFrame(runLanding);
+      }).observe(page, { attributes:true, attributeFilter:['class'] });
+    } catch(_){}
+
     page.addEventListener('touchstart', function(e){
+      cancelLanding();
       if (e.touches.length === 2){
         if (z === 1){ ty = -page.scrollTop; tx = 0; }
         pinch = { d:dist(e.touches[0], e.touches[1]), z:z, tx:tx, ty:ty, m:mid(e.touches[0], e.touches[1], page) };
@@ -2015,6 +2117,17 @@ function computeGenesisProfile(system){
 }
 
 // ---------- v19.51 entry step tracking: one Back button, meaning follows the screen ----------
+/* v19.99: the three step rows carry their own BACK. They share the .entry-back
+   class, so __setEntryStep below already shows and labels them; they only need
+   the same click behaviour the marker pill had. */
+document.querySelectorAll('.entry-actions .entry-back').forEach(btn => {
+  btn.addEventListener('pointerdown', ev => { ev.stopPropagation(); });
+  btn.addEventListener('click', ev => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    if (typeof window.__handleEntryBack === 'function') window.__handleEntryBack();
+  });
+});
 window.__entryStep = 'location';
 window.__setEntryStep = function(step) {
   window.__entryStep = step;
