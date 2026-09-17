@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your Current Life Cycle · CozAlyze</title>
+<!--
+  COZALYZE · CURRENT LIFE CYCLE · LC1.0
+  Reached from vedic-reading.html (the "Your Current Life Cycle" door).
+
+  This is one reusable template. Nothing about any single chart is baked in.
+  Every lord, symbol, date and timeline position below is read at runtime from
+  localStorage "cozChartJSON" -> lifeCycle, written by the sidereal-reveal
+  exporter. This page performs no astronomy and no timing calculation.
+
+  Timing mode in use is whatever the exporter recorded (currently
+  synodic_354_fixed). Mode and validation status are written to the console
+  for developer review and never rendered to the customer.
+
+  Key Time Windows and What Comes Next are present as inert navigation for
+  this pass: their content rules are not yet defined and no destination exists.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+/* Tokens carried over from vedic-reading.html so the two pages match exactly. */
+:root {
+  --vedic-navy: #000f26;
+  --vedic-gold: #d4a178;
+  --vedic-gold-muted: rgba(212, 161, 120, 0.65);
+  --vedic-ivory: #e5d4c5;
+  --vedic-ivory-muted: rgba(229, 212, 197, 0.88);
+  --display-font: "Cormorant Garamond", Georgia, serif;
+  --body-font: "Avenir Next", "Helvetica Neue", Arial, sans-serif;
+  --asq-gold: #c9a15e;
+  --asq-nav-h: 64px;
+  --side-pad: 28px;
+}
+@media (max-width: 374px) { :root { --side-pad: 20px; } }
+
+* { box-sizing: border-box; }
+html { background: var(--vedic-navy); -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0; background: var(--vedic-navy); color: var(--vedic-ivory);
+  font-family: var(--body-font); -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+/* Fixed background layer, same technique the reading page uses for iOS. */
+.lc-bg {
+  position: fixed; inset: 0; z-index: 0;
+  background-image: url("vedic-moon-bg.png");
+  background-size: cover; background-position: center top;
+  opacity: .5;
+}
+.lc-bg::after {
+  content: ""; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(0,15,38,.55) 0%, rgba(0,15,38,.82) 46%, var(--vedic-navy) 100%);
+}
+
+.lc-wrap {
+  position: relative; z-index: 1;
+  max-width: 560px; margin: 0 auto;
+  padding: 26px var(--side-pad) calc(var(--asq-nav-h) + 78px);
+  text-align: center;
+}
+
+.vedic-logo { display:block; width:128px; height:auto; margin:0 auto 4px; }
+.lc-brand {
+  font-family: var(--display-font); font-size: clamp(19px,5vw,23px);
+  letter-spacing: .04em; color: var(--vedic-gold); margin: 0 0 2px;
+}
+h1.lc-title {
+  font-family: var(--display-font); font-weight: 600;
+  font-size: clamp(27px,7.2vw,34px); line-height: 1.15;
+  letter-spacing: .012em; color: #fff; margin: 0 0 12px;
+}
+
+/* Divider ornament matching the approved artwork: rules flanking a diamond. */
+.lc-rule { display:flex; align-items:center; justify-content:center; gap:11px; margin:14px auto 16px; max-width:330px; }
+.lc-rule i { flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--vedic-gold-muted),transparent); }
+.lc-rule b { width:7px; height:7px; transform:rotate(45deg); background:var(--vedic-gold); opacity:.9; }
+
+.lc-system {
+  font-family: var(--display-font); font-style: italic;
+  font-size: clamp(16px,4.3vw,19px); letter-spacing: .06em;
+  color: var(--vedic-gold); margin: 0 0 10px;
+}
+.lc-lord {
+  font-family: var(--display-font); font-weight: 600;
+  font-size: clamp(38px,10.5vw,50px); letter-spacing: .07em;
+  color: #fff; margin: 0 0 14px; text-transform: uppercase;
+}
+.lc-years {
+  font-family: var(--body-font); font-size: clamp(14px,3.8vw,16px);
+  letter-spacing: .16em; color: var(--vedic-ivory-muted); margin: 12px 0 0;
+}
+
+/* Medallion: one component, any lord. Copper comes from currentColor. */
+.coz-medallion {
+  display:inline-flex; align-items:center; justify-content:center;
+  border-radius:50%; color:var(--vedic-gold);
+  border:1.5px solid var(--vedic-gold);
+  background:radial-gradient(circle at 50% 38%, rgba(212,161,120,.16), rgba(0,15,38,.72) 72%);
+  box-shadow:0 0 0 4px rgba(0,15,38,.85), 0 0 16px rgba(212,161,120,.22);
+}
+.coz-medallion svg { stroke:currentColor; fill:none; stroke-width:2.1; stroke-linecap:round; stroke-linejoin:round; }
+
+.lc-here {
+  font-family: var(--display-font); font-size: clamp(17px,4.6vw,20px);
+  letter-spacing: .17em; color: #fff; margin: 30px 0 13px;
+}
+.lc-here::before { content:"\2726"; display:block; color:var(--vedic-gold); font-size:15px; letter-spacing:0; margin-bottom:7px; }
+
+/* Timeline: rendered from the antardasha sequence, never hard-coded. */
+.lc-timeline {
+  border:1px solid var(--vedic-gold-muted); border-radius:13px;
+  background:rgba(0,15,38,.62); padding:15px 17px 13px; margin:0 0 26px;
+}
+.lc-track { position:relative; height:34px; margin:0 4px; }
+.lc-line { position:absolute; left:0; right:0; top:19px; height:1.5px; background:var(--vedic-gold-muted); }
+.lc-cap { position:absolute; top:15.5px; width:8px; height:8px; border-radius:50%; background:var(--vedic-gold); }
+.lc-cap.s { left:-1px; } .lc-cap.e { right:-1px; }
+.lc-node { position:absolute; top:0; transform:translateX(-50%); text-align:center; }
+.lc-node span {
+  display:block; font-family:var(--body-font); font-size:11.5px;
+  letter-spacing:.05em; color:var(--vedic-ivory-muted); white-space:nowrap; margin-bottom:5px;
+}
+.lc-node i { display:block; width:13px; height:13px; border-radius:50%; margin:0 auto;
+             border:1.5px solid var(--vedic-gold); background:var(--vedic-navy); }
+.lc-node.now i { background:var(--vedic-gold); box-shadow:0 0 9px rgba(212,161,120,.75); }
+.lc-node.now span { color:#fff; }
+.lc-tick { position:absolute; top:16px; width:1px; height:7px; background:var(--vedic-gold-muted); opacity:.65; transform:translateX(-50%); }
+.lc-range {
+  font-family:var(--body-font); font-size:clamp(13px,3.5vw,14.5px);
+  letter-spacing:.05em; color:var(--vedic-ivory); margin-top:9px;
+}
+
+/* Season panel. Corner ornaments are CSS, reusing the reading-panel motif. */
+.lc-season {
+  position:relative; border:1.5px solid var(--vedic-gold); border-radius:15px;
+  background:rgba(0,15,38,.7); padding:24px 22px 26px; margin:0 0 24px;
+}
+.lc-season::before, .lc-season::after {
+  content:""; position:absolute; width:34px; height:34px; pointer-events:none;
+  border:1px solid var(--vedic-gold-muted); opacity:.55;
+}
+.lc-season::before { top:7px; left:7px; border-right:0; border-bottom:0; border-radius:9px 0 0 0; }
+.lc-season::after  { bottom:7px; right:7px; border-left:0; border-top:0; border-radius:0 0 9px 0; }
+.lc-season-eyebrow {
+  font-family:var(--display-font); font-size:clamp(17px,4.6vw,20px);
+  color:var(--vedic-gold); letter-spacing:.02em; margin:0 0 4px;
+}
+.lc-pair {
+  font-family:var(--display-font); font-weight:600;
+  font-size:clamp(27px,7.4vw,35px); letter-spacing:.045em;
+  color:#fff; margin:0; text-transform:uppercase;
+}
+.lc-summary {
+  font-family:var(--display-font); font-size:clamp(17px,4.5vw,19.5px);
+  line-height:1.62; color:var(--vedic-ivory); margin:14px 0 0;
+}
+
+/* Doors. The season door is live; the other two are inert this pass. */
+.lc-door {
+  display:flex; align-items:center; gap:14px; width:100%;
+  border:1px solid var(--vedic-gold-muted); border-radius:11px;
+  background:rgba(0,15,38,.55); color:var(--vedic-ivory);
+  padding:14px 17px; margin:0 0 12px; text-align:left;
+  font-family:var(--display-font); font-size:clamp(18px,4.8vw,21px);
+  letter-spacing:.015em; text-decoration:none; cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+}
+.lc-door .lc-door-mark {
+  flex:none; width:34px; height:34px; border-radius:8px;
+  border:1px solid var(--vedic-gold-muted); color:var(--vedic-gold);
+  display:flex; align-items:center; justify-content:center;
+}
+.lc-door .lc-door-mark svg { width:19px; height:19px; stroke:currentColor; fill:none; stroke-width:1.5; stroke-linecap:round; stroke-linejoin:round; }
+.lc-door:active { border-color:var(--vedic-gold); }
+.lc-door:focus-visible { outline:1px solid var(--vedic-gold); outline-offset:2px; }
+.lc-door[aria-disabled="true"] { opacity:.45; cursor:default; }
+.lc-door[aria-disabled="true"]:active { border-color:var(--vedic-gold-muted); }
+
+/* Fail-closed notice: shown when required timing data is absent. */
+.lc-empty {
+  border:1px solid var(--vedic-gold-muted); border-radius:13px;
+  background:rgba(0,15,38,.6); padding:26px 22px; margin:20px 0 0;
+}
+.lc-empty h2 { font-family:var(--display-font); font-weight:600; font-size:clamp(21px,5.6vw,25px); color:#fff; margin:0 0 10px; }
+.lc-empty p { font-family:var(--body-font); font-size:14.5px; line-height:1.66; color:var(--vedic-ivory-muted); margin:0; }
+
+/* Shared footer, carried over from vedic-reading.html unchanged. */
+#cozFoot {
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  padding-bottom:env(safe-area-inset-bottom);
+  background:rgba(8,11,17,.86);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border-top:1px solid rgba(201,161,94,.18);
+}
+#cozFoot .coz-foot-tag {
+  text-align:center; font-family:'EB Garamond',serif; font-style:italic;
+  font-size:13px; letter-spacing:.04em; color:#8b8272; padding:11px 20px 3px;
+}
+#cozFoot .coz-foot-links { display:flex; height:var(--asq-nav-h); }
+#cozFoot a {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:4px; text-decoration:none; color:#8b8272; font-size:10.5px; letter-spacing:.06em;
+  font-family:'EB Garamond',serif; -webkit-tap-highlight-color:transparent;
+}
+#cozFoot a svg { width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round; }
+#cozFoot a:active { color:var(--asq-gold); }
+#cozFoot a:focus-visible { outline:1px solid var(--asq-gold); outline-offset:-4px; }
+
+.lc-stamp {
+  position:fixed; left:6px; bottom:calc(var(--asq-nav-h) + 30px); z-index:50;
+  font:10px/1 "SF Mono", Menlo, monospace; color:rgba(229,212,197,.24); pointer-events:none;
+}
+@media print { .lc-bg, #cozFoot, .lc-stamp { display:none !important; } }
+@media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
+@media (min-width: 720px) { .lc-wrap { padding-top: 38px; } }
+</style>
+</head>
+<body>
+
+<div class="lc-bg" aria-hidden="true"></div>
+
+<main class="lc-wrap" id="lcMain">
+  <img class="vedic-logo" src="vedic-logo.png" alt="CozAlyze" width="1000" height="1055">
+  <p class="lc-brand">CozAlyze</p>
+  <h1 class="lc-title">Your Current Life Cycle</h1>
+  <div class="lc-rule" aria-hidden="true"><i></i><b></b><i></i></div>
+  <div id="lcBody"></div>
+</main>
+
+<div id="cozFoot">
+  <div class="coz-foot-tag">CozAlyze helps you see it all</div>
+  <div class="coz-foot-links">
+    <a href="vedic-reading.html"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9h13v-9"/></svg>Home</a>
+    <a href="#" data-foot="saved"><svg viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z"/></svg>Saved</a>
+    <a href="#" data-foot="account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
+  </div>
+</div>
+
+<div class="lc-stamp" aria-hidden="true">LIFE CYCLE · LC1.0</div>
+
+<script src="coz-graha.js"></script>
+<script>
+(function () {
+  'use strict';
+  var G = window.COZ_GRAHA;
+  var host = document.getElementById('lcBody');
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c];
+    });
+  }
+
+  /* Year span for the Mahadasha headline, from timestamps only. */
+  function yearSpan(md) {
+    return new Date(md.startTimestamp).getUTCFullYear() + ' \u2013 ' + new Date(md.endTimestamp).getUTCFullYear();
+  }
+
+  function failClosed(reason) {
+    host.innerHTML =
+      '<div class="lc-empty">' +
+        '<h2>Your life cycle is not ready yet</h2>' +
+        '<p>Your chart is saved to this device when your reading is prepared. Open your reading first, then return here for your current life cycle.</p>' +
+      '</div>';
+    if (window.console) console.warn('[LIFE CYCLE] fail-closed: ' + reason);
+  }
+
+  var chart = G.readChart();
+  if (!chart) { failClosed('no cozChartJSON on this device'); return; }
+
+  var lc = chart.lifeCycle;
+  if (!lc) { failClosed('cozChartJSON present but carries no lifeCycle block (exporter predates LC1.0)'); return; }
+  if (!lc.mahadasha || !lc.mahadasha.lord) { failClosed('no current Mahadasha in timing data'); return; }
+  if (!lc.antardasha || !lc.antardasha.lord) { failClosed('no current Antardasha in timing data'); return; }
+
+  var md = lc.mahadasha, ad = lc.antardasha;
+
+  /* ---- Timeline. Positions come from real timestamps, so the marker sits
+     where the person actually is inside the current subperiod. The window
+     shows the previous, current and next subperiod when they exist. ---- */
+  function buildTimeline() {
+    var seq = lc.antardashaSequence || [];
+    var at = -1;
+    for (var i = 0; i < seq.length; i++) {
+      if (seq[i].startTimestamp === ad.startTimestamp) { at = i; break; }
+    }
+    if (at < 0) return '';
+
+    var from = Math.max(0, at - 1);
+    var to = Math.min(seq.length - 1, at + 1);
+    var win = seq.slice(from, to + 1);
+
+    var t0 = new Date(win[0].startTimestamp).getTime();
+    var t1 = new Date(win[win.length - 1].endTimestamp).getTime();
+    var span = t1 - t0 || 1;
+    var pct = function (ms) { return ((ms - t0) / span) * 100; };
+
+    var nodes = '', ticks = '';
+    for (var k = 0; k < win.length; k++) {
+      var seg = win[k];
+      var s = new Date(seg.startTimestamp).getTime();
+      var e = new Date(seg.endTimestamp).getTime();
+      var mid = Math.max(6, Math.min(94, pct(s + (e - s) / 2)));
+      var isNow = (seg.startTimestamp === ad.startTimestamp);
+      nodes += '<div class="lc-node' + (isNow ? ' now' : '') + '" style="left:' + mid.toFixed(2) + '%">' +
+                 '<span>' + esc(seg.lord) + '</span><i></i>' +
+               '</div>';
+      if (k > 0) ticks += '<div class="lc-tick" style="left:' + Math.max(2, Math.min(98, pct(s))).toFixed(2) + '%"></div>';
+    }
+
+    return '<div class="lc-timeline">' +
+             '<div class="lc-track">' +
+               '<div class="lc-line"></div><div class="lc-cap s"></div><div class="lc-cap e"></div>' +
+               ticks + nodes +
+             '</div>' +
+             '<div class="lc-range">' + esc(ad.displayStartDate) + ' \u2013 ' + esc(ad.displayEndDate) + '</div>' +
+           '</div>';
+  }
+
+  /* Short season summary, assembled from the two approved theme lines only.
+     This is the overview blurb, not the full reading. */
+  function summary() {
+    var a = G.THEMES[md.lord], b = G.THEMES[ad.lord];
+    if (!a || !b) return '';
+    return 'A period that may bring questions of ' + esc(b) + ' into sharper focus within a longer chapter of ' + esc(a) + '.';
+  }
+
+  host.innerHTML =
+    '<p class="lc-system">Vimshottari Dasha</p>' +
+    '<p class="lc-lord">' + esc(md.lord) + '</p>' +
+    G.medallion(md.lord, 78) +
+    '<p class="lc-years">' + esc(yearSpan(md)) + '</p>' +
+
+    '<p class="lc-here">You Are Here</p>' +
+    buildTimeline() +
+
+    '<section class="lc-season" aria-label="Your current season">' +
+      '<p class="lc-season-eyebrow">Your Current Season</p>' +
+      '<p class="lc-pair">' + esc(md.lord) + ' \u2013 ' + esc(ad.lord) + '</p>' +
+      '<div class="lc-rule" aria-hidden="true"><i></i><b></b><i></i></div>' +
+      '<p class="lc-summary">' + summary() + '</p>' +
+    '</section>' +
+
+    '<a class="lc-door" href="current-season.html">' +
+      '<span class="lc-door-mark"><svg viewBox="0 0 24 24"><path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/></svg></span>' +
+      'Read Your Current Season' +
+    '</a>' +
+
+    /* Inert this pass: content rules undefined, no destination exists. */
+    '<button class="lc-door" type="button" aria-disabled="true" data-door="key-time-windows">' +
+      '<span class="lc-door-mark"><svg viewBox="0 0 24 24"><path d="M5 4h14v16H5z"/><path d="M12 8v4l2.5 2"/></svg></span>' +
+      'Key Time Windows' +
+    '</button>' +
+    '<button class="lc-door" type="button" aria-disabled="true" data-door="what-comes-next">' +
+      '<span class="lc-door-mark"><svg viewBox="0 0 24 24"><path d="M4 16c3-7 6-9 9-9M13 7h4v4"/><circle cx="7" cy="18" r="2"/></svg></span>' +
+      'What Comes Next' +
+    '</button>';
+
+  /* Inert doors fire an event and do nothing else, matching the pattern the
+     dashboard already uses for doors that are not built yet. */
+  Array.prototype.forEach.call(document.querySelectorAll('.lc-door[aria-disabled="true"]'), function (b) {
+    b.addEventListener('click', function (ev) {
+      ev.preventDefault();
+      try { window.dispatchEvent(new CustomEvent('COZ_LC_DOOR_PENDING', { detail: { door: b.dataset.door } })); } catch (e) {}
+      if (window.console) console.log('[LIFE CYCLE] door not built yet:', b.dataset.door);
+    });
+  });
+
+  /* Developer/debug only. Never rendered into the customer view. */
+  if (window.console) {
+    console.log('[LIFE CYCLE] mode=' + lc.mode + ' year=' + lc.yearLengthDays + 'd status=' + lc.validationStatus +
+                ' devaGuru=' + lc.devaGuruComparison);
+    console.log('[LIFE CYCLE] MD ' + md.lord + ' ' + md.startTimestamp.slice(0, 10) + '\u2192' + md.endTimestamp.slice(0, 10) +
+                ' | AD ' + ad.lord + ' ' + ad.startTimestamp.slice(0, 10) + '\u2192' + ad.endTimestamp.slice(0, 10) +
+                ' | next ' + (lc.nextAntardasha ? lc.nextAntardasha.lord : 'none'));
+  }
+})();
+</script>
+</body>
+</html>
