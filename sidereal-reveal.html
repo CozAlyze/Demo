@@ -985,7 +985,7 @@ if (REQUIRE_BIRTH_DATA && !(SAVED && SAVED.utc && SAVED.location)){
    re-rendered) > the moment this page was opened, captured ONCE. No calculation path
    calls Date.now() after this line. */
 var COZ_ENGINE_VERSION = 'astronomy-engine@2.1.19';
-var COZ_METHODOLOGY_VERSION = 'cozalyze-method-2026.08.22 (Lahiri cubic-2026.08, mean node, whole sign sidereal, Vimshottari MD+AD 365.25d)';
+var COZ_METHODOLOGY_VERSION = 'cozalyze-method-2026.09.17 (Lahiri cubic-2026.08, mean node, whole sign sidereal, Vimshottari MD+AD synodic_354_fixed 354.3670662372d, validation comparison_pending)';
 var COZ_DATABASE_VERSION = '0.1.0-scaffold';
 var READING_AS_OF_MS = (function(){ try {
   var q = new URL(location.href).searchParams.get('asof'); if (q && isFinite(new Date(q).getTime())) return new Date(q).getTime();
@@ -1055,7 +1055,10 @@ var NAK_BOUNDARY_THRESHOLD_DEG = 0.04;   /* v19.61: max measured |CozAlyze - Dev
 /* v19.60: Vimshottari tables hoisted here because the QA panel runs at load, before the engine section declares them */
 var SIX_VIM_LORDS = ['Ketu','Venus','Sun','Moon','Mars','Rahu','Jupiter','Saturn','Mercury'];
 var SIX_VIM_YEARS = { Ketu:7, Venus:20, Sun:6, Moon:10, Mars:7, Rahu:18, Jupiter:16, Saturn:19, Mercury:17 };
-var SIX_VIM_YEAR_DAYS = 365.25;
+var SIX_VIM_YEAR_SOLAR_365 = 365.25;                             /* retained for regression comparison only, not the customer path */
+var SIX_VIM_YEAR_SYNODIC_354 = 354.3670662372;                   /* 12 x 29.5305888531 mean synodic months */
+var SIX_VIM_CALC_MODE = 'synodic_354_fixed';                     /* active mode, practitioner-selected */
+var SIX_VIM_YEAR_DAYS = SIX_VIM_YEAR_SYNODIC_354;
 var SIX_VIM_STANDARD = 'Vimshottari, 27 nakshatras, 9 lords, 120 years, Mahadasha + Antardasha, Antardasha = (lord years x sub-lord years)/120, year = ' + SIX_VIM_YEAR_DAYS + ' days';
 var SIX_NAK_NAMES = ['Ashwini','Bharani','Krittika','Rohini','Mrigashira','Ardra','Punarvasu','Pushya','Ashlesha','Magha','P.Phalguni','U.Phalguni','Hasta','Chitra','Swati','Vishakha','Anuradha','Jyeshtha','Mula','P.Ashadha','U.Ashadha','Shravana','Dhanishta','Shatabhisha','P.Bhadrapada','U.Bhadrapada','Revati'];
 var SIX_NAK_NAMES_EARLY = ['Ashwini','Bharani','Krittika','Rohini','Mrigashira','Ardra','Punarvasu','Pushya','Ashlesha','Magha','P.Phalguni','U.Phalguni','Hasta','Chitra','Swati','Vishakha','Anuradha','Jyeshtha','Mula','P.Ashadha','U.Ashadha','Shravana','Dhanishta','Shatabhisha','P.Bhadrapada','U.Bhadrapada','Revati'];
@@ -3046,8 +3049,11 @@ function sixNakBoundary(sidLon){
    the Moon's progress through its nakshatra, so Antardashas are counted from the true
    start of the Mahadasha, not from the birth moment. Year length is a single constant
    so the convention can be matched to the reference (Deva Guru) once compared. */
-var SIX_VIM_YEAR_DAYS = 365.25;                                  /* convention under test: Julian year */
-var SIX_VIM_STANDARD = 'Vimshottari, 27 nakshatras, 9 lords, 120 years, Mahadasha + Antardasha, Antardasha = (lord years x sub-lord years)/120, year = ' + SIX_VIM_YEAR_DAYS + ' days';
+/* Sep 17 2026 ruling: the practitioner-selected convention is Synodic (354), a FIXED
+   mean synodic year, not the dynamic 360-tithi angular method. The 365.25 Julian value
+   is kept above as SIX_VIM_YEAR_SOLAR_365 for regression comparison only; it is no
+   longer the customer calculation path. Comparative validation remains pending. */
+var SIX_VIM_STANDARD_ENGINE = 'Vimshottari, 27 nakshatras, 9 lords, 120 years, Mahadasha + Antardasha, Antardasha = (lord years x sub-lord years)/120, year = ' + SIX_VIM_YEAR_DAYS + ' days';
 function sixVimshottari(moonSid, birthMs, asOfMs){
   var span = 360/27, Y = SIX_VIM_YEAR_DAYS * 86400000;
   var nakIdx = Math.floor(moonSid / span) % 27, li = nakIdx % 9;
@@ -3060,6 +3066,9 @@ function sixVimshottari(moonSid, birthMs, asOfMs){
     birth_mahadasha_lord: lord0, birth_mahadasha_original_start: new Date(origStart).toISOString(),
     birth_mahadasha_balance_years: (1 - frac) * yrs0,
     as_of: new Date(asOfMs).toISOString(), mahadashas: [], current_mahadasha: null, current_antardasha: null,
+    next_antardasha: null,
+    calculation_mode: SIX_VIM_CALC_MODE,
+    validation_status: 'comparison_pending',
     deva_guru_comparison: 'reference_pending'
   };
   var t = origStart;
@@ -3072,11 +3081,23 @@ function sixVimshottari(moonSid, birthMs, asOfMs){
       var alen = SIX_VIM_YEARS[L] * SIX_VIM_YEARS[A] / 120 * Y, aend = a + alen;
       var ad = { lord:A, start:new Date(a).toISOString(), end:new Date(aend).toISOString() };
       m.antardashas.push(ad);
-      if (asOfMs >= a && asOfMs < aend){ out.current_mahadasha = { lord:L, start:m.start, end:m.end }; out.current_antardasha = ad; }
+      if (asOfMs >= a && asOfMs < aend){ out.current_mahadasha = { lord:L, start:m.start, end:m.end }; out.current_antardasha = ad; out.__nextIdx = { k:k, j:j }; }
       a = aend;
     }
     out.mahadashas.push(m);
     t = end;
+  }
+  /* next Antardasha: the following subperiod, crossing into the next Mahadasha when
+     the current one is the last of its nine. Nothing is inferred; both come from the
+     same cycle the loop above already built. */
+  if (out.__nextIdx){
+    var nk = out.__nextIdx.k, nj = out.__nextIdx.j + 1;
+    if (nj > 8){ nk = nk + 1; nj = 0; }
+    if (nk < out.mahadashas.length){
+      var nm = out.mahadashas[nk];
+      if (nm && nm.antardashas[nj]) out.next_antardasha = { lord: nm.antardashas[nj].lord, start: nm.antardashas[nj].start, end: nm.antardashas[nj].end, mahadasha_lord: nm.lord };
+    }
+    delete out.__nextIdx;
   }
   return out;
 }
@@ -4071,6 +4092,49 @@ try {
     if (ays === 60){ ays = 0; aym++; }
     if (aym === 60){ aym = 0; ayd++; }
 
+    /* Current Life Cycle timing export. The compact birth-chart `mahadasha` array above
+       is unchanged and still carries major periods only. This separate object carries the
+       Antardasha detail the Current Life Cycle pages need. Both come from the same
+       sixVimshottari() call; nothing is recalculated. */
+    var lifeCycle = {
+      system: 'vimshottari',
+      mode: V.calculation_mode,
+      yearLengthDays: V.year_length_days,
+      validationStatus: V.validation_status,
+      devaGuruComparison: V.deva_guru_comparison,
+      asOfTimestamp: V.as_of,
+      birthNakshatra: V.birth_nakshatra,
+      birthMahadashaLord: V.birth_mahadasha_lord,
+      birthMahadashaOriginalStart: V.birth_mahadasha_original_start,
+      birthMahadashaBalanceYears: V.birth_mahadasha_balance_years,
+      mahadasha: null, antardasha: null, nextAntardasha: null,
+      antardashaSequence: []
+    };
+    function lcFmt(iso){ var d = new Date(iso); return MONTHS_SHORT[d.getUTCMonth()] + ' ' + d.getUTCFullYear(); }
+    if (V.current_mahadasha){
+      lifeCycle.mahadasha = { lord: V.current_mahadasha.lord, startTimestamp: V.current_mahadasha.start, endTimestamp: V.current_mahadasha.end,
+                              displayStartDate: lcFmt(V.current_mahadasha.start), displayEndDate: lcFmt(V.current_mahadasha.end) };
+      for (var lcm = 0; lcm < V.mahadashas.length; lcm++){
+        if (V.mahadashas[lcm].start === V.current_mahadasha.start){
+          for (var lca = 0; lca < V.mahadashas[lcm].antardashas.length; lca++){
+            var lcAd = V.mahadashas[lcm].antardashas[lca];
+            lifeCycle.antardashaSequence.push({ lord: lcAd.lord, startTimestamp: lcAd.start, endTimestamp: lcAd.end,
+                                                displayStartDate: lcFmt(lcAd.start), displayEndDate: lcFmt(lcAd.end) });
+          }
+          break;
+        }
+      }
+    }
+    if (V.current_antardasha){
+      lifeCycle.antardasha = { lord: V.current_antardasha.lord, startTimestamp: V.current_antardasha.start, endTimestamp: V.current_antardasha.end,
+                               displayStartDate: lcFmt(V.current_antardasha.start), displayEndDate: lcFmt(V.current_antardasha.end) };
+    }
+    if (V.next_antardasha){
+      lifeCycle.nextAntardasha = { lord: V.next_antardasha.lord, mahadashaLord: V.next_antardasha.mahadasha_lord,
+                                   startTimestamp: V.next_antardasha.start, endTimestamp: V.next_antardasha.end,
+                                   displayStartDate: lcFmt(V.next_antardasha.start), displayEndDate: lcFmt(V.next_antardasha.end) };
+    }
+
     var payload = {
       version: 1,
       generatedAt: GENERATED_AT_ISO,
@@ -4081,7 +4145,8 @@ try {
       ascendantSignNumber: ascSign + 1,
       planets: planets,
       panchanga: panchanga,
-      mahadasha: mahadasha
+      mahadasha: mahadasha,
+      lifeCycle: lifeCycle
       /* alignments intentionally absent until approved interpretation content exists */
     };
     /* v19.93: full name onto the printable chart's identity block (BC2.1 renders
@@ -4089,6 +4154,9 @@ try {
     if (SAVED.name && String(SAVED.name).trim()) payload.person = { name: String(SAVED.name).trim() };
     localStorage.setItem('cozChartJSON', JSON.stringify(payload));
     console.log('[EMERGE FLOW] 8. birth-chart export written: cozChartJSON', payload.reportId, '\u00B7', planets.length, 'bodies \u00B7 panchanga', panchanga.length, 'rows');
+    console.log('[EMERGE FLOW] 8b. life-cycle timing:', lifeCycle.mode, '\u00B7 year', lifeCycle.yearLengthDays, 'd \u00B7', lifeCycle.validationStatus,
+                '\u00B7 MD', lifeCycle.mahadasha && lifeCycle.mahadasha.lord, '\u00B7 AD', lifeCycle.antardasha && lifeCycle.antardasha.lord,
+                '\u00B7 next AD', lifeCycle.nextAntardasha && lifeCycle.nextAntardasha.lord);
   } catch (e) {
     try { localStorage.removeItem('cozChartJSON'); } catch(_){}
     console.log('[EMERGE FLOW] 8. birth-chart export failed safely, stale chart cleared, nothing written:', e && e.message);
