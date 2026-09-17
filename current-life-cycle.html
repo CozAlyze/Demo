@@ -58,21 +58,35 @@ body {
   background: linear-gradient(180deg, rgba(0,15,38,.55) 0%, rgba(0,15,38,.82) 46%, var(--vedic-navy) 100%);
 }
 
+.lc-frame {
+  position: fixed; inset: 0; z-index: 3; pointer-events: none;
+  background-image: url("vedic-arch-frame.png");
+  /* contain, not stretch: the carving keeps its proportions on every screen */
+  background-size: auto 100%;
+  background-repeat: no-repeat;
+  background-position: center top;
+}
+/* On wide screens the arch would island in the middle, so it caps to the
+   reading column rather than floating. */
+@media (min-width: 560px) {
+  .lc-frame { background-size: contain; }
+}
+/* The arch encloses the content, so the column sits inside its opening. */
 .lc-wrap {
-  position: relative; z-index: 1;
+  position: relative; z-index: 2;
   max-width: 560px; margin: 0 auto;
-  padding: 26px var(--side-pad) calc(var(--asq-nav-h) + 78px);
+  padding: 21vh calc(var(--side-pad) + 12vw) calc(var(--asq-nav-h) + 96px);
   text-align: center;
 }
 
-.vedic-logo { display:block; width:128px; height:auto; margin:0 auto 4px; }
+.vedic-logo { display:block; width:104px; height:auto; margin:0 auto 6px; }
 .lc-brand {
   font-family: var(--display-font); font-size: clamp(19px,5vw,23px);
   letter-spacing: .04em; color: var(--vedic-gold); margin: 0 0 2px;
 }
 h1.lc-title {
   font-family: var(--display-font); font-weight: 600;
-  font-size: clamp(27px,7.2vw,34px); line-height: 1.15;
+  font-size: clamp(25px,6.6vw,33px); line-height: 1.18;
   letter-spacing: .012em; color: #fff; margin: 0 0 12px;
 }
 
@@ -83,16 +97,16 @@ h1.lc-title {
 
 .lc-system {
   font-family: var(--display-font); font-style: italic;
-  font-size: clamp(16px,4.3vw,19px); letter-spacing: .06em;
+  font-size: clamp(17.5px,4.7vw,20.5px); letter-spacing: .06em;
   color: var(--vedic-gold); margin: 0 0 10px;
 }
 .lc-lord {
   font-family: var(--display-font); font-weight: 600;
-  font-size: clamp(38px,10.5vw,50px); letter-spacing: .07em;
+  font-size: clamp(41px,11.2vw,54px); letter-spacing: .07em;
   color: #fff; margin: 0 0 14px; text-transform: uppercase;
 }
 .lc-years {
-  font-family: var(--body-font); font-size: clamp(14px,3.8vw,16px);
+  font-family: var(--body-font); font-size: clamp(15.5px,4.2vw,17.5px);
   letter-spacing: .16em; color: var(--vedic-ivory-muted); margin: 12px 0 0;
 }
 
@@ -107,7 +121,7 @@ h1.lc-title {
 .coz-medallion svg { stroke:currentColor; fill:none; stroke-width:2.1; stroke-linecap:round; stroke-linejoin:round; }
 
 .lc-here {
-  font-family: var(--display-font); font-size: clamp(17px,4.6vw,20px);
+  font-family: var(--display-font); font-size: clamp(18.5px,5vw,21.5px);
   letter-spacing: .17em; color: #fff; margin: 30px 0 13px;
 }
 .lc-here::before { content:"\2726"; display:block; color:var(--vedic-gold); font-size:15px; letter-spacing:0; margin-bottom:7px; }
@@ -123,7 +137,7 @@ h1.lc-title {
 .lc-cap.s { left:-1px; } .lc-cap.e { right:-1px; }
 .lc-node { position:absolute; top:0; transform:translateX(-50%); text-align:center; }
 .lc-node span {
-  display:block; font-family:var(--body-font); font-size:11.5px;
+  display:block; font-family:var(--body-font); font-size:12.8px;
   letter-spacing:.05em; color:var(--vedic-ivory-muted); white-space:nowrap; margin-bottom:5px;
 }
 .lc-node i { display:block; width:13px; height:13px; border-radius:50%; margin:0 auto;
@@ -132,8 +146,8 @@ h1.lc-title {
 .lc-node.now span { color:#fff; }
 .lc-tick { position:absolute; top:16px; width:1px; height:7px; background:var(--vedic-gold-muted); opacity:.65; transform:translateX(-50%); }
 .lc-range {
-  font-family:var(--body-font); font-size:clamp(13px,3.5vw,14.5px);
-  letter-spacing:.05em; color:var(--vedic-ivory); margin-top:9px;
+  font-family:var(--body-font); font-size:clamp(14.5px,3.9vw,16px);
+  letter-spacing:.05em; color:var(--vedic-ivory); margin-top:10px;
 }
 
 /* Season panel. Corner ornaments are CSS, reusing the reading-panel motif. */
@@ -148,17 +162,17 @@ h1.lc-title {
 .lc-season::before { top:7px; left:7px; border-right:0; border-bottom:0; border-radius:9px 0 0 0; }
 .lc-season::after  { bottom:7px; right:7px; border-left:0; border-top:0; border-radius:0 0 9px 0; }
 .lc-season-eyebrow {
-  font-family:var(--display-font); font-size:clamp(17px,4.6vw,20px);
-  color:var(--vedic-gold); letter-spacing:.02em; margin:0 0 4px;
+  font-family:var(--display-font); font-size:clamp(18.5px,5vw,21.5px);
+  color:var(--vedic-gold); letter-spacing:.02em; margin:0 0 5px;
 }
 .lc-pair {
   font-family:var(--display-font); font-weight:600;
-  font-size:clamp(27px,7.4vw,35px); letter-spacing:.045em;
+  font-size:clamp(29px,7.9vw,37px); letter-spacing:.045em;
   color:#fff; margin:0; text-transform:uppercase;
 }
 .lc-summary {
-  font-family:var(--display-font); font-size:clamp(17px,4.5vw,19.5px);
-  line-height:1.62; color:var(--vedic-ivory); margin:14px 0 0;
+  font-family:var(--display-font); font-size:clamp(18.5px,4.9vw,21px);
+  line-height:1.6; color:var(--vedic-ivory); margin:14px 0 0;
 }
 
 /* Doors. The season door is live; the other two are inert this pass. */
@@ -167,7 +181,7 @@ h1.lc-title {
   border:1px solid var(--vedic-gold-muted); border-radius:11px;
   background:rgba(0,15,38,.55); color:var(--vedic-ivory);
   padding:14px 17px; margin:0 0 12px; text-align:left;
-  font-family:var(--display-font); font-size:clamp(18px,4.8vw,21px);
+  font-family:var(--display-font); font-size:clamp(19.5px,5.2vw,22.5px);
   letter-spacing:.015em; text-decoration:none; cursor:pointer;
   -webkit-tap-highlight-color:transparent;
 }
@@ -224,10 +238,10 @@ h1.lc-title {
 <body>
 
 <div class="lc-bg" aria-hidden="true"></div>
+<div class="lc-frame" aria-hidden="true"></div>
 
 <main class="lc-wrap" id="lcMain">
   <img class="vedic-logo" src="vedic-logo.png" alt="CozAlyze" width="1000" height="1055">
-  <p class="lc-brand">CozAlyze</p>
   <h1 class="lc-title">Your Current Life Cycle</h1>
   <div class="lc-rule" aria-hidden="true"><i></i><b></b><i></i></div>
   <div id="lcBody"></div>
