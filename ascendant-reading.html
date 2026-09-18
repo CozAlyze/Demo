@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your Ascendant · CozAlyze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+/* COZALYZE · ASCENDANT FULL READING · R1.0
+   One template for both systems: ?sys=western or ?sys=vedic.
+   Signs and copy come from ascendant-library.js (shared with your-ascendants.html). */
+:root{
+  --navy:#030b17;
+  --cream:#EBE5D0; --title:#F3EEE3; --champ:#D9BC8C;
+  --blue:#A9CDF2; --blue-glow:rgba(96,156,232,.8);
+  --gold:#E8CB98; --gold-glow:rgba(222,168,92,.7);
+  --head:"Cinzel",Georgia,serif;
+  --body:"EB Garamond",Georgia,serif;
+  --glyph:"Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--navy);color:var(--cream);-webkit-text-size-adjust:100%}
+.sky{position:fixed;inset:0;z-index:0;background:var(--navy) url("reading-bg.jpg?v=1") center top/cover no-repeat;pointer-events:none}
+main{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:max(22px,env(safe-area-inset-top)) 8.5% calc(40px + env(safe-area-inset-bottom));text-align:center}
+.logo{display:block;width:clamp(104px,30vw,150px);height:auto;margin:0 auto}
+.frame{position:relative;width:clamp(190px,58vw,290px);margin:clamp(10px,3vw,18px) auto 0;container-type:inline-size}
+.frame img{display:block;width:100%;height:auto}
+.glyph{position:absolute;left:50%;top:50%;transform:translate(-50%,-52%);font-family:var(--glyph);line-height:1}
+.western .glyph{font-size:28cqw;color:var(--blue);text-shadow:0 0 2cqw var(--blue-glow),0 0 6cqw var(--blue-glow)}
+.vedic .glyph{font-size:26cqw;color:var(--gold);text-shadow:0 0 2cqw var(--gold-glow),0 0 6cqw var(--gold-glow)}
+.sys{font-family:var(--head);font-weight:500;font-size:clamp(14px,4.3vw,19px);letter-spacing:.3em;margin-right:-.3em;color:var(--cream);margin-top:clamp(14px,4vw,24px)}
+.your{font-family:var(--head);font-weight:500;font-size:clamp(13px,4vw,18px);letter-spacing:.28em;margin-right:-.28em;color:var(--champ);margin-top:.7em}
+.sign{font-family:var(--head);font-weight:500;font-size:clamp(30px,10.4vw,62px);line-height:1.1;letter-spacing:.02em;color:var(--title);white-space:nowrap;margin-top:.12em}
+.meet{font-family:var(--head);font-weight:500;font-size:clamp(12px,3.8vw,20px);letter-spacing:.2em;margin-right:-.2em;white-space:nowrap;color:var(--champ);margin-top:.35em}
+.reading{text-align:left;margin-top:clamp(24px,6.5vw,36px)}
+.reading p{font-family:var(--body);font-weight:400;font-size:clamp(18px,4.9vw,21px);line-height:1.55;color:var(--cream)}
+.reading p+p{margin-top:1.05em}
+.reading .dev{font-style:italic;color:var(--champ)}
+.note{font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--cream);opacity:.85;margin-top:2.2em}
+.back{display:inline-block;margin-top:1.9em;padding:10px 6px;font-family:var(--head);font-weight:500;font-size:clamp(13px,3.9vw,16px);letter-spacing:.2em;color:var(--champ);text-decoration:none;-webkit-tap-highlight-color:transparent}
+.back:focus-visible{outline:1px solid var(--champ);outline-offset:4px}
+.stamp{position:fixed;right:6px;bottom:2px;z-index:2;font:8px/1 var(--head);letter-spacing:.08em;color:rgba(204,164,102,.45);pointer-events:none}
+</style>
+</head>
+<body>
+<div class="sky" aria-hidden="true"></div>
+<main id="page">
+  <img class="logo" src="coz-logo.png?v=1" alt="CozAlyze">
+  <div class="frame">
+    <img id="frameImg" src="" alt="">
+    <span class="glyph" id="glyph" role="img"></span>
+  </div>
+  <p class="sys" id="sys"></p>
+  <p class="your">YOUR ASCENDANT</p>
+  <h1 class="sign" id="sign"></h1>
+  <p class="meet">HOW YOU MEET THE WORLD</p>
+  <article class="reading" id="reading"></article>
+  <p class="note">These themes describe possible patterns—not fixed outcomes.</p>
+  <a class="back" id="back" href="your-ascendants.html">&lsaquo; BACK TO YOUR ASCENDANTS</a>
+</main>
+<div class="stamp">ASCENDANT READING · R1.0</div>
+
+<script src="ascendant-library.js?v=1"></script>
+<script>
+(function(){
+  var A=window.COZ_ASC, q=new URLSearchParams(location.search);
+  var sys=q.get("sys")==="vedic"?"vedic":"western";
+  var sign=A.resolve()[sys];
+  var page=document.getElementById("page");
+  page.classList.add(sys);
+  document.getElementById("frameImg").src=(sys==="vedic"?"frame-vedic.png":"frame-western.png")+"?v=1";
+  document.getElementById("sys").textContent=sys==="vedic"?"VEDIC (SIDEREAL)":"WESTERN (TROPICAL)";
+  var label=sys==="vedic"?"Vedic":"Western";
+  var cap=function(s){return s.charAt(0).toUpperCase()+s.slice(1);};
+  var g=document.getElementById("glyph"), h=document.getElementById("sign"), r=document.getElementById("reading");
+
+  if(!sign){
+    g.setAttribute("aria-hidden","true");
+    h.textContent="";
+    r.innerHTML='<p class="dev">Your '+label+' Ascendant appears here once your chart has been calculated.</p>';
+  } else {
+    g.textContent=A.GLYPH[sign]+"\uFE0E";
+    g.setAttribute("aria-label",cap(sign)+" zodiac glyph");
+    h.innerHTML="<span>"+sign.toUpperCase()+" RISING</span>";
+    document.title=cap(sign)+" Rising · "+label+" Ascendant · CozAlyze";
+    var paras=A.fullReading(sys,sign);
+    if(paras){
+      r.innerHTML=paras.map(function(t){return "<p>"+t+"</p>";}).join("");
+    } else {
+      r.innerHTML='<p class="dev">[Internal development placeholder] The approved '+label+' '+cap(sign)+' Ascendant reading has not been supplied yet.</p>';
+    }
+  }
+
+  /* keep the sign name on one line inside the column on any screen */
+  function fit(){
+    h.style.fontSize="";
+    var t=h.querySelector("span"); if(!t) return;
+    var fs=parseFloat(getComputedStyle(h).fontSize);
+    while(t.getBoundingClientRect().width>h.clientWidth && fs>18){ fs-=0.5; h.style.fontSize=fs+"px"; }
+  }
+  fit();
+  if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fit);
+  addEventListener("resize",fit);
+
+  /* back: return to the Ascendants page where the reader left it */
+  document.getElementById("back").addEventListener("click",function(e){
+    var ref=document.referrer||"";
+    if(ref.indexOf("your-ascendants.html")>=0 && history.length>1){ e.preventDefault(); history.back(); return; }
+    var qa=A.qaQuery(); if(qa){ e.preventDefault(); location.href="your-ascendants.html?"+qa.slice(1); }
+  });
+})();
+</script>
+</body>
+</html>
