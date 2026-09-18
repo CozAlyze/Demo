@@ -7,9 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="preload" as="image" href="ascendants-bg.jpg?v=1">
+<link rel="preload" as="image" href="ascendants-bg.jpg?v=2">
 <style>
-/* YOUR ASCENDANTS · A1.0
+/* YOUR ASCENDANTS · A1.1
    Background = Jason's baked art, used verbatim (ascendants-bg.jpg, 1185x2576).
    All positions are written in the art's own pixels and scaled by --k, so every
    overlay stays locked to the baked frames on any screen width.
@@ -28,7 +28,7 @@
 html,body{background:var(--gap);color:var(--cream);-webkit-text-size-adjust:100%}
 .page{width:100%;max-width:600px;margin:0 auto;container-type:inline-size}
 .band{position:relative;width:100%;--k:calc(100cqw / 1185);
-  background-image:url("ascendants-bg.jpg?v=1");background-repeat:no-repeat;
+  background-image:url("ascendants-bg.jpg?v=2");background-repeat:no-repeat;
   background-size:100cqw auto}
 .band.a{height:calc(1206 * var(--k));background-position:0 0}
 .band.b{height:calc(533 * var(--k));background-position:0 calc(-1206 * var(--k))}
@@ -160,7 +160,7 @@ html,body{background:var(--gap);color:var(--cream);-webkit-text-size-adjust:100%
   </section>
 
 </main>
-<div class="stamp">ASCENDANTS · A1.0 · live overlays</div>
+<div class="stamp">ASCENDANTS · A1.1 · both systems</div>
 
 <script>
 /* ===== COPY BANKS (fixed copy, draft pending Jason's practitioner approval) =====
@@ -279,6 +279,14 @@ function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
   w=norm(q.get("w")); v=norm(q.get("v"));
   var g=window.COZ_ASCENDANTS; if(g){ w=w||norm(g.western); v=v||norm(g.vedic); }
   var a=ls("cozAscendants"); if(a){ w=w||norm(a.western); v=v||norm(a.vedic); }
+  /* A1.1: the engine's own pair, written together by the reveal doors (cozAscendants() in
+     tropical-reveal / sidereal-reveal), so both signs always come from the same chart */
+  try{
+    var pt=localStorage.getItem("emergeAscendantTropical"), ps=localStorage.getItem("emergeAscendant");
+    if(pt&&ps&&norm(pt)&&norm(ps)){ w=w||norm(pt); v=v||norm(ps); }
+  }catch(e){}
+  var tc=ls("cozTropicalChartJSON");
+  if(tc&&tc.angles&&tc.angles.ascendant){ w=w||norm(tc.angles.ascendant.sign); }
   var c=ls("cozChartJSON"); if(c){
     v=v||norm(c.ascendantSignNumber);
     w=w||norm(c.tropicalAscendantSignNumber)||norm(c.tropical&&c.tropical.ascendantSignNumber);
