@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your Ascendants · CozAlyze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="ascendants-bg.jpg?v=1">
+<style>
+/* YOUR ASCENDANTS · A1.0
+   Background = Jason's baked art, used verbatim (ascendants-bg.jpg, 1185x2576).
+   All positions are written in the art's own pixels and scaled by --k, so every
+   overlay stays locked to the baked frames on any screen width.
+   The art is drawn in three bands cut at the middle of the gaps between boxes,
+   so an opened analysis can push the rest of the page down without touching a pixel. */
+:root{
+  --blue:#A9CDF2; --blue-accent:#8FB8E6; --blue-glow:rgba(96,156,232,.75);
+  --gold:#E3C79C; --gold-accent:#D2AF86; --gold-glow:rgba(214,164,96,.6);
+  --cream:#EBE5D0; --champ:#D9C7A6;
+  --gap:rgb(1,11,26);
+  --serif:"Cormorant Garamond",Georgia,serif;
+  --sans:"Montserrat","Helvetica Neue",Arial,sans-serif;
+  --glyph:"Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2","DejaVu Sans",serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--gap);color:var(--cream);-webkit-text-size-adjust:100%}
+.page{width:100%;max-width:600px;margin:0 auto;container-type:inline-size}
+.band{position:relative;width:100%;--k:calc(100cqw / 1185);
+  background-image:url("ascendants-bg.jpg?v=1");background-repeat:no-repeat;
+  background-size:100cqw auto}
+.band.a{height:calc(1206 * var(--k));background-position:0 0}
+.band.b{height:calc(533 * var(--k));background-position:0 calc(-1206 * var(--k))}
+.band.c{height:calc(837 * var(--k));background-position:0 calc(-1739 * var(--k))}
+.abs{position:absolute}
+
+/* heading */
+.head{left:0;right:0;top:calc(350 * var(--k));height:calc(340 * var(--k));
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;--k:calc(100cqw / 1185)}
+.h1{font-family:var(--serif);font-weight:500;font-variant:small-caps;letter-spacing:.04em;
+  font-size:calc(96 * var(--k));line-height:1;color:var(--cream)}
+.h2{font-family:var(--serif);font-weight:500;font-size:calc(40 * var(--k));line-height:1.2;
+  margin-top:calc(14 * var(--k));color:var(--cream);letter-spacing:.02em}
+.theme{display:flex;align-items:center;gap:calc(26 * var(--k));margin-top:calc(34 * var(--k));
+  font-family:var(--sans);font-weight:500;font-size:calc(25 * var(--k));letter-spacing:.34em;
+  color:var(--gold-accent);white-space:nowrap}
+.theme::before,.theme::after{content:"";width:calc(70 * var(--k));height:1px;background:currentColor;opacity:.7}
+.theme span{margin-right:-.34em}
+
+/* glyphs */
+.glyph{display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);
+  width:calc(240 * var(--k));height:calc(240 * var(--k));font-family:var(--glyph);line-height:1}
+.glyph.w{left:calc(275 * var(--k));top:calc(934 * var(--k));font-size:calc(150 * var(--k));
+  color:var(--blue);text-shadow:0 0 calc(10 * var(--k)) var(--blue-glow),0 0 calc(28 * var(--k)) var(--blue-glow)}
+.glyph.v{left:calc(275 * var(--k));top:calc(252 * var(--k));font-size:calc(140 * var(--k));
+  color:var(--gold);text-shadow:0 0 calc(10 * var(--k)) var(--gold-glow),0 0 calc(26 * var(--k)) var(--gold-glow)}
+
+/* text column inside boxes one and two */
+.col{left:calc(482 * var(--k));width:calc(600 * var(--k));display:flex;flex-direction:column;justify-content:center}
+.col.w{top:calc(746 * var(--k));height:calc(396 * var(--k))}
+.col.v{top:calc(78 * var(--k));height:calc(390 * var(--k))}
+.eyebrow{font-family:var(--sans);font-weight:500;font-size:calc(25 * var(--k));letter-spacing:.3em;line-height:1.2}
+.sign{font-family:var(--serif);font-weight:500;font-variant:small-caps;font-size:calc(68 * var(--k));
+  line-height:1;letter-spacing:.03em;color:var(--cream);margin-top:calc(12 * var(--k))}
+.prev{font-family:var(--sans);font-weight:400;font-size:calc(31.5 * var(--k));line-height:1.42;
+  color:var(--cream);margin-top:calc(14 * var(--k))}
+.rule{height:1px;margin-top:calc(20 * var(--k));opacity:.55}
+.tog{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;
+  display:flex;align-items:center;justify-content:space-between;width:100%;
+  padding:calc(16 * var(--k)) 0 calc(4 * var(--k));font-family:var(--sans);font-weight:400;
+  font-size:calc(28 * var(--k));letter-spacing:.07em;color:var(--cream);text-align:left;
+  -webkit-tap-highlight-color:transparent}
+.tog svg{width:calc(34 * var(--k));height:calc(34 * var(--k));flex:none}
+.tog[aria-expanded="true"] svg{transform:rotate(180deg)}
+.w .eyebrow,.w .tog svg{color:var(--blue-accent)} .w .rule{background:var(--blue-accent)}
+.v .eyebrow,.v .tog svg{color:var(--gold-accent)} .v .rule{background:var(--gold-accent)}
+
+/* expanded analysis: opens between the art bands, text only on the gap colour */
+.drawer{display:none;background:var(--gap);padding:6px 7.2% 22px;--k:calc(100cqw / 1185)}
+.drawer.open{display:block}
+.drawer p{font-family:var(--sans);font-weight:400;font-size:max(15px,calc(44 * var(--k)));line-height:1.65;color:var(--cream)}
+.drawer p+p{margin-top:.9em}
+.drawer .close{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;margin-top:1.1em;
+  display:flex;align-items:center;gap:.5em;font-family:var(--sans);font-size:max(13px,calc(36 * var(--k)));
+  letter-spacing:.07em;color:var(--cream);-webkit-tap-highlight-color:transparent}
+.drawer .close svg{width:1em;height:1em;transform:rotate(180deg)}
+#wDrawer .close svg{color:var(--blue-accent)} #vDrawer .close svg{color:var(--gold-accent)}
+
+/* box three */
+.comb{left:calc(112 * var(--k));width:calc(951 * var(--k));top:calc(64 * var(--k));height:calc(262 * var(--k));
+  display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.comb .ttl{display:flex;align-items:center;gap:calc(24 * var(--k));font-family:var(--sans);font-weight:500;
+  font-size:calc(27 * var(--k));letter-spacing:.34em;color:var(--champ);white-space:nowrap}
+.comb .ttl::before,.comb .ttl::after{content:"";width:calc(60 * var(--k));height:1px;background:currentColor;opacity:.7}
+.comb .ttl span{margin-right:-.34em}
+.comb .star{font-size:calc(22 * var(--k));color:var(--champ);margin-top:calc(8 * var(--k));line-height:1;opacity:.9}
+.comb p{font-family:var(--sans);font-weight:400;font-size:calc(31.5 * var(--k));line-height:1.42;color:var(--cream);margin-top:calc(10 * var(--k))}
+
+/* baked bottom navigation: tap areas over the art */
+.nav a{position:absolute;top:calc(737 * var(--k));height:calc(72 * var(--k));display:block;-webkit-tap-highlight-color:transparent}
+.nav .home{left:calc(127 * var(--k));width:calc(230 * var(--k))}
+.nav .saved{left:calc(470 * var(--k));width:calc(210 * var(--k))}
+.nav .acct{left:calc(820 * var(--k));width:calc(210 * var(--k))}
+
+.stamp{position:fixed;right:6px;bottom:2px;font:8px/1 var(--sans);letter-spacing:.08em;color:rgba(204,164,102,.45);pointer-events:none;z-index:9}
+</style>
+</head>
+<body>
+<main class="page">
+
+  <section class="band a">
+    <header class="abs head">
+      <h1 class="h1">Your Ascendants</h1>
+      <div class="h2">Western (Tropical) + Vedic (Sidereal)</div>
+      <div class="theme"><span>HOW YOU MEET THE WORLD</span></div>
+    </header>
+    <div class="abs glyph w" id="wGlyph" aria-hidden="true"></div>
+    <div class="abs col w">
+      <div class="eyebrow">WESTERN ASCENDANT</div>
+      <div class="sign" id="wSign"></div>
+      <p class="prev" id="wPrev"></p>
+      <div class="rule"></div>
+      <button class="tog" id="wTog" aria-expanded="false" aria-controls="wDrawer">
+        <span>Read Full Analysis</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <section class="drawer" id="wDrawer" aria-label="Western Ascendant full analysis"></section>
+
+  <section class="band b">
+    <div class="abs glyph v" id="vGlyph" aria-hidden="true"></div>
+    <div class="abs col v">
+      <div class="eyebrow">VEDIC ASCENDANT</div>
+      <div class="sign" id="vSign"></div>
+      <p class="prev" id="vPrev"></p>
+      <div class="rule"></div>
+      <button class="tog" id="vTog" aria-expanded="false" aria-controls="vDrawer">
+        <span>Read Full Analysis</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <section class="drawer" id="vDrawer" aria-label="Vedic Ascendant full analysis"></section>
+
+  <section class="band c">
+    <div class="abs comb">
+      <div class="ttl"><span>HOW THEY WORK TOGETHER</span></div>
+      <div class="star">&#10022;</div>
+      <p id="cPrev"></p>
+    </div>
+    <nav class="nav" aria-label="Main">
+      <a class="home" href="compare-reading.html" aria-label="Home"></a>
+      <a class="saved" href="#" data-nav="saved" aria-label="Saved"></a>
+      <a class="acct" href="#" data-nav="account" aria-label="Account"></a>
+    </nav>
+  </section>
+
+</main>
+<div class="stamp">ASCENDANTS · A1.0 · live overlays</div>
+
+<script>
+/* ===== COPY BANKS (fixed copy, draft pending Jason's practitioner approval) =====
+   Western = the outer world: how you step in and how others experience you.
+   Vedic   = the Lagna: where the chart begins, its guiding planet, what life asks of you.
+   No sign numbers anywhere. */
+var SIGN_ORDER = ["aries","taurus","gemini","cancer","leo","virgo","libra","scorpio","sagittarius","capricorn","aquarius","pisces"];
+var GLYPH = {aries:"\u2648",taurus:"\u2649",gemini:"\u264A",cancer:"\u264B",leo:"\u264C",virgo:"\u264D",libra:"\u264E",scorpio:"\u264F",sagittarius:"\u2650",capricorn:"\u2651",aquarius:"\u2652",pisces:"\u2653"};
+
+var WESTERN = {
+ aries:{p:"You meet life by moving first. People tend to see you as bold, direct, and ready for what comes next.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Aries rising, you tend to act before you overthink. You may be the one who starts things, says the honest thing, or takes the first risk.","Others often read you as confident and fearless, even on days you feel unsure. Your energy can lift a stuck situation. The challenge is impatience, or moving so fast that people feel left behind. When you slow down enough to bring others with you, your drive becomes real leadership."]},
+ taurus:{p:"You meet life with a calm, steady presence. People tend to see you as grounded, patient, and easy to trust.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Taurus rising, you tend to arrive quietly and settle in. You notice comfort, quality, and the feel of a place before you commit to it.","Others often experience you as reliable and warm, someone who will not be rushed. That calm can steady a whole group. The challenge is stubbornness, or holding on after something has run its course. When you trust change as much as you trust stability, your steadiness becomes a gift to everyone around you."]},
+ gemini:{p:"You meet life with curiosity and quick conversation. People tend to see you as bright, lively, and easy to talk to.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Gemini rising, you tend to lead with questions, ideas, and conversation. You pick up on what is happening quickly and adjust just as fast.","Others often experience you as clever, youthful, and fun to be around. You connect people and ideas that would not have met without you. The challenge is scattered attention, or staying on the surface to keep things light. When you stay with one thing long enough to go deep, your quick mind becomes real insight."]},
+ cancer:{p:"You meet life by sensing the mood first. People tend to see you as caring, protective, and quietly warm.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Cancer rising, you tend to read the emotional temperature before you say much. You notice who feels left out, and you want people to feel safe.","Others often experience you as kind, familiar, and easy to open up to. People may come to you when they need care. The challenge is a protective shell, pulling back when you feel exposed. When you let people care for you as well, your warmth becomes a real home for others."]},
+ leo:{p:"You meet life with warmth and presence. People tend to see you as confident, generous, and hard to overlook.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Leo rising, you tend to bring light with you. You show up fully, and people notice when you arrive.","Others often experience you as open-hearted, dramatic in the best way, and encouraging. You can make people feel seen. The challenge is needing that same recognition back, or feeling hurt when it does not come. When you shine without keeping score, your presence gives others permission to shine too."]},
+ virgo:{p:"You meet life with a careful, observant eye. People tend to see you as capable, thoughtful, and quietly helpful.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Virgo rising, you tend to notice details other people miss. You look for what needs fixing and how to make it work better.","Others often experience you as modest, sharp, and dependable. You may be the person who quietly makes things run. The challenge is self-criticism, or holding yourself to a standard no one could meet. When you let good be good enough, your skill becomes a steady kind of service."]},
+ libra:{p:"You meet life with grace and fairness. People tend to see you as charming, balanced, and easy to be around.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Libra rising, you tend to lead with courtesy and a sense of balance. You notice what makes a space feel beautiful and what makes people feel at ease.","Others often experience you as pleasant, fair-minded, and diplomatic. You can calm tension and help people meet in the middle. The challenge is putting off decisions, or keeping the peace at your own expense. When you say what you really want, your fairness becomes true partnership."]},
+ scorpio:{p:"You meet life with quiet intensity. People tend to see you as private, magnetic, and hard to fool.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Scorpio rising, you tend to watch before you reveal much. You sense what is under the surface, and you trust slowly.","Others often experience you as strong, focused, and a little mysterious. People may feel you see right through them. The challenge is guarding yourself so closely that no one gets in. When you let trust grow at its own pace, your depth becomes a place where others can be honest."]},
+ sagittarius:{p:"You meet life with optimism and a sense of adventure. People tend to see you as open, frank, and full of energy.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Sagittarius rising, you tend to arrive with enthusiasm and a big-picture view. You want to explore, learn, and see what is out there.","Others often experience you as friendly, honest, and fun. You can lift a room with your humor and your hope. The challenge is bluntness, or restlessness when life asks you to stay put. When you pair your freedom with follow-through, your enthusiasm inspires people to grow."]},
+ capricorn:{p:"You meet life with composure and purpose. People tend to see you as serious, capable, and quietly strong.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Capricorn rising, you tend to show up prepared. You notice what is expected and how things actually get done.","Others often experience you as mature, reliable, and in control, even when you are young. People may hand you responsibility early. The challenge is carrying too much, or hiding warmth behind a professional face. When you let people see the dry humor and care behind your effort, your strength becomes easier to reach."]},
+ aquarius:{p:"You meet life with an independent, original view. People tend to see you as friendly, unusual, and a bit unpredictable.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Aquarius rising, you tend to stand slightly apart and see things from a different angle. You are drawn to new ideas and fair treatment for everyone.","Others often experience you as open, clever, and not quite like anyone else. You can be friendly with almost anyone. The challenge is keeping people at a thoughtful distance, or putting ideas ahead of feelings. When you let yourself be close as well as free, your originality brings people together."]},
+ pisces:{p:"You meet life with gentleness and imagination. People tend to see you as kind, intuitive, and easy to confide in.",
+  f:["Your Western Ascendant describes the way you step into a room and the first impression you leave. With Pisces rising, you tend to take in the feeling of a place before anything else. You adapt to people easily and often sense what they need.","Others often experience you as soft, creative, and compassionate. People may open up to you quickly. The challenge is absorbing too much, or blurring your own edges to keep others comfortable. When you protect your energy as carefully as you give it, your sensitivity becomes a real healing presence."]}
+};
+
+var VEDIC = {
+ aries:{r:"Mars",p:"Mars guides your chart. Inside, you feel a push to act on what is true, and life keeps asking you for courage.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Aries rising, Mars is your guiding planet.","Inside, you may feel a steady need to act, to test yourself, and to stand up for what matters. Waiting can feel harder than struggle. The shadow side is anger that flares before you understand the full picture. What guides you is an inner call to begin things bravely. Your life keeps asking one thing of you: fight for what is right, not just to be right."]},
+ taurus:{r:"Venus",p:"Venus guides your chart. Inside, you need what is real and lasting, and life asks you to build it with patience.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Taurus rising, Venus is your guiding planet.","Inside, you may feel settled when life is simple, honest, and well made. You want to know what something is worth before you give yourself to it. The shadow side is gripping comfort so tightly that growth stalls. What guides you is a sense of true value. Your life keeps asking one thing of you: build what lasts, and share it."]},
+ gemini:{r:"Mercury",p:"Mercury guides your chart. Inside, you need to understand and connect, and life asks you to use your words well.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Gemini rising, Mercury is your guiding planet.","Inside, you may feel most alive when you are learning, asking, and linking one idea to another. A quiet mind can feel strange to you. The shadow side is thinking in circles instead of choosing. What guides you is the need to understand and to be understood. Your life keeps asking one thing of you: carry the message clearly and honestly."]},
+ cancer:{r:"the Moon",p:"The Moon guides your chart. Inside, you live by feeling and belonging, and life asks you to nurture without losing yourself.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Cancer rising, the Moon is your guiding planet.","Inside, you may feel everything first and think about it second. Home, family, and emotional safety sit at the center of your life. The shadow side is moods that rise and fall with the people around you. What guides you is care. Your life keeps asking one thing of you: make a safe place for others, and include yourself in it."]},
+ leo:{r:"the Sun",p:"The Sun guides your chart. Inside, you need to live from the heart, and life asks you to lead with integrity.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Leo rising, the Sun is your guiding planet.","Inside, you may feel a strong need to live honestly from your own center. You want your life to mean something and to stand for something. The shadow side is pride that makes it hard to ask for help. What guides you is your own inner light. Your life keeps asking one thing of you: lead with your heart and keep your word."]},
+ virgo:{r:"Mercury",p:"Mercury guides your chart. Inside, you need order and usefulness, and life asks you to serve without self-criticism.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Virgo rising, Mercury is your guiding planet.","Inside, you may feel calm when things are clear, clean, and working well. You notice what is off and want to help set it right. The shadow side is worry, and a harsh inner voice. What guides you is skill used for something real. Your life keeps asking one thing of you: do the work well, and be gentle with yourself while you do it."]},
+ libra:{r:"Venus",p:"Venus guides your chart. Inside, you need balance and fairness, and life asks you to find your own center within relationships.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Libra rising, Venus is your guiding planet.","Inside, you may feel unsettled when things are unfair or out of balance. You weigh every side before you act. The shadow side is losing your own voice to keep others happy. What guides you is a deep sense of justice. Your life keeps asking one thing of you: make things fair, including for yourself."]},
+ scorpio:{r:"Mars",p:"Mars guides your chart. Inside, you need depth and truth, and life asks you to face what others avoid.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Scorpio rising, Mars is your guiding planet.","Inside, you may feel things with great intensity, even when you show little. You want to know what is really going on. The shadow side is holding onto hurt long after it has passed. What guides you is the courage to look at hard truths. Your life keeps asking one thing of you: let what is finished end, so something new can begin."]},
+ sagittarius:{r:"Jupiter",p:"Jupiter guides your chart. Inside, you need meaning and truth, and life asks you to live by what you believe.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Sagittarius rising, Jupiter is your guiding planet.","Inside, you may feel a steady pull toward meaning, learning, and a bigger view of life. You need to believe in what you are doing. The shadow side is being so sure you are right that you stop listening. What guides you is faith in something larger. Your life keeps asking one thing of you: live what you believe, and keep learning."]},
+ capricorn:{r:"Saturn",p:"Saturn guides your chart. Inside, you need to earn your place, and life asks you to build something that lasts.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Capricorn rising, Saturn is your guiding planet.","Inside, you may feel a strong sense of duty, and a need to prove yourself through effort. Life can feel like it asks more of you early on. The shadow side is believing rest must always be earned. What guides you is responsibility. Your life keeps asking one thing of you: build something solid, one honest step at a time."]},
+ aquarius:{r:"Saturn",p:"Saturn guides your chart. Inside, you stand a little apart, and life asks you to serve something bigger than yourself.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Aquarius rising, Saturn is your guiding planet.","Inside, you may feel slightly separate, as if you see the whole system while others see one part. You care about what is fair for everyone. The shadow side is feeling alone even in a crowd. What guides you is principle. Your life keeps asking one thing of you: use your different view to help the whole, and let people in."]},
+ pisces:{r:"Jupiter",p:"Jupiter guides your chart. Inside, you feel deeply and widely, and life asks you to trust what you sense.",
+  f:["In the Vedic chart, the rising sign is where the whole chart begins. It sets the direction your life keeps turning toward. With Pisces rising, Jupiter is your guiding planet.","Inside, you may feel porous, carrying the feelings of the people and places around you. Compassion comes easily. The shadow side is escaping when life feels too heavy, or losing track of your own boundaries. What guides you is faith and intuition. Your life keeps asking one thing of you: trust what you sense, and give from a full cup."]}
+};
+
+/* Combined synthesis. Key = western|vedic. With the present ayanamsa the Vedic rising is
+   the same sign or the sign before the Western one, so these 24 pairs cover real charts. */
+var COMBINED = {
+ "aries|aries":"Both Ascendants fall in Aries, so the boldness people see matches the courage that guides you inside. What they meet is real. Your task is to aim that single drive with care.",
+ "aries|pisces":"People meet your Aries side first, quick, direct, and brave. Inside, Pisces guides you through feeling and intuition. Your fire is real, but your quiet sensitivity decides where it goes.",
+ "taurus|taurus":"Both Ascendants fall in Taurus, so the calm people see matches the steady values that guide you inside. You are what you appear to be. Your strength grows when you let change in.",
+ "taurus|aries":"People meet your Taurus side first, calm, patient, and grounded. Inside, Aries keeps pushing you to act and take risks. Your steady surface holds a braver engine than most people guess.",
+ "gemini|gemini":"Both Ascendants fall in Gemini, so the curious, talkative side people see matches the mind that guides you inside. Your life turns on learning and connection. Depth is your growing edge.",
+ "gemini|taurus":"People meet your Gemini side first, curious, lively, and quick. Inside, Taurus wants what is real and lasting. Your ideas move fast, but your deeper self keeps asking what is worth keeping.",
+ "cancer|cancer":"Both Ascendants fall in Cancer, so the care people see matches the feeling that guides you inside. You lead with the heart in every way. Let yourself receive what you give.",
+ "cancer|gemini":"People meet your Cancer side first, warm, protective, and caring. Inside, Gemini keeps you curious and thinking. You feel your way into people, then quietly work to understand them.",
+ "leo|leo":"Both Ascendants fall in Leo, so the warmth people see matches the heart that guides you inside. You are meant to live out loud. Your gift grows when you shine without keeping score.",
+ "leo|cancer":"People meet your Leo side first, warm, confident, and generous. Inside, Cancer guides you through feeling and a need for safety. Your bright presence protects a very tender heart.",
+ "virgo|virgo":"Both Ascendants fall in Virgo, so the careful, capable side people see matches the need for order that guides you inside. Useful work steadies you. Gentleness with yourself is your growing edge.",
+ "virgo|leo":"People meet your Virgo side first, modest, careful, and helpful. Inside, Leo wants to lead and live from the heart. Behind the quiet competence is a bigger light waiting to be shown.",
+ "libra|libra":"Both Ascendants fall in Libra, so the grace people see matches the sense of fairness that guides you inside. Balance is your whole path. Keep a place for your own voice in it.",
+ "libra|virgo":"People meet your Libra side first, gracious, fair, and easy to be around. Inside, Virgo keeps checking what needs fixing. Your charm rests on a careful, practical mind that notices everything.",
+ "scorpio|scorpio":"Both Ascendants fall in Scorpio, so the intensity people sense matches the depth that guides you inside. Little about you is on the surface. Your growth comes through letting go.",
+ "scorpio|libra":"People meet your Scorpio side first, intense, private, and perceptive. Inside, Libra longs for balance and fair connection. Your guarded surface protects a deep wish for peace and partnership.",
+ "sagittarius|sagittarius":"Both Ascendants fall in Sagittarius, so the optimism people see matches the search for meaning that guides you inside. Your life is a journey toward truth. Keep listening along the way.",
+ "sagittarius|scorpio":"People meet your Sagittarius side first, open, hopeful, and frank. Inside, Scorpio feels things deeply and keeps its own counsel. Your easy humor often carries far more depth than it shows.",
+ "capricorn|capricorn":"Both Ascendants fall in Capricorn, so the composure people see matches the sense of duty that guides you inside. You build your life with care. Rest is part of the work too.",
+ "capricorn|sagittarius":"People meet your Capricorn side first, composed, serious, and capable. Inside, Sagittarius looks for meaning and freedom. Your hard work is really fueled by what you believe in.",
+ "aquarius|aquarius":"Both Ascendants fall in Aquarius, so the independence people see matches the principles that guide you inside. You are meant to see differently. Let that vision include closeness too.",
+ "aquarius|capricorn":"People meet your Aquarius side first, original, friendly, and independent. Inside, Capricorn takes duty and effort seriously. Your new ideas carry real weight because you are willing to build them.",
+ "pisces|pisces":"Both Ascendants fall in Pisces, so the gentleness people see matches the intuition that guides you inside. You live by feeling. Protecting your energy lets you keep giving.",
+ "pisces|aquarius":"People meet your Pisces side first, gentle, kind, and imaginative. Inside, Aquarius stands a little apart and thinks about the whole. Your softness is guided by a clear sense of what is fair."
+};
+function combinedText(w,v){
+  var k=w+"|"+v; if(COMBINED[k]) return COMBINED[k];
+  var W=cap(w), V=cap(v);
+  return "People meet your "+W+" side first, the way you show up and take action. Inside, "+V+" guides what truly matters to you. Together they describe both how you move through life and why.";
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+
+/* ===== DATA ===== signs resolve in this order, first hit wins:
+   1. ?w=<sign>&v=<sign>                (QA view)
+   2. window.COZ_ASCENDANTS {western, vedic}
+   3. localStorage cozAscendants {western, vedic}
+   4. localStorage cozChartJSON  (vedic: ascendantSignNumber; western: tropicalAscendantSignNumber
+                                  or tropical.ascendantSignNumber when the tropical exporter writes it)
+   A sign may arrive as a name or as a number 1..12. Numbers are used only to look up the
+   name and are never displayed. Nothing is hard-coded; a missing sign shows the waiting line. */
+(function(){
+  function norm(x){
+    if(x==null||x==="") return null;
+    if(typeof x==="number"||/^\d+$/.test(String(x))){var n=parseInt(x,10);return (n>=1&&n<=12)?SIGN_ORDER[n-1]:null;}
+    var s=String(x).trim().toLowerCase(); return SIGN_ORDER.indexOf(s)>=0?s:null;
+  }
+  function ls(k){try{var r=localStorage.getItem(k);return r?JSON.parse(r):null;}catch(e){return null;}}
+  var w=null,v=null,q=new URLSearchParams(location.search);
+  w=norm(q.get("w")); v=norm(q.get("v"));
+  var g=window.COZ_ASCENDANTS; if(g){ w=w||norm(g.western); v=v||norm(g.vedic); }
+  var a=ls("cozAscendants"); if(a){ w=w||norm(a.western); v=v||norm(a.vedic); }
+  var c=ls("cozChartJSON"); if(c){
+    v=v||norm(c.ascendantSignNumber);
+    w=w||norm(c.tropicalAscendantSignNumber)||norm(c.tropical&&c.tropical.ascendantSignNumber);
+  }
+  var $=function(id){return document.getElementById(id);};
+  var CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>';
+
+  function fill(pre,sign,bank,label){
+    var tog=$(pre+"Tog"), dr=$(pre+"Drawer");
+    if(!sign){ $(pre+"Prev").textContent="Your "+label+" Ascendant appears here once your chart has been calculated."; tog.style.visibility="hidden"; return; }
+    $(pre+"Glyph").textContent=GLYPH[sign]+"\uFE0E";
+    $(pre+"Sign").textContent=cap(sign)+" Rising";
+    $(pre+"Prev").textContent=bank[sign].p;
+    dr.innerHTML=bank[sign].f.map(function(t){return "<p>"+t+"</p>";}).join("")+
+      '<button class="close" type="button">Close Analysis '+CHEV+'</button>';
+    function set(open){
+      dr.classList.toggle("open",open);
+      tog.setAttribute("aria-expanded",open?"true":"false");
+      tog.querySelector("span").textContent=open?"Close Analysis":"Read Full Analysis";
+    }
+    tog.addEventListener("click",function(){set(tog.getAttribute("aria-expanded")!=="true");});
+    dr.querySelector(".close").addEventListener("click",function(){
+      set(false); tog.scrollIntoView({block:"center"});
+    });
+  }
+  fill("w",w,WESTERN,"Western");
+  fill("v",v,VEDIC,"Vedic");
+  $("cPrev").textContent=(w&&v)?combinedText(w,v):"Once both Ascendants are calculated, this is where they come together.";
+})();
+</script>
+</body>
+</html>
