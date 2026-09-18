@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your Current Season · CozAlyze</title>
 <!--
-  COZALYZE · CURRENT SEASON · CS2.0
+  COZALYZE · CURRENT SEASON · CS2.1
   Reached from current-life-cycle.html.
 
   One reusable template. No lord, date, house, nakshatra or sentence about any
@@ -116,7 +116,7 @@ body {
 }
 
 /* Paired medallions with the connector from the approved artwork. */
-.cs-pairmark { display:flex; align-items:center; justify-content:center; gap:0; margin:0 0 16px; }
+.cs-pairmark { display:flex; align-items:center; justify-content:center; gap:0; margin:0 0 18px; }
 .cs-pairmark .cs-join { width:46px; height:1.5px; background:var(--vedic-gold); position:relative; }
 .cs-pairmark .cs-join::after {
   content:""; position:absolute; left:50%; top:50%; width:8px; height:8px;
@@ -128,12 +128,15 @@ body {
   border-radius:50%; color:var(--vedic-gold); border:1.5px solid var(--vedic-gold);
   background:radial-gradient(circle at 50% 38%, rgba(212,161,120,.15), rgba(0,15,38,.7) 72%);
 }
-.coz-medallion svg { stroke:currentColor; fill:none; stroke-width:2.1; stroke-linecap:round; stroke-linejoin:round; }
+.coz-medallion .coz-glyph {
+  font-family:"Apple Symbols","Segoe UI Symbol","Noto Sans Symbols 2",var(--display-font),serif;
+  line-height:1; color:currentColor; transform:translateY(-.02em);
+}
 
 .cs-dates {
   text-align:center; font-family:var(--body-font);
-  font-size:clamp(15.5px,4.2vw,17.5px); letter-spacing:.05em;
-  color:var(--vedic-ivory); margin:0 0 15px;
+  font-size:clamp(17px,4.6vw,19px); letter-spacing:.05em;
+  color:var(--vedic-ivory); margin:0 0 16px;
 }
 .cs-rule { display:flex; align-items:center; justify-content:center; gap:10px; margin:16px auto; max-width:360px; }
 .cs-rule i { flex:1; height:1px; background:linear-gradient(90deg,transparent,var(--vedic-gold-muted),transparent); }
@@ -141,26 +144,26 @@ body {
 
 .cs-lede {
   text-align:center; font-family:var(--display-font);
-  font-size:clamp(19.5px,5.2vw,22.5px); line-height:1.48;
+  font-size:clamp(21px,5.6vw,24px); line-height:1.46;
   color:var(--vedic-gold); margin:0 0 5px;
 }
 h1.cs-h1 {
   text-align:center; font-family:var(--display-font); font-weight:500;
-  font-size:clamp(25px,6.5vw,30px); line-height:1.22; color:#fff;
+  font-size:clamp(26.5px,6.9vw,32px); line-height:1.2; color:#fff;
   margin:18px 0 16px; letter-spacing:.012em;
 }
 .cs-intro p {
-  font-family:var(--body-font); font-size:clamp(15px,4.05vw,16.5px);
-  line-height:1.76; color:var(--vedic-ivory-muted);
+  font-family:var(--body-font); font-size:clamp(16.5px,4.45vw,18px);
+  line-height:1.74; color:var(--vedic-ivory-muted);
   margin:0 0 14px; text-align:center;
 }
 .cs-reading p {
-  font-family:var(--body-font); font-size:clamp(15.5px,4.2vw,17px);
-  line-height:1.8; color:var(--vedic-ivory); margin:0 0 17px;
+  font-family:var(--body-font); font-size:clamp(17px,4.6vw,18.5px);
+  line-height:1.78; color:var(--vedic-ivory); margin:0 0 18px;
 }
 .cs-disclaimer {
   text-align:center; font-family:var(--body-font);
-  font-size:clamp(14px,3.7vw,15.2px); line-height:1.68;
+  font-size:clamp(15px,4vw,16.4px); line-height:1.66;
   color:var(--vedic-ivory-muted); margin:6px 0 0;
 }
 
@@ -174,7 +177,7 @@ h1.cs-h1 {
   width:100%; border:0; border-top:1px solid rgba(212,161,120,.22);
   background:none; color:var(--vedic-ivory); text-align:left;
   padding:14px 2px; font-family:var(--display-font);
-  font-size:clamp(17.5px,4.7vw,19.5px); cursor:pointer;
+  font-size:clamp(18.5px,5vw,20.5px); cursor:pointer;
   -webkit-tap-highlight-color:transparent;
 }
 .cs-row:last-of-type { border-bottom:1px solid rgba(212,161,120,.22); }
@@ -238,7 +241,7 @@ h1.cs-h1 {
   </div>
 </div>
 
-<div class="cs-stamp" aria-hidden="true">CURRENT SEASON · CS2.0</div>
+<div class="cs-stamp" aria-hidden="true">CURRENT SEASON · CS2.1</div>
 
 <script src="coz-graha.js"></script>
 <script>
@@ -439,7 +442,7 @@ h1.cs-h1 {
   panel.innerHTML =
     '<p class="cs-eyebrow">Your Current Season</p>' +
     '<p class="cs-pair">' + esc(md.lord) + ' \u2013 ' + esc(ad.lord) + '</p>' +
-    '<div class="cs-pairmark">' + G.medallion(md.lord, 62) + '<span class="cs-join"></span>' + G.medallion(ad.lord, 62) + '</div>' +
+    '<div class="cs-pairmark">' + G.medallion(md.lord, 68) + '<span class="cs-join"></span>' + G.medallion(ad.lord, 68) + '</div>' +
     '<p class="cs-dates">' + esc(ad.displayStartDate) + ' \u2013 ' + esc(ad.displayEndDate) + '</p>' +
     '<div class="cs-rule" aria-hidden="true"><i></i><b></b><i></i></div>' +
     '<p class="cs-lede">' + lede + '</p>' +

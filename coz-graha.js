@@ -17,18 +17,21 @@
 
   var LORDS = ['Ketu', 'Venus', 'Sun', 'Moon', 'Mars', 'Rahu', 'Jupiter', 'Saturn', 'Mercury'];
 
-  /* Glyph geometry, 48x48 viewBox, stroke-based so one path set scales to
-     any medallion size. Drawn from the standard astrological forms. */
+  /* Standard astronomical symbols. These replace the hand-drawn paths used in
+     the first build, where the Jupiter form was wrong. Unicode carries the
+     correct, conventional shape for every graha, and Rahu and Ketu use the
+     ascending and descending node signs. If the master's own graha artwork is
+     preferred, swap GLYPH for image paths; nothing else needs to change. */
   var GLYPH = {
-    Sun:     '<circle cx="24" cy="24" r="10.5"/><circle cx="24" cy="24" r="2.2" fill="currentColor" stroke="none"/>',
-    Moon:    '<path d="M29.5 10.5a14 14 0 1 0 0 27 11.4 11.4 0 0 1 0-27z"/>',
-    Mars:    '<circle cx="20.5" cy="27.5" r="9"/><path d="M27 21l10-10"/><path d="M29.5 11H37v7.5"/>',
-    Mercury: '<circle cx="24" cy="24.5" r="8"/><path d="M24 32.5v8"/><path d="M19.5 37h9"/><path d="M18.5 12.5a7.5 7.5 0 0 0 11 0"/>',
-    Jupiter: '<path d="M14 14.5c4.5-4 10-1.5 10 3.5v18"/><path d="M12.5 36h19"/>',
-    Venus:   '<circle cx="24" cy="19.5" r="8.5"/><path d="M24 28v11"/><path d="M19 34h10"/>',
-    Saturn:  '<path d="M15 13.5c4-2.5 8 0 8 4v18"/><path d="M12 20h11"/><path d="M23 35.5c0 3 2 4.5 4.5 4.5s5-1.5 5-5-2.5-5-5-5"/>',
-    Rahu:    '<path d="M14 34c0-9 2.5-16 10-16s10 7 10 16"/><circle cx="17" cy="37" r="3.2"/><circle cx="31" cy="37" r="3.2"/>',
-    Ketu:    '<path d="M14 16c0 9 2.5 16 10 16s10-7 10-16"/><circle cx="17" cy="12" r="3.2"/><circle cx="31" cy="12" r="3.2"/>'
+    Sun:     '\u2609',
+    Moon:    '\u263D',
+    Mars:    '\u2642',
+    Mercury: '\u263F',
+    Jupiter: '\u2643',
+    Venus:   '\u2640',
+    Saturn:  '\u2644',
+    Rahu:    '\u260A',
+    Ketu:    '\u260B'
   };
 
   /* Approved plain-language themes. Handoff table, verbatim, no additions. */
@@ -67,17 +70,21 @@
   function glyphSVG(lord, size, cls) {
     var g = GLYPH[lord];
     if (!g) return '';
-    return '<svg class="' + (cls || 'coz-glyph') + '" viewBox="0 0 48 48" width="' + size + '" height="' + size +
-           '" role="img" aria-label="' + lord + '" focusable="false">' + g + '</svg>';
+    /* Rendered as text so the symbol keeps its designed proportions at any
+       size and inherits colour from CSS, as the medallion expects. */
+    return '<span class="' + (cls || 'coz-glyph') + '" role="img" aria-label="' + lord + '"' +
+           (size ? ' style="font-size:' + size + '"' : '') + '>' + g + '</span>';
   }
 
   /* Medallion: the circular framed symbol from the approved artwork.
      One component, any lord, colour inherited from CSS. */
   function medallion(lord, size) {
     size = size || 74;
-    var inner = Math.round(size * 0.52);
-    return '<span class="coz-medallion" style="width:' + size + 'px;height:' + size + 'px" data-lord="' + lord + '">' +
-           glyphSVG(lord, inner) + '</span>';
+    /* Glyph set to roughly half the medallion so the symbol sits with the same
+       optical weight at every size the pages use. */
+    return '<span class="coz-medallion" style="width:' + size + 'px;height:' + size +
+           'px;font-size:' + Math.round(size * 0.52) + 'px" data-lord="' + lord + '">' +
+           glyphSVG(lord, '') + '</span>';
   }
 
   function readChart() {

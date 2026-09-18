@@ -81,10 +81,10 @@ html, body {
   background: radial-gradient(circle at 50% 36%, rgba(212,161,120,.20), rgba(4,14,32,.80) 74%);
   box-shadow: 0 0 2.2cqw rgba(212,161,120,.30);
 }
-.lc-medallion svg {
-  width: 8.2cqw; height: 8.2cqw;
-  stroke: currentColor; fill: none;
-  stroke-width: 2.1; stroke-linecap: round; stroke-linejoin: round;
+.lc-medallion .coz-glyph {
+  font-family: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2", var(--display-font), serif;
+  font-size: 8.4cqw; line-height: 1; color: currentColor;
+  transform: translateY(-.02em);
 }
 .lc-years {
   top: 37.4%;
@@ -95,13 +95,13 @@ html, body {
 /* Subperiod names sit below the painted marks; the range sits below them. */
 .lc-node {
   position: absolute; transform: translateX(-50%);
-  top: 47.3%; text-align: center;
+  top: 43.75%; text-align: center;
   font-family: var(--body-font); font-size: 2.85cqw;
   letter-spacing: .04em; color: rgba(242,231,219,.78); white-space: nowrap;
 }
 .lc-node.now { color: #fff; font-weight: 600; }
 .lc-range {
-  top: 49.5%;
+  top: 46.45%;
   font-family: var(--body-font); font-size: 2.95cqw;
   letter-spacing: .05em; color: var(--vedic-ivory);
 }
@@ -247,7 +247,7 @@ html, body {
 
   stage.innerHTML =
     '<div class="f lc-lord">' + esc(md.lord) + '</div>' +
-    '<div class="f lc-medallion"><span>' + G.glyphSVG(md.lord, '100%') + '</span></div>' +
+    '<div class="f lc-medallion"><span>' + G.glyphSVG(md.lord, '') + '</span></div>' +
     '<div class="f lc-years">' + esc(years) + '</div>' +
 
     nodes() +
