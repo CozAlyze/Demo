@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your Current Life Cycle · CozAlyze</title>
 <!--
-  COZALYZE · CURRENT LIFE CYCLE · LC2.2
+  COZALYZE · CURRENT LIFE CYCLE · LC2.3
   Reached from vedic-reading.html (the "Your Current Life Cycle" door).
 
   LC2.0 replaces the CSS-composed layout of LC1.0. The artwork is now a single
@@ -112,15 +112,23 @@ html, body {
   font-size: 7.3cqw; letter-spacing: .045em; color: #fff;
   text-transform: uppercase; white-space: nowrap;
 }
+.lc-more {
+  top: 71.3%;
+  font-family: var(--display-font);
+  font-size: 3.85cqw; letter-spacing: .035em;
+  color: var(--vedic-gold);
+}
+.lc-more .chev { margin-left: .42em; font-size: 1.1em; line-height: 0; }
+
 .lc-summary {
-  top: 63.0%; left: 14.5%; right: 14.5%;
+  top: 61.6%; left: 14%; right: 14%;
   font-family: var(--display-font);
   font-size: 4.05cqw; line-height: 1.48; color: var(--vedic-ivory);
 }
 
 /* The painted season panel is the door to the full reading. */
 .lc-door {
-  position: absolute; top: 50.2%; left: 5.5%; right: 5.5%; height: 25.3%;
+  position: absolute; top: 50.2%; left: 5.5%; right: 5.5%; height: 24.5%;
   display: block; border: 0; background: none; padding: 0;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
   border-radius: 3.4cqw;
@@ -137,7 +145,7 @@ html, body {
 }
 .lc-btn:active { background: rgba(212,161,120,.07); }
 .lc-btn:focus-visible { outline: .3cqw solid var(--vedic-gold); outline-offset: .3cqw; }
-.lc-btn.ktw { top: 78.0%; }
+.lc-btn.ktw { top: 78.1%; }
 .lc-btn.wcn { top: 85.0%; }
 
 .lc-nav { position: absolute; bottom: 1.2%; left: 10%; right: 10%; height: 3.2%; display: flex; }
@@ -188,7 +196,7 @@ html, body {
       '<a href="#" data-foot="saved" aria-label="Saved"></a>' +
       '<a href="#" data-foot="account" aria-label="Account"></a>' +
     '</div>' +
-    '<div class="lc-stamp" aria-hidden="true">LC2.2</div>';
+    '<div class="lc-stamp" aria-hidden="true">LC2.3</div>';
 
   function failClosed(reason) {
     stage.innerHTML =
@@ -241,7 +249,7 @@ html, body {
       var parts = t.split(', ');
       return parts.slice(0, n).join(', ');
     }
-    return 'A period that may bring questions of ' + esc(lead(b, 3)) +
+    return 'A period that may bring questions of ' + esc(lead(b, 2)) +
            ' into sharper focus within a longer chapter of ' + esc(lead(a, 2)) + '.';
   }
 
@@ -255,6 +263,7 @@ html, body {
 
     '<div class="f lc-pair">' + esc(md.lord) + ' \u2013 ' + esc(ad.lord) + '</div>' +
     '<div class="f lc-summary">' + summary() + '</div>' +
+    '<div class="f lc-more">Read Your Full Season<span class="chev">\u203A</span></div>' +
     '<a class="lc-door" href="current-season.html" aria-label="Read your current season"></a>' +
     '<a class="lc-btn ktw" href="key-time-windows.html" aria-label="Key Time Windows"></a>' +
     '<a class="lc-btn wcn" href="what-comes-next.html" aria-label="What Comes Next"></a>' +
