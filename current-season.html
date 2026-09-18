@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your Current Season · CozAlyze</title>
 <!--
-  COZALYZE · CURRENT SEASON · CS2.1
+  COZALYZE · CURRENT SEASON · CS2.2
   Reached from current-life-cycle.html.
 
   One reusable template. No lord, date, house, nakshatra or sentence about any
@@ -241,7 +241,7 @@ h1.cs-h1 {
   </div>
 </div>
 
-<div class="cs-stamp" aria-hidden="true">CURRENT SEASON · CS2.1</div>
+<div class="cs-stamp" aria-hidden="true">CURRENT SEASON · CS2.2</div>
 
 <script src="coz-graha.js"></script>
 <script>
@@ -462,20 +462,13 @@ h1.cs-h1 {
 
     '<div class="cs-explore">' +
       '<h2>Explore the Rest of Your Current Life Cycle</h2>' +
-      '<button class="cs-row" type="button" aria-disabled="true" data-door="key-time-windows"><span>02&nbsp;&nbsp;Key Time Windows</span><span class="cs-chev">\u203A</span></button>' +
-      '<button class="cs-row" type="button" aria-disabled="true" data-door="what-comes-next"><span>03&nbsp;&nbsp;What Comes Next</span><span class="cs-chev">\u203A</span></button>' +
+      '<a class="cs-row" href="key-time-windows.html"><span>02&nbsp;&nbsp;Key Time Windows</span><span class="cs-chev">\u203A</span></a>' +
+      '<a class="cs-row" href="what-comes-next.html"><span>03&nbsp;&nbsp;What Comes Next</span><span class="cs-chev">\u203A</span></a>' +
       '<div class="cs-nav">' +
         '<a href="current-life-cycle.html">\u2190 Back to Life Cycle Overview</a>' +
-        '<span>Next: Key Time Windows</span>' +
+        '<a href="key-time-windows.html">Next: Key Time Windows \u2192</a>' +
       '</div>' +
     '</div>';
-
-  Array.prototype.forEach.call(document.querySelectorAll('.cs-row[aria-disabled="true"]'), function (b) {
-    b.addEventListener('click', function (ev) {
-      ev.preventDefault();
-      if (window.console) console.log('[CURRENT SEASON] door not built yet:', b.dataset.door);
-    });
-  });
 
   /* ---------------- Developer-only output ---------------- */
   if (window.console) {

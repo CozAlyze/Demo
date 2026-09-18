@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Key Time Windows · CozAlyze</title>
 <!--
-  COZALYZE · KEY TIME WINDOWS · KTW1.0
+  COZALYZE · KEY TIME WINDOWS · KTW1.1
   Reached from current-life-cycle.html.
 
   Three windows only: the previous Antardasha, the current one, and the next.
@@ -181,7 +181,7 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
   </div>
 </div>
 
-<div class="ktw-stamp" aria-hidden="true">KEY TIME WINDOWS · KTW1.0</div>
+<div class="ktw-stamp" aria-hidden="true">KEY TIME WINDOWS · KTW1.1</div>
 
 <script src="coz-graha.js"></script>
 <script>
@@ -239,18 +239,33 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
           prs:'withdrawing further than helps, or fatigue that arrives before you notice its cause' }
   };
 
-  /* Lord layer: how the window's themes tend to be approached. Keeps two
-     windows in the same house from reading identically. */
+  /* Lord layer. The window's lord colours HOW the area is met, and adds its own
+     slant to each of the two lines, so two windows in the same house do not read
+     alike when their lords differ. */
   var MANNER = {
-    Sun:     'with an emphasis on recognition and self-definition',
-    Moon:    'with an emphasis on care, security, and how things feel',
-    Mars:    'with an emphasis on effort, decision, and direct action',
-    Mercury: 'with an emphasis on thinking, exchange, and practical detail',
-    Jupiter: 'with an emphasis on growth, meaning, and taking a wider view',
-    Venus:   'with an emphasis on relationship, value, and what appeals to you',
-    Saturn:  'with an emphasis on responsibility, patience, and steady work',
-    Rahu:    'with an emphasis on the unfamiliar and the not-yet-tried',
-    Ketu:    'with an emphasis on release, simplification, and turning inward'
+    Sun:     'through questions of recognition and self-definition',
+    Moon:    'through questions of care, security, and how things feel',
+    Mars:    'through effort, decision, and the wish to act',
+    Mercury: 'through thinking, exchange, and practical detail',
+    Jupiter: 'through growth, meaning, and taking a wider view',
+    Venus:   'through relationship, value, and what appeals to you',
+    Saturn:  'through responsibility, patience, and steady work',
+    Rahu:    'through the unfamiliar and the not-yet-tried',
+    Ketu:    'through release, simplification, and turning inward'
+  };
+  var LORD_OPP = {
+    Sun:'standing behind a decision as your own', Moon:'trusting what you already sense',
+    Mars:'starting something you have been circling', Mercury:'putting words to what was unclear',
+    Jupiter:'letting an understanding widen', Venus:'restoring something that had gone quiet',
+    Saturn:'doing the unglamorous part properly', Rahu:'trying an approach you have not before',
+    Ketu:'setting down what you no longer need'
+  };
+  var LORD_PRS = {
+    Sun:'or taking a setback more personally than it warrants', Moon:'or letting mood decide more than it should',
+    Mars:'or forcing a pace the situation cannot hold', Mercury:'or over-analysing what needs a decision',
+    Jupiter:'or expecting more than conditions can supply', Venus:'or smoothing something over rather than settling it',
+    Saturn:'or carrying it alone longer than necessary', Rahu:'or chasing novelty past the point of use',
+    Ketu:'or stepping back before the matter is finished'
   };
 
   /* Nakshatra layer, short form, used as one closing clause only. */
@@ -275,6 +290,14 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
     'Uttara Ashadha':'U.Ashadha','Purva Bhadrapada':'P.Bhadrapada','Uttara Bhadrapada':'U.Bhadrapada'
   };
   function nakText(n){ if(!n) return null; return NAK[n] || NAK[NAK_ALIAS[n]] || null; }
+
+  /* Pada, expressed as a manner clause. Never labelled as a pada. */
+  var PADA = {
+    1:'and a pull to begin rather than wait',
+    2:'and a preference for what can actually be built or kept',
+    3:'and a willingness to hold more than one possibility at a time',
+    4:'and an ear for what feels settled rather than merely correct'
+  };
 
   var ledger = [];
   function claim(text, factors) {
@@ -319,35 +342,40 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
     var seg = entry.seg;
     if (!seg) return '';
     var p = G.planet(chart, seg.lord);
-    /* Core requirement: verified sign and house for the window's lord. */
-    if (!p || !(p.house>=1 && p.house<=12)) return '';
+    if (!p || !(p.house >= 1 && p.house <= 12)) return '';
 
     var H = HOUSE[p.house];
     var past = entry.pos === 'Previous Window';
-    var may = past ? 'may have brought' : 'may bring';
-    var ord = G.ordinal(p.house);
+    var nk = nakText(p.nakshatra);
+    var pd = PADA[p.pada];
+
+    /* The house, nakshatra and pada are analysed but never named. They decide
+       which area is described and how it is characterised; the customer reads
+       their own situation rather than a chart report. */
+    var open = past
+      ? 'This window may have drawn your attention toward '
+      : (entry.pos === 'Current Window'
+          ? 'This window may be drawing your attention toward '
+          : 'This window may draw your attention toward ');
 
     var body = claim(
-      'With ' + esc(seg.lord) + ' in the ' + esc(ord) + ' house, the area of your chart connected with ' +
-      esc(H.area) + ', this period ' + may + ' ' + esc(MANNER[seg.lord] || 'a distinct emphasis') +
-      ' to the larger ' + esc(md.lord) + ' chapter.',
+      open + esc(H.area) + ', ' + esc(MANNER[seg.lord] || 'in its own way') +
+      ', inside the longer ' + esc(md.lord) + ' chapter.' +
+      (nk ? ' There is ' + esc(nk) + ' running through it' + (pd ? ', ' + esc(pd) : '') + '.' : ''),
       ['window_active', 'lord_house_' + p.house, 'md_' + md.lord]
     );
 
-    var nk = nakText(p.nakshatra);
-    var nkLine = nk ? claim(
-      esc(seg.lord) + '\u2019s placement in ' + esc(p.nakshatra) + ' adds ' + esc(nk) +
-      ' to how that emphasis tends to be met.',
-      ['lord_nakshatra_' + p.nakshatra, 'lord_house_' + p.house]
-    ) : null;
+    /* Both lines combine the house layer with the lord's own slant. */
+    var opp = esc(H.opp) + ', and ' + esc(LORD_OPP[seg.lord] || 'working with what the period offers') + '.';
+    var prs = esc(H.prs) + ', ' + esc(LORD_PRS[seg.lord] || 'or pushing past what the period supports') + '.';
 
     return '<div class="ktw-win">' +
       '<p class="ktw-pair">' + esc(md.lord) + '\u2013' + esc(seg.lord) + '</p>' +
       '<p class="ktw-when"><span class="pos">' + esc(entry.pos) + '</span> \u00B7 ' +
         esc(longDate(seg.startTimestamp)) + '\u2013' + esc(longDate(seg.endTimestamp)) + '</p>' +
-      (body ? '<p class="ktw-body">' + body + (nkLine ? ' ' + nkLine : '') + '</p>' : '') +
-      '<p class="ktw-line"><b>Potential Opportunities:</b> ' + esc(H.opp) + '.</p>' +
-      '<p class="ktw-line"><b>Possible Pressures:</b> ' + esc(H.prs) + '.</p>' +
+      (body ? '<p class="ktw-body">' + body + '</p>' : '') +
+      '<p class="ktw-line"><b>Potential Opportunities:</b> ' + opp + '</p>' +
+      '<p class="ktw-line"><b>Possible Pressures:</b> ' + prs + '</p>' +
     '</div>';
   }
 
@@ -366,19 +394,12 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
     '<div class="ktw-explore">' +
       '<h2>Explore the Rest of Your Current Life Cycle</h2>' +
       '<a class="ktw-row" href="current-season.html"><span>01&nbsp;&nbsp;Your Current Season</span><span class="chev">\u203A</span></a>' +
-      '<button class="ktw-row" type="button" aria-disabled="true" data-door="what-comes-next"><span>03&nbsp;&nbsp;What Comes Next</span><span class="chev">\u203A</span></button>' +
+      '<a class="ktw-row" href="what-comes-next.html"><span>03&nbsp;&nbsp;What Comes Next</span><span class="chev">\u203A</span></a>' +
       '<div class="ktw-nav">' +
         '<a href="current-life-cycle.html">\u2190 Back to Life Cycle Overview</a>' +
         '<span>Next: What Comes Next</span>' +
       '</div>' +
     '</div>';
-
-  Array.prototype.forEach.call(document.querySelectorAll('.ktw-row[aria-disabled="true"]'), function (b) {
-    b.addEventListener('click', function (e) {
-      e.preventDefault();
-      if (window.console) console.log('[KEY TIME WINDOWS] door not built yet:', b.dataset.door);
-    });
-  });
 
   if (window.console) {
     console.log('[KEY TIME WINDOWS] mode=' + lc.mode + ' year=' + lc.yearLengthDays + 'd status=' + lc.validationStatus);
