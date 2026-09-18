@@ -4107,7 +4107,7 @@ try {
       birthMahadashaLord: V.birth_mahadasha_lord,
       birthMahadashaOriginalStart: V.birth_mahadasha_original_start,
       birthMahadashaBalanceYears: V.birth_mahadasha_balance_years,
-      mahadasha: null, antardasha: null, nextAntardasha: null,
+      mahadasha: null, antardasha: null, nextAntardasha: null, nextMahadasha: null,
       antardashaSequence: []
     };
     function lcFmt(iso){ var d = new Date(iso); return MONTHS_SHORT[d.getUTCMonth()] + ' ' + d.getUTCFullYear(); }
@@ -4128,6 +4128,18 @@ try {
     if (V.current_antardasha){
       lifeCycle.antardasha = { lord: V.current_antardasha.lord, startTimestamp: V.current_antardasha.start, endTimestamp: V.current_antardasha.end,
                                displayStartDate: lcFmt(V.current_antardasha.start), displayEndDate: lcFmt(V.current_antardasha.end) };
+    }
+    /* The Mahadasha following the current one, for the What Comes Next page.
+       Taken from the same cycle already built; nothing is recalculated. */
+    if (V.current_mahadasha){
+      for (var nm = 0; nm < V.mahadashas.length - 1; nm++){
+        if (V.mahadashas[nm].start === V.current_mahadasha.start){
+          var nxt = V.mahadashas[nm + 1];
+          lifeCycle.nextMahadasha = { lord: nxt.lord, startTimestamp: nxt.start, endTimestamp: nxt.end,
+                                      displayStartDate: lcFmt(nxt.start), displayEndDate: lcFmt(nxt.end) };
+          break;
+        }
+      }
     }
     if (V.next_antardasha){
       lifeCycle.nextAntardasha = { lord: V.next_antardasha.lord, mahadashaLord: V.next_antardasha.mahadasha_lord,
@@ -4156,7 +4168,8 @@ try {
     console.log('[EMERGE FLOW] 8. birth-chart export written: cozChartJSON', payload.reportId, '\u00B7', planets.length, 'bodies \u00B7 panchanga', panchanga.length, 'rows');
     console.log('[EMERGE FLOW] 8b. life-cycle timing:', lifeCycle.mode, '\u00B7 year', lifeCycle.yearLengthDays, 'd \u00B7', lifeCycle.validationStatus,
                 '\u00B7 MD', lifeCycle.mahadasha && lifeCycle.mahadasha.lord, '\u00B7 AD', lifeCycle.antardasha && lifeCycle.antardasha.lord,
-                '\u00B7 next AD', lifeCycle.nextAntardasha && lifeCycle.nextAntardasha.lord);
+                '\u00B7 next AD', lifeCycle.nextAntardasha && lifeCycle.nextAntardasha.lord,
+                '\u00B7 next MD', lifeCycle.nextMahadasha && lifeCycle.nextMahadasha.lord);
   } catch (e) {
     try { localStorage.removeItem('cozChartJSON'); } catch(_){}
     console.log('[EMERGE FLOW] 8. birth-chart export failed safely, stale chart cleared, nothing written:', e && e.message);
