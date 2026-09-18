@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Your Current Season · CozAlyze</title>
 <!--
-  COZALYZE · CURRENT SEASON · CS1.0
+  COZALYZE · CURRENT SEASON · CS2.0
   Reached from current-life-cycle.html.
 
   One reusable template. No lord, date, house, nakshatra or sentence about any
@@ -55,37 +55,53 @@ body {
   font-family:var(--body-font); -webkit-font-smoothing:antialiased;
 }
 
-/* Header strip: the moon artwork, cropped, with the logo over it. */
-.cs-head {
-  position:relative; height:118px; overflow:hidden;
-  border-bottom:1px solid rgba(212,161,120,.28);
+/* Page background: Jason's moon asset, fixed so it does not scroll away. */
+.cs-sky {
+  position:fixed; inset:0; z-index:0;
+  background-image:url("season-moon-bg.png");
+  background-size:cover; background-position:center top;
 }
-.cs-head-img {
-  position:absolute; inset:0;
-  background-image:url("vedic-moon-bg.png");
-  background-size:cover; background-position:center 22%;
-}
-.cs-head-img::after {
+.cs-sky::after {
   content:""; position:absolute; inset:0;
-  background:linear-gradient(180deg, rgba(0,15,38,.34), rgba(0,15,38,.86));
+  background:linear-gradient(180deg, rgba(0,15,38,0) 0%, rgba(0,15,38,.26) 40%, rgba(0,15,38,.70) 100%);
 }
-.cs-head-in { position:relative; z-index:1; height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; }
-.vedic-logo { display:block; width:64px; height:auto; margin:0 auto 1px; }
-.cs-brand { font-family:var(--display-font); font-size:16px; letter-spacing:.05em; color:var(--vedic-gold); margin:0; }
+.cs-head-in { position:relative; z-index:1; padding:18px 0 2px; text-align:center; }
+.vedic-logo { display:block; width:64px; height:auto; margin:0 auto; }
 
 /* Reading panel: the framed card from the approved artwork, rendered in CSS
    so it reflows to any text length instead of being a fixed-size image. */
-.cs-wrap { max-width:620px; margin:0 auto; padding:16px var(--side-pad) calc(var(--asq-nav-h) + 74px); }
+.cs-wrap { position:relative; z-index:1; max-width:620px; margin:0 auto; padding:8px var(--side-pad) calc(var(--asq-nav-h) + 74px); }
+/* The reading panel reproduces Jason's frame artwork. A border-image would
+   squash the corner flourishes, which are ~214px deep in the 850x1536 source,
+   into a thin border, so the panel is built the way the artwork is: the double
+   gold rule and interior fill in CSS at the artwork's own colours, and the four
+   corner ornaments cropped from the source file and placed at true proportion.
+   The panel then grows to whatever length the reading runs to without ever
+   distorting the ornaments. */
 .cs-panel {
-  position:relative; border:1.5px solid var(--vedic-gold); border-radius:16px;
-  background:rgba(4,20,45,.72); padding:32px 22px 30px;
+  position:relative;
+  background:#00152a;
+  border:1.5px solid #b67d4d;
+  border-radius:20px;
+  padding:34px 24px 32px;
+  box-shadow:inset 0 0 0 4px #00152a, inset 0 0 0 5px rgba(182,125,77,.55);
 }
-.cs-panel::before, .cs-panel::after {
-  content:""; position:absolute; width:40px; height:40px; pointer-events:none;
-  border:1px solid var(--vedic-gold-muted); opacity:.5;
+.cs-panel .orn {
+  position:absolute; width:46px; height:46px; pointer-events:none;
+  background-image:url("reading-panel-corners.png");
+  background-size:92px 92px;
 }
-.cs-panel::before { top:8px; left:8px; border-right:0; border-bottom:0; border-radius:10px 0 0 0; }
-.cs-panel::after { bottom:8px; right:8px; border-left:0; border-top:0; border-radius:0 0 10px 0; }
+.cs-panel .orn.tl { top:11px;    left:11px;  background-position:0 0; }
+.cs-panel .orn.tr { top:11px;    right:11px; background-position:-46px 0; }
+.cs-panel .orn.bl { bottom:11px; left:11px;  background-position:0 -46px; }
+.cs-panel .orn.br { bottom:11px; right:11px; background-position:-46px -46px; }
+@media (max-width:380px) {
+  .cs-panel { padding:30px 18px 28px; }
+  .cs-panel .orn { width:38px; height:38px; background-size:76px 76px; }
+  .cs-panel .orn.tr { background-position:-38px 0; }
+  .cs-panel .orn.bl { background-position:0 -38px; }
+  .cs-panel .orn.br { background-position:-38px -38px; }
+}
 
 .cs-eyebrow {
   text-align:center; font-family:var(--display-font);
@@ -94,7 +110,8 @@ body {
 }
 .cs-pair {
   text-align:center; font-family:var(--display-font); font-weight:500;
-  font-size:clamp(28px,7.5vw,35px); letter-spacing:.05em; color:#fff;
+  font-size:clamp(23px,6.4vw,31px); letter-spacing:.04em;
+  overflow-wrap:break-word; color:#fff;
   margin:0 0 16px; text-transform:uppercase;
 }
 
@@ -199,20 +216,18 @@ h1.cs-h1 {
   position:fixed; left:6px; bottom:calc(var(--asq-nav-h) + 30px); z-index:50;
   font:10px/1 "SF Mono", Menlo, monospace; color:rgba(229,212,197,.22); pointer-events:none;
 }
-@media print { .cs-head-img, #cozFoot, .cs-stamp { display:none !important; } }
+@media print { .cs-sky, #cozFoot, .cs-stamp { display:none !important; } }
 @media (prefers-reduced-motion: reduce) { * { transition:none !important; animation:none !important; } }
 </style>
 </head>
 <body>
 
-<header class="cs-head">
-  <div class="cs-head-img" aria-hidden="true"></div>
-  <div class="cs-head-in">
-    <img class="vedic-logo" src="vedic-logo.png" alt="" width="1000" height="1055" aria-hidden="true">
-  </div>
+<div class="cs-sky" aria-hidden="true"></div>
+<header class="cs-head-in">
+  <img class="vedic-logo" src="vedic-logo.png" alt="" width="1000" height="1055" aria-hidden="true">
 </header>
 
-<main class="cs-wrap"><div class="cs-panel" id="csPanel"></div></main>
+<main class="cs-wrap"><div class="cs-panel"><span class="orn tl" aria-hidden="true"></span><span class="orn tr" aria-hidden="true"></span><span class="orn bl" aria-hidden="true"></span><span class="orn br" aria-hidden="true"></span><div id="csPanel"></div></div></main>
 
 <div id="cozFoot">
   <div class="coz-foot-tag">CozAlyze helps you see it all</div>
@@ -223,7 +238,7 @@ h1.cs-h1 {
   </div>
 </div>
 
-<div class="cs-stamp" aria-hidden="true">CURRENT SEASON · CS1.0</div>
+<div class="cs-stamp" aria-hidden="true">CURRENT SEASON · CS2.0</div>
 
 <script src="coz-graha.js"></script>
 <script>
