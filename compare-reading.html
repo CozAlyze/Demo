@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPARE · COMBINED READING · C2.0 · sun dead centre
+   COZALYZE · COMPARE · COMBINED READING · C2.1 · opens ascendants
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -448,7 +448,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   <div class="vedic-reading-content" id="vedicContent"></div>
 </main>
 
-<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C2.0 · sun dead centre</div>
+<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C2.1 · opens ascendants</div>
 
 <script>
 /* ============================================================
@@ -544,6 +544,16 @@ function loadReading() {
    ============================================================ */
 const params = new URLSearchParams(location.search);
 const DASHBOARD_HREF = "#/dashboard";
+/* C2.1: Your Combined Reading now opens the Your Ascendants page. The old
+   placeholder mockup sections are retired; any old #/section link is sent there too.
+   QA sign values (?w= / ?v=) are passed through when present. */
+function readingPageHref() {
+  const q = new URLSearchParams();
+  if (params.get("w")) q.set("w", params.get("w"));
+  if (params.get("v")) q.set("v", params.get("v"));
+  const s = q.toString();
+  return "your-ascendants.html" + (s ? "?" + s : "");
+}
 
 function goDashboard() {
   if (idFromHash() === "dashboard") showFromHash(); else location.hash = DASHBOARD_HREF;
@@ -637,6 +647,7 @@ function showFromHash() {
     showDashboard();
     return;
   }
+  location.replace(readingPageHref()); return;   /* C2.1: old mockup retired */
   const section = sectionById(id);
   if (id !== section.id) {
     history.replaceState({ id: section.id }, "", `#/${section.id}`);
@@ -772,7 +783,7 @@ function finishReveal(immediate) {
   revealDone = true;
   revealTimers.forEach(clearTimeout); revealTimers = [];
   const land = () => {
-    location.hash = "#/at-your-core";          // its own history entry; renders via hashchange
+    location.href = readingPageHref();          // C2.1: opens Your Ascendants
     revealEl.classList.remove("is-on", "is-closing", "asc-off");
     try { revealVideo.pause(); } catch (e) {}
     lockScroll(false);
@@ -785,8 +796,6 @@ function finishReveal(immediate) {
   if (immediate === "through"){
     try { window.__cozLightIn(); } catch (e) {}
     land();
-    revealEl.classList.remove("is-through");
-    setTimeout(() => { try { window.__cozLightOut(); } catch (e) {} }, 350);
     return;
   }
   /* stall or error before the drive began: plain curtain */
@@ -815,6 +824,18 @@ revealVideo.addEventListener("error", () => finishReveal(false));
 /* Section links are plain hash links: every section is its own history entry,
    so the phone's back gesture steps through them, and back past Page 01 lands on the dashboard. */
 window.addEventListener("hashchange", showFromHash);
+/* C2.1: coming Back from Your Ascendants restores this page from Safari's cache with the
+   light still up, so clear the reveal and show the dashboard again */
+window.addEventListener("pageshow", e => {
+  if (!e.persisted) return;
+  revealTimers.forEach(clearTimeout); revealTimers = [];
+  revealActive = false; revealDone = false;
+  revealEl.classList.remove("is-on", "is-closing", "asc-off", "is-through");
+  try { window.__cozLightOut(); } catch (err) {}
+  lockScroll(false);
+  syncReadyState();
+  showDashboard();
+});
 showFromHash();
 /* ---------- dashboard pinch zoom (Sep 1) ---------- */
 (function(){
