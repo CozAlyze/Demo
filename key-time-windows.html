@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Key Time Windows · CozAlyze</title>
 <!--
-  COZALYZE · KEY TIME WINDOWS · KTW1.1
+  COZALYZE · KEY TIME WINDOWS · KTW1.2
   Reached from current-life-cycle.html.
 
   Three windows only: the previous Antardasha, the current one, and the next.
@@ -135,7 +135,6 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
 .ktw-row[aria-disabled="true"]{opacity:.45;cursor:default}
 .ktw-nav{display:flex;justify-content:space-between;gap:14px;margin:20px 0 0}
 .ktw-nav a{font-family:var(--body-font);font-size:14.8px;letter-spacing:.03em;color:var(--vedic-gold);text-decoration:none}
-.ktw-nav span{opacity:.4;color:var(--vedic-ivory-muted);font-family:var(--body-font);font-size:14.8px}
 
 .ktw-empty{padding:28px 22px;text-align:center}
 .ktw-empty h2{font-family:var(--display-font);font-weight:600;font-size:clamp(21px,5.6vw,25px);color:#fff;margin:0 0 10px}
@@ -181,7 +180,7 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
   </div>
 </div>
 
-<div class="ktw-stamp" aria-hidden="true">KEY TIME WINDOWS · KTW1.1</div>
+<div class="ktw-stamp" aria-hidden="true">KEY TIME WINDOWS · KTW1.2</div>
 
 <script src="coz-graha.js"></script>
 <script>
@@ -326,11 +325,18 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
   for (var i=0;i<seq.length;i++){ if(seq[i].startTimestamp===ad.startTimestamp){ at=i; break; } }
   if (at < 0) { failClosed('current Antardasha not found in its sequence'); return; }
 
-  var trio = [
-    { pos:'Previous Window', seg: at>0 ? seq[at-1] : null },
-    { pos:'Current Window',  seg: seq[at] },
-    { pos:'Upcoming Window', seg: (at+1<seq.length) ? seq[at+1] : (lc.nextAntardasha||null) }
-  ];
+  /* The previous window, the current one, then every remaining window through
+     to the end of this Mahadasha. A chapter can run years past the current
+     subperiod, and each handover is a real change of emphasis worth naming. */
+  var trio = [];
+  if (at > 0) trio.push({ pos:'Previous Window', seg: seq[at-1] });
+  trio.push({ pos:'Current Window', seg: seq[at] });
+  for (var k = at+1; k < seq.length; k++) {
+    trio.push({ pos: (k === at+1) ? 'Upcoming Window' : 'Later Window', seg: seq[k] });
+  }
+  if (trio.length === 1 && lc.nextAntardasha) {
+    trio.push({ pos:'Upcoming Window', seg: lc.nextAntardasha });
+  }
 
   function longDate(iso) {
     var M = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -346,6 +352,7 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
 
     var H = HOUSE[p.house];
     var past = entry.pos === 'Previous Window';
+    var later = entry.pos === 'Later Window';
     var nk = nakText(p.nakshatra);
     var pd = PADA[p.pada];
 
@@ -386,7 +393,7 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
     '<p class="ktw-eyebrow">Your Current Life Cycle</p>' +
     '<h1 class="ktw-h1">Key Time Windows</h1>' +
     '<div class="ktw-intro">' +
-      '<p>Your Mahadasha describes the larger chapter unfolding over several years, while each Antardasha creates a shorter window within it. The periods below show how that emphasis may have recently changed, where it is focused now, and what begins next. They highlight possible areas of attention, opportunity, and adjustment, not fixed events.</p>' +
+      '<p>Your Mahadasha describes the larger chapter unfolding over several years, while each Antardasha creates a shorter window within it. The windows below run from the one just past, through the one you are in, to each remaining window before this chapter closes in ' + esc(longDate(md.endTimestamp)) + '. They highlight possible areas of attention, opportunity, and adjustment, not fixed events.</p>' +
     '</div>' +
     blocks.join('<div class="ktw-rule" aria-hidden="true"><i></i><b></b><i></i></div>') +
     '<div class="ktw-rule" aria-hidden="true"><i></i><b></b><i></i></div>' +
@@ -397,7 +404,7 @@ h1.ktw-h1{text-align:center;font-family:var(--display-font);font-weight:500;
       '<a class="ktw-row" href="what-comes-next.html"><span>03&nbsp;&nbsp;What Comes Next</span><span class="chev">\u203A</span></a>' +
       '<div class="ktw-nav">' +
         '<a href="current-life-cycle.html">\u2190 Back to Life Cycle Overview</a>' +
-        '<span>Next: What Comes Next</span>' +
+        '<a href="what-comes-next.html">Next: What Comes Next \u2192</a>' +
       '</div>' +
     '</div>';
 

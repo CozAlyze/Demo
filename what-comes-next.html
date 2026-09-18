@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>What Comes Next · CozAlyze</title>
 <!--
-  COZALYZE · WHAT COMES NEXT · WCN1.0
+  COZALYZE · WHAT COMES NEXT · WCN1.1
   Reached from current-life-cycle.html, current-season.html and key-time-windows.html.
 
   SCOPE. This page covers the next MAHADASHA only. Key Time Windows already
@@ -155,7 +155,7 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
   </div>
 </div>
 
-<div class="wcn-stamp" aria-hidden="true">WHAT COMES NEXT · WCN1.0</div>
+<div class="wcn-stamp" aria-hidden="true">WHAT COMES NEXT · WCN1.1</div>
 
 <script src="coz-graha.js"></script>
 <script>
@@ -207,6 +207,39 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
     'Uttara Ashadha':'U.Ashadha','Purva Bhadrapada':'P.Bhadrapada','Uttara Bhadrapada':'U.Bhadrapada'};
   function nakText(n){ if(!n) return null; return NAK[n]||NAK[NAK_ALIAS[n]]||null; }
 
+  /* Pada, as a manner clause. Never labelled. */
+  var PADA = {
+    1:'a pull to begin rather than wait',
+    2:'a preference for what can actually be built and kept',
+    3:'a willingness to hold more than one possibility at a time',
+    4:'an ear for what feels settled rather than merely correct'
+  };
+
+  /* What the incoming chapter tends to ask of someone, by house. Second
+     paragraph material: how the emphasis is likely to be met, not what will
+     happen. */
+  var ASKS = {
+    1:'how much of your direction you are willing to set yourself',
+    2:'what you actually value, as distinct from what you have accumulated',
+    3:'how directly you are willing to say what you mean',
+    4:'what a settled life would have to include to be worth settling into',
+    5:'what you would make or express if nobody were keeping score',
+    6:'how much you can carry well, rather than how much you can carry',
+    7:'what you want from the people closest to you, and what you offer in return',
+    8:'what you have been leaving unexamined',
+    9:'which of your convictions still belong to you',
+    10:'what you want your work to stand for',
+    11:'which of your longer hopes are still yours',
+    12:'how much rest you are actually willing to take'
+  };
+
+  /* Where the two lords meet, when the incoming lord shares a house with the
+     outgoing one. Verified co-location only, never inferred. */
+  function sameHouseAs(lordA, lordB) {
+    var a = G.planet(chart, lordA), b = G.planet(chart, lordB);
+    return (a && b && a.house === b.house) ? a.house : 0;
+  }
+
   function failClosed(reason){
     panel.innerHTML =
       '<div class="wcn-empty"><h2>This part of your life cycle is not ready yet</h2>' +
@@ -221,7 +254,7 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
 
   var md = lc.mahadasha;
   var nx = lc.nextMahadasha;
-  if (!nx || !nx.lord) { failClosed('no next Mahadasha in timing data (exporter predates WCN1.0)'); return; }
+  if (!nx || !nx.lord) { failClosed('no next Mahadasha in timing data (exporter predates WCN1.1)'); return; }
 
   var p = G.planet(chart, nx.lord);
   if (!p || !(p.house >= 1 && p.house <= 12)) { failClosed('next Mahadasha lord lacks a verified house'); return; }
@@ -235,13 +268,33 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
   var away    = (startMs - Date.now()) / 86400000 / 365.25;
 
   var nk = nakText(p.nakshatra);
+  var pd = PADA[p.pada];
+
+  /* Second paragraph: what the chapter is likely to ask, how it meets the one
+     ending, and who else occupies that part of the chart. All from verified
+     placements, none of them named. */
+  var shared = sameHouseAs(nx.lord, md.lord);
+  var mates = G.coTenants(chart, nx.lord);
+  var second =
+    'A chapter of this length tends to work slowly, and this one is likely to keep returning to ' +
+    esc(ASKS[p.house]) + '. ' +
+    (shared
+      ? 'It also picks up the same part of your chart the ' + esc(md.lord) +
+        ' chapter has been working on, so the handover may feel less like a change of subject than a change of approach to it. '
+      : 'It moves the emphasis to a different part of your chart than the ' + esc(md.lord) +
+        ' chapter has been occupying, so the change may be more noticeable than the date alone suggests. ') +
+    (mates.length
+      ? 'That area of your chart is shared with ' +
+        esc(mates.length === 1 ? mates[0] : mates.slice(0,-1).join(', ') + ' and ' + mates[mates.length-1]) +
+        ', which may give the period more than one thread at a time.'
+      : 'What that emphasis becomes will depend as much on what you are carrying into it as on the period itself.');
 
   /* How far off the change is, stated plainly rather than implied. */
   var horizon = away > 8
-    ? 'That is some years away yet, so it sits more as background than as something to plan around.'
+    ? 'That is some years away yet. It is worth knowing as the shape of the horizon rather than as anything to act on now, and much can change in the chapters between here and there.'
     : (away > 3
-        ? 'That is still a few years off, but it is the direction the current chapter is heading toward.'
-        : 'That change is close enough now to be worth having in view.');
+        ? 'That is still a few years off, but it is the direction this chapter has been moving toward, and the later windows of your current cycle tend to start leaning that way before the handover itself.'
+        : 'That change is close enough to be worth having in view. Endings of a chapter often carry some of the next one\u2019s flavour before the date arrives.');
 
   panel.innerHTML =
     '<p class="wcn-eyebrow">Your Current Life Cycle</p>' +
@@ -261,8 +314,9 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
     '<div class="wcn-body">' +
       '<p>Your next chapter is governed by ' + esc(nx.lord) + ', which brings ' + esc(G.THEMES[nx.lord]) +
       ' into longer-term focus. In your chart that emphasis is likely to gather around ' + esc(AREA[p.house]) + '.' +
-      (nk ? ' There is ' + esc(nk) + ' running through it.' : '') +
-      ' ' + horizon + '</p>' +
+      (nk ? ' There is ' + esc(nk) + ' running through it' + (pd ? ', and ' + esc(pd) : '') + '.' : '') + '</p>' +
+      '<p>' + second + '</p>' +
+      '<p>' + horizon + '</p>' +
     '</div>' +
 
     '<div class="wcn-rule" aria-hidden="true"><i></i><b></b><i></i></div>' +
