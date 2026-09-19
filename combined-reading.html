@@ -42,7 +42,7 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
 .acc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s ease}
 .acc.open{grid-template-rows:1fr}
 .acc-in{overflow:hidden}
-.body{text-align:left;padding:calc(18 * var(--k)) calc(10 * var(--k)) 0}
+.body{text-align:left;padding:calc(18 * var(--k)) 0 0;margin:0 calc(-60 * var(--k))}
 .body p{font-family:var(--sans);font-weight:300;font-size:max(15px,calc(30 * var(--k)));line-height:1.6;color:var(--cream)}
 .body p+p{margin-top:.95em}
 .body .dev{font-style:italic;color:var(--gold);text-align:center}
@@ -50,6 +50,17 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
 .div::before,.div::after{content:"";flex:1;height:1px;background:var(--gold-soft);opacity:.85}
 .div svg{width:calc(24 * var(--k));height:calc(24 * var(--k));margin:0 calc(6 * var(--k));color:var(--gold);flex:none}
 .note{font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--cream);opacity:.85;margin:calc(56 * var(--k)) calc(90 * var(--k)) 0}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:calc(46 * var(--k)) calc(90 * var(--k)) 0}
+.pager a{font-family:var(--head);font-weight:500;font-size:max(11.5px,calc(22 * var(--k)));letter-spacing:.18em;color:var(--gold);text-decoration:none;padding:10px 4px;-webkit-tap-highlight-color:transparent}
+.pager a:focus-visible{outline:1px solid var(--gold);outline-offset:4px}
+/* development trace panel: only with ?debug=1, never for customers */
+.dbg{margin:calc(40 * var(--k)) calc(40 * var(--k)) 0;text-align:left;font:11px/1.45 Menlo,Consolas,monospace;color:#cfd8e3;background:rgba(0,0,0,.55);border:1px solid #3a4a60;border-radius:6px;padding:10px}
+.dbg summary{cursor:pointer;color:#f2d38a;font-weight:bold}
+.dbg table{width:100%;border-collapse:collapse;margin-top:8px}
+.dbg td,.dbg th{border-top:1px solid #2c3a4d;padding:5px 4px;vertical-align:top;word-break:break-word}
+.dbg th{color:#f2d38a;text-align:left}
+.dbg .ok{color:#8fd19e}.dbg .bad{color:#ff8a80}
+.dbg button{margin-top:8px;font:12px Menlo,monospace;padding:6px 10px;background:#1d2a3b;color:#f2d38a;border:1px solid #3a4a60;border-radius:4px}
 .art-bottom{position:relative;height:calc(472 * var(--K));background:url("combined-bottom.jpg?v=1") center top/100% auto no-repeat}
 .nav a{position:absolute;top:calc(369 * var(--K));height:calc(76 * var(--K));display:block;-webkit-tap-highlight-color:transparent}
 .nav .home{left:calc(127 * var(--K));width:calc(240 * var(--K))}
@@ -94,6 +105,10 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
   </section>
 
   <p class="note">These themes describe possible patterns—not fixed outcomes.</p>
+  <nav class="pager" aria-label="Reading navigation">
+    <a href="compare-reading.html">&lsaquo; BACK</a>
+    <a href="your-ascendants.html">NEXT: YOUR ASCENDANTS &rsaquo;</a>
+  </nav>
  </div>
  <div class="art-bottom">
   <nav class="nav" aria-label="Main">
@@ -103,11 +118,12 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
   </nav>
  </div>
 </main>
-<div class="stamp">COMBINED READING · CR2.1 · evidence structure · no generator</div>
+<div class="stamp">COMBINED READING · CR2.3 · dev generator · safeguards</div>
 
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=3"></script>
-<script src="compare-evidence.js?v=1"></script>
+<script src="compare-evidence.js?v=3"></script>
+<script src="compare-generator.js?v=2"></script>
 <script>
 (function(){
   var FAIL = "We couldn\u2019t load both charts for this reading. Please return and run your chart again.";
@@ -128,6 +144,42 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
     });
   });
 
+  /* ?debug=1 only: the internal evidence trace beside the reading, plus a JSON download */
+  function renderTrace(rec, man){
+    function e(t){ return String(t == null ? "" : t).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+    var st = rec.vedicEvidenceStatus || {};
+    var prior = {};
+    var rows = [];
+    [["sharedThemes","I Shared Themes"],["differentEmphases","II Different Emphases"],["integratedView","III Integrated View"]].forEach(function(x){
+      (rec[x[0]].evidence || []).forEach(function(ev){
+        var vc = (ev.vedicClaimIds || []).map(function(c){ var s = st[c] || {}; return e(c) + "<br><span class='ok'>" + e(s.recordStatus || "?") + "</span>"; }).join("<br>");
+        var check = "";
+        if (x[0] === "integratedView"){
+          var fresh = (ev.tropicalFactors || []).concat(ev.vedicClaimIds || []).filter(function(i){ return !prior[i]; });
+          check = fresh.length ? "<span class='bad'>NEW: " + e(fresh.join(", ")) + "</span>" : "<span class='ok'>only earlier evidence</span>";
+        } else (ev.tropicalFactors || []).concat(ev.vedicClaimIds || []).forEach(function(i){ prior[i] = 1; });
+        rows.push("<tr><td>" + x[1] + "<br>" + e(ev.id) + " ¶" + e((ev.paragraphs || []).join(",")) + "</td><td>" + e(ev.theme) + "<br>" + e(ev.use) +
+          (ev.buildsOn ? "<br>builds on " + e(ev.buildsOn.join(", ")) : "") + "</td><td>" + e((ev.tropicalFactors || []).join("; ")) +
+          "<br><span class='bad'>unreviewed model interpretation</span></td><td>" + vc + "</td><td>" + e(ev.why || ev.note || "") + (check ? "<br>" + check : "") + "</td></tr>");
+      });
+    });
+    var box = document.createElement("details"); box.className = "dbg";
+    box.innerHTML = "<summary>DEV TRACE · " + e(rec.promptVersion) + " · " + e(rec.selectionVersion) + " · attempts " + e(rec.attempts) +
+      (rec.fromCache ? " · from cache" : " · new call") + "</summary>" +
+      "<div>developmentOnly " + rec.developmentOnly + " · productionEligible " + rec.productionEligible + " · Western: " + e(rec.tropicalEvidenceStatus) + "</div>" +
+      "<div>words: I " + rec.sharedThemes.wordCountMeasured + " · II " + rec.differentEmphases.wordCountMeasured + " · III " + rec.integratedView.wordCountMeasured +
+      " · soft issues: " + e(((rec.trace.validation || {}).soft || []).join("; ") || "none") + " · first attempt problems: " + e((rec.firstAttemptProblems || []).join("; ") || "none") + "</div>" +
+      "<div>comparable themes: " + e(Object.keys(rec.trace.comparableThemes || {}).filter(function(k){ return rec.trace.comparableThemes[k]; }).join(", ")) + "</div>" +
+      "<table><tr><th>Section</th><th>Theme / use</th><th>Western factors</th><th>Vedic claims + status</th><th>Why / III check</th></tr>" + rows.join("") + "</table>" +
+      "<button type='button'>Download trace JSON</button>";
+    box.querySelector("button").addEventListener("click", function(){
+      var blob = new Blob([JSON.stringify({ record: rec, manifest: man }, null, 2)], { type: "application/json" });
+      var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = "combined-trace-" + rec.runId + ".json";
+      document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    });
+    document.querySelector(".pager").insertAdjacentElement("afterend", box);
+  }
+
   /* input gate: only a validated chart-run pair (same run ID + birth fingerprint
      in both engines' saved charts). Never an older chart. */
   window.COZ_ASC.ensurePair().then(function(res){
@@ -137,14 +189,23 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
       return;
     }
     window.COZ_COMBINED_INPUT = { runId: res.pair.runId, fingerprint: res.pair.fingerprint, engineVersions: res.pair.engineVersions };
-    /* CR2.1: internal evidence manifest for testing and review only, never rendered */
+    var bodies = [].slice.call(document.querySelectorAll(".body"));
+    function esc(t){ return String(t).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
+    bodies.forEach(function(b){ b.innerHTML = '<p class="dev">Preparing your reading\u2026</p>'; });
+    /* CR2.2: evidence manifest (internal) -> one development-only generation call, cached */
     window.COZ_COMPARE_EVIDENCE.buildManifest(res).then(function(m){
-      window.COZ_COMBINED_MANIFEST = m; console.log("[COZ COMBINED] manifest", m.items.length, "items", JSON.stringify(m.coverage));
-    }).catch(function(e){ console.log("[COZ COMBINED] manifest failed:", e && e.message); });
-    /* Development shell: the analyses are not generated yet. */
-    [].slice.call(document.querySelectorAll(".body")).forEach(function(b){
-      b.innerHTML = '<p class="dev">[Development] The personalized ' + b.getAttribute("data-label") +
-        ' analysis is not built yet. It waits on the Tropical evidence-selection system.</p>';
+      window.COZ_COMBINED_MANIFEST = m;
+      return window.COZ_COMBINED_GEN.getCombined(res, m);
+    }).then(function(rec){
+      window.COZ_COMBINED_RECORD = rec;
+      if (/[?&]debug=1\b/.test(location.search)) renderTrace(rec, window.COZ_COMBINED_MANIFEST);
+      bodies.forEach(function(b){
+        var sct = rec[b.getAttribute("data-key")];
+        b.innerHTML = sct.paragraphs.map(function(t){ return "<p>" + esc(t) + "</p>"; }).join("");
+      });
+    }).catch(function(e){
+      console.log("[COZ COMBINED]", e && e.message);
+      bodies.forEach(function(b){ b.innerHTML = '<p class="dev">' + esc((e && e.message) || "DEV: reading unavailable") + '</p>'; });
     });
     buttons.forEach(function(b){ b.hidden = false; });
   });

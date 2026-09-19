@@ -1,4 +1,4 @@
-/* COZALYZE · COMPARE EVIDENCE STRUCTURE · CE1.0 · INTERNAL ONLY
+/* COZALYZE · COMPARE EVIDENCE STRUCTURE · CE1.2 · INTERNAL ONLY (CE1.1: claim meanings for the dev generator; CE1.2: Vedic eligibility gate)
    Structure for the future Combined Reading generator. Nothing in this file writes,
    selects or approves customer language. It holds:
      1. the versioned shared theme taxonomy (internal keys, never shown to a customer)
@@ -10,7 +10,7 @@
    dignity, mean vs true nodes) are NOT decided here: affected items say so. */
 (function(){
   var TAXONOMY_VERSION = "cmp-taxonomy 1.0";
-  var SELECTION_VERSION = "cmp-selection 0.1 structural";
+  var SELECTION_VERSION = "cmp-selection 0.2 eligibility-gated";
 
   /* 1. shared theme taxonomy */
   var THEMES = ["identity_orientation","emotional_mental_patterns","relationships_exchange",
@@ -18,7 +18,7 @@
 
   /* 2. manifest item format (every field always present; null when not applicable) */
   var ITEM_FIELDS = ["system","themeKey","factorId","claimIds","source","selectionCondition","supports",
-                     "evidenceStatus","developmentEligible","productionEligible","engineVersion","selectionVersion","note"];
+                     "evidenceStatus","developmentEligible","productionEligible","engineVersion","selectionVersion","note","claimMeanings","compareEligible","exclusionReason","excludedClaims","prohibitedExtensions"];
   /* supports: "convergence" | "difference" | "both" | "unassessed". Selection never
      decides this; the future generator's traced output does. */
   function item(o){
@@ -50,13 +50,14 @@
     "application-claims-nakshatras-phase3-batch3c.json","application-claims-nakshatras-phase3-batch3d.json","application-claims-padas-batch4a.json",
     "application-claims-padas-batch4b.json","application-claims-padas-batch4c.json","application-claims-padas-batch4d.json","application-claims.json"];
 
-  function vedicItems(vedicChart, engineVersion, claimData){
+  function vedicItems(vedicChart, engineVersion, claimData, mode){
     var sel = window.CozDevReview.selectRecords(vedicChart, claimData), out = [];
     function push(entry, section, files, theme, note){
       var r = entry.record;
       out.push(item({ system: "vedic", themeKey: theme,
         factorId: r.coverageItem || ("selector:" + JSON.stringify(r.selector || null)),
         claimIds: (r.applicationClaims || []).map(function(c){ return c.claimId; }).filter(Boolean),
+        claimMeanings: (r.applicationClaims || []).map(function(c){ return { claimId: c.claimId, meaning: c.allowedMeaning }; }).filter(function(c){ return c.meaning; }),
         source: { file: files[entry.fileIndex], recordId: r.recordId || r.modelId || null, sourceIds: r.sourceIds || [], evidenceRecordIds: r.evidenceRecordIds || [] },
         selectionCondition: section + " key match (dev-review-engine selectRecords)",
         evidenceStatus: r.status || null,
@@ -69,7 +70,64 @@
       if (m && LORD_HOUSE_EXTRA[+m[1]]) push(e, "Section 1", S1_FILES, LORD_HOUSE_EXTRA[+m[1]], "life-area claim names this theme in its own wording");
     });
     sel.section2.forEach(function(e){ push(e, "Section 2", S2_FILES, "emotional_mental_patterns"); });
+    applyEligibility(out, sel, mode || "development");
     return out;
+  }
+
+  /* 3b. Vedic eligibility gate (CE1.2, his Sep 19 ruling). The Vedic dev-review engine
+     itself does not filter by eligibility, so Compare does it here:
+       record: developmentEligible true (Demo) / productionEligible true (production);
+               status present and not BLOCKED / GAP / PROHIBITED / REJECTED;
+               sourced = sourceIds, evidenceRecordIds or evidenceModelIds non-empty, or the
+               claim is a dependent methodology claim whose claimConditions name parents.
+       claim:  has allowedMeaning; not CALCULATED_STRUCTURE_CUSTOMER_CONTEXT (technical
+               context, not interpretation); its claimConditions (requires / requiresAny)
+               are satisfied by other eligible claims in the same selection.
+     Excluded claims stay in the manifest with a reason, never in the prompt. */
+  function recordGate(r, mode){
+    if (mode === "production" ? r.productionEligible !== true : r.developmentEligible !== true) return mode === "production" ? "record not productionEligible" : "record not developmentEligible";
+    if (!r.status) return "record has no status";
+    if (/BLOCKED|GAP|PROHIBIT|REJECT/i.test(r.status)) return "record status " + r.status;
+    var sourced = (r.sourceIds && r.sourceIds.length) || (r.evidenceRecordIds && r.evidenceRecordIds.length) || (r.evidenceModelIds && r.evidenceModelIds.length) || (r.claimConditions && r.claimConditions.length);
+    if (!sourced) return "unsourced record";
+    return null;
+  }
+  function applyEligibility(items, sel, mode){
+    var recs = {};
+    sel.section1.concat(sel.section2).forEach(function(e){ recs[e.record.recordId || e.record.modelId || e.record.coverageItem] = e.record; });
+    var cond = {}, candidate = {};
+    items.forEach(function(it){
+      var r = recs[it.source.recordId] || recs[it.factorId]; if (!r) { it.compareEligible = false; it.exclusionReason = "record not found"; return; }
+      it.prohibitedExtensions = r.prohibitedExtensions || [];
+      it.exclusionReason = recordGate(r, mode);
+      (r.claimConditions || []).forEach(function(c){ cond[c.claimId] = c; });
+      if (!it.exclusionReason) (r.applicationClaims || []).forEach(function(c){
+        if (c.allowedMeaning && c.classification !== "CALCULATED_STRUCTURE_CUSTOMER_CONTEXT") candidate[c.claimId] = true;
+      });
+    });
+    var changed = true;                       // drop claims whose conditions fail, until stable
+    while (changed){
+      changed = false;
+      Object.keys(candidate).forEach(function(id){
+        var c = cond[id]; if (!c) return;
+        var ok = (!c.requires || c.requires.every(function(x){ return candidate[x]; })) &&
+                 (!c.requiresAny || c.requiresAny.some(function(x){ return candidate[x]; }));
+        if (!ok){ delete candidate[id]; changed = true; }
+      });
+    }
+    items.forEach(function(it){
+      var r = recs[it.source.recordId] || recs[it.factorId]; if (!r) return;
+      it.excludedClaims = [];
+      it.claimMeanings = (r.applicationClaims || []).filter(function(c){
+        if (candidate[c.claimId]) return true;
+        it.excludedClaims.push({ claimId: c.claimId, reason: it.exclusionReason || (!c.allowedMeaning ? "no allowedMeaning" :
+          c.classification === "CALCULATED_STRUCTURE_CUSTOMER_CONTEXT" ? "technical context, not interpretation" : "claimConditions not satisfied") });
+        return false;
+      }).map(function(c){ return { claimId: c.claimId, meaning: c.allowedMeaning, classification: c.classification || null }; });
+      it.claimIds = it.claimMeanings.map(function(c){ return c.claimId; });
+      it.compareEligible = !it.exclusionReason && it.claimMeanings.length > 0;
+      if (!it.compareEligible && !it.exclusionReason) it.exclusionReason = "no eligible claims left";
+    });
   }
 
   /* 4. Tropical STRUCTURAL map: where calculated factors belong. No meanings, no claims.
@@ -135,7 +193,7 @@
   function buildManifest(pairCtx){
     return loadClaims().then(function(claimData){
       var items = tropicalItems(pairCtx.charts.tropical, pairCtx.pair.engineVersions.tropical)
-        .concat(vedicItems(pairCtx.charts.vedic, pairCtx.pair.engineVersions.vedic, claimData));
+        .concat(vedicItems(pairCtx.charts.vedic, pairCtx.pair.engineVersions.vedic, claimData, "development"));
       return { taxonomyVersion: TAXONOMY_VERSION, selectionVersion: SELECTION_VERSION,
                runId: pairCtx.pair.runId, fingerprint: pairCtx.pair.fingerprint,
                engineVersions: pairCtx.pair.engineVersions, builtAt: new Date().toISOString(),
@@ -146,7 +204,7 @@
     var rows = {};
     THEMES.forEach(function(k){
       var T = items.filter(function(i){ return i.system === "tropical" && i.themeKey === k; });
-      var V = items.filter(function(i){ return i.system === "vedic" && i.themeKey === k; });
+      var V = items.filter(function(i){ return i.system === "vedic" && i.themeKey === k && i.compareEligible; });
       var tClaims = T.some(function(i){ return i.claimIds.length; }), vClaims = V.some(function(i){ return i.claimIds.length; });
       var dev = T.some(function(i){ return i.developmentEligible; }) && V.some(function(i){ return i.developmentEligible; });
       var prod = T.some(function(i){ return i.productionEligible; }) && V.some(function(i){ return i.productionEligible; });
