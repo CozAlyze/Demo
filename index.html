@@ -806,8 +806,24 @@
   </div>
 </div>
 
-<div id="ver">SCENE 1 · v20.1 · centred landing · routes 1870 1975</div>
+<div id="ver">SCENE 1 · v20.2 · chart run id · routes 1988 1884</div>
 
+<script>
+function cozBirthFingerprint(bd){
+  /* COZ-FP-1: normalized birth data only (never the name), identical copy in
+     index.html and ascendant-library.js */
+  bd = bd || {}; var L = bd.location || {};
+  var str = [String(bd.birthDate||''), String(bd.birthTime||'').toUpperCase().replace(/\s+/g,' ').trim(),
+             Number(L.latitude).toFixed(4), Number(L.longitude).toFixed(4), String(bd.utc||'')].join('|');
+  var h1 = 0x811c9dc5, h2 = 0x9747b28c;
+  for (var i = 0; i < str.length; i++){
+    var c = str.charCodeAt(i);
+    h1 ^= c; h1 = Math.imul(h1, 16777619);
+    h2 ^= c; h2 = Math.imul(h2, 0x5bd1e995); h2 ^= h2 >>> 13;
+  }
+  return 'fp1-' + ('0000000' + (h1>>>0).toString(16)).slice(-8) + ('0000000' + (h2>>>0).toString(16)).slice(-8);
+}
+</script>
 <script>
 /* v19.75: the two-perspectives page owns its own zoom.
    #systembar is position:fixed, and iOS does not pan fixed layers with the
@@ -2859,6 +2875,11 @@ document.querySelectorAll('.syscard').forEach(card => {
       },
       system: sys
     };
+    /* v20.2: one chart run = one run ID + a normalized birth fingerprint, carried by
+       both engines into what they save, so the Compare Ascendants can only ever pair
+       results from this exact birth record */
+    payload.runId = 'run-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
+    payload.fingerprint = cozBirthFingerprint(payload);
     try { localStorage.setItem('emergeBirthData', JSON.stringify(payload)); } catch(_){}
     try {
       if (window.parent !== window) {
@@ -2892,8 +2913,8 @@ document.querySelectorAll('.syscard').forEach(card => {
     vc.classList.add('show');                       /* dark base while the reveal loads */
 
     const next = (sys === 'sidereal'
-      ? 'sidereal-reveal.html?v=1987'
-      : 'tropical-reveal.html?v=1883') + (window.__cozSkipReveal ? '&skip=1' : '');
+      ? 'sidereal-reveal.html?v=1988'
+      : 'tropical-reveal.html?v=1884') + (window.__cozSkipReveal ? '&skip=1' : '');
     console.log('[EMERGE FLOW] 10. living page — loading reveal in place:', next);
     const fr = document.createElement('iframe');
     fr.id = 'revealFrame';

@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPARE · COMBINED READING · C2.1 · opens ascendants
+   COZALYZE · COMPARE · COMBINED READING · C2.2 · ascendants door
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -448,7 +448,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   <div class="vedic-reading-content" id="vedicContent"></div>
 </main>
 
-<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C2.1 · opens ascendants</div>
+<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C2.2 · ascendants door</div>
 
 <script>
 /* ============================================================
@@ -552,7 +552,7 @@ function readingPageHref() {
   if (params.get("w")) q.set("w", params.get("w"));
   if (params.get("v")) q.set("v", params.get("v"));
   const s = q.toString();
-  return "your-ascendants.html" + (s ? "?" + s : "");
+  return "your-ascendants.html";
 }
 
 function goDashboard() {
@@ -668,6 +668,14 @@ const SIGN_GLYPH = { Aries:"\u2648", Taurus:"\u2649", Gemini:"\u264A", Cancer:"\
   Libra:"\u264E", Scorpio:"\u264F", Sagittarius:"\u2650", Capricorn:"\u2651", Aquarius:"\u2652", Pisces:"\u2653" };
 
 function resolveAscendant() {
+  /* C2.2: the validated chart-run pair first, so this glyph agrees with the Ascendants page */
+  try {
+    const bd = JSON.parse(localStorage.getItem("emergeBirthData") || "null");
+    const pr = JSON.parse(localStorage.getItem("cozAscendantPair") || "null");
+    if (bd && pr && bd.runId && pr.runId === bd.runId && pr.fingerprint === bd.fingerprint) {
+      const t = String(pr.tropical.sign); return t.charAt(0).toUpperCase() + t.slice(1);
+    }
+  } catch (e) {}
   const pick = v => { if (!v) return null; v = String(v).trim(); v = v.charAt(0).toUpperCase() + v.slice(1).toLowerCase(); return SIGNS.includes(v) ? v : null; };
   // The Ascendants button shows ONE glyph. This page uses the TROPICAL ascendant for it
   // (?asc=, window.EMERGE_ASCENDANT_TROPICAL, stored emergeAscendantTropical). Two ascendants
@@ -816,7 +824,10 @@ function cancelReveal() {
   syncReadyState();
 }
 
-document.getElementById("hotReading").addEventListener("click", startReveal);
+/* C2.2 (his ruling, Sep 18): Your Ascendants carries the sun reveal and opens the
+   Ascendants page. Your Combined Reading stays inactive until its own visual and
+   spec exist. */
+document.querySelector('[data-dash="ascendant"]').addEventListener("click", startReveal);
 document.getElementById("revealBack").addEventListener("click", cancelReveal);
 revealVideo.addEventListener("ended", () => { if (!revealEl.classList.contains("is-through")) finishReveal(false); });
 revealVideo.addEventListener("error", () => finishReveal(false));
@@ -861,7 +872,7 @@ showFromHash();
 
 /* ---------- reveal sound (Sep 1): the reading tap fires the app's harmony cue through
    the living frame's engine and re-asserts the bed, the same way the old Vedic page did ---------- */
-document.getElementById("hotReading").addEventListener("click", function(){
+document.querySelector('[data-dash="ascendant"]').addEventListener("click", function(){
   try {
     const snd = (window.parent !== window) ? window.parent.EMERGE_SOUND : null;
     if (snd){ snd.loop("ambient"); snd.play("harmony"); }

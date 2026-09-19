@@ -198,5 +198,25 @@
   }
   function capitalize(s) { return String(s || "").replace(/(^|-)([a-z])/g, function (_, sep, c) { return (sep === "-" ? " " : "") + c.toUpperCase(); }); }
 
-  global.CozDevReview = { generateDevReview: generateDevReview };
+  /* Ascendant-only mode (Sep 18): the SAME Section 1 selection generateDevReview
+     uses (computeS1Keys + collectSentences over the Section 1 claim files),
+     exposed so the Compare Ascendant reading can take its evidence from it.
+     Additive only; generateDevReview is unchanged. */
+  function selectAscendantEvidence(chart, section1Files) {
+    var s1 = computeS1Keys(chart);
+    var m = collectSentences(section1Files, function (rec) { return recordMatchesKeys(rec, s1.keys); });
+    var lord = s1.ascLordPlanet;
+    return {
+      keys: s1.keys,
+      ascSign: s1.ascSign,
+      ascNakshatra: s1.asc && s1.asc.nakshatra || null,
+      guidingPlanet: s1.ascLordCode ? CODE_TO_NAME[s1.ascLordCode] : null,
+      guidingPlanetSign: lord ? signName(lord.signNumber) : null,
+      guidingPlanetHouse: lord ? lord.house : null,
+      matchedClaimIds: m.matchedIds,
+      claimSentences: m.sentences
+    };
+  }
+
+  global.CozDevReview = { generateDevReview: generateDevReview, selectAscendantEvidence: selectAscendantEvidence };
 })(typeof window !== "undefined" ? window : globalThis);

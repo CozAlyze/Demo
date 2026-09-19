@@ -960,7 +960,11 @@ try { SAVED = JSON.parse(localStorage.getItem('emergeBirthData') || 'null'); } c
    If the saved birth record was written by the Tropical door, stop with a
    visible error instead of rendering a mislabeled chart. No silent fallback. */
 var PAGE_SYSTEM = 'sidereal';
-if (SAVED && SAVED.system && SAVED.system !== PAGE_SYSTEM){
+/* Compare Ascendants (Sep 18): ?cozExport=1 loads this engine silently in a hidden
+   frame to calculate this system for the SAME birth record the other door used.
+   Only the door guard is skipped; no calculation line changes. */
+var COZ_EXPORT_ONLY = /[?&]cozExport=1(&|$)/.test(location.search);
+if (!COZ_EXPORT_ONLY && SAVED && SAVED.system && SAVED.system !== PAGE_SYSTEM){
   console.log('[EMERGE FLOW] guard: SYSTEM MISMATCH — page renders', PAGE_SYSTEM,
               'but saved record says', SAVED.system, '— halting, no chart rendered');
   fatal.innerHTML = 'System mismatch.<br><br>This page renders the <b>Vedic Sidereal</b> chart, '
@@ -1031,7 +1035,7 @@ var BIRTH = __ok ? {
 console.log('[EMERGE FLOW] 5. sidereal-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 document.getElementById('stamp').textContent =
-  'SIDEREAL v19.93 named · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'SIDEREAL v19.94 chart run · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -4164,7 +4168,9 @@ try {
     /* v19.93: full name onto the printable chart's identity block (BC2.1 renders
        person.name when present, omits the block cleanly when absent) */
     if (SAVED.name && String(SAVED.name).trim()) payload.person = { name: String(SAVED.name).trim() };
+    payload.run = { runId: SAVED.runId || null, fingerprint: SAVED.fingerprint || null, system: 'sidereal', exportedAt: new Date().toISOString() };   /* chart-run stamp */
     localStorage.setItem('cozChartJSON', JSON.stringify(payload));
+    try { if (COZ_EXPORT_ONLY && window.parent !== window) window.parent.postMessage({ type:'COZ_EXPORT_DONE', system:'sidereal', runId: payload.run.runId }, '*'); } catch(_){}
     console.log('[EMERGE FLOW] 8. birth-chart export written: cozChartJSON', payload.reportId, '\u00B7', planets.length, 'bodies \u00B7 panchanga', panchanga.length, 'rows');
     console.log('[EMERGE FLOW] 8b. life-cycle timing:', lifeCycle.mode, '\u00B7 year', lifeCycle.yearLengthDays, 'd \u00B7', lifeCycle.validationStatus,
                 '\u00B7 MD', lifeCycle.mahadasha && lifeCycle.mahadasha.lord, '\u00B7 AD', lifeCycle.antardasha && lifeCycle.antardasha.lord,

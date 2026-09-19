@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="ascendants-bg.jpg?v=3">
 <style>
-/* YOUR ASCENDANTS · A1.3
+/* YOUR ASCENDANTS · A1.4
    Background = Jason's baked art, used verbatim (ascendants-bg.jpg, 1185x2576).
    All positions are written in the art's own pixels and scaled by --k, so every
    overlay stays locked to the baked frames on any screen width.
@@ -146,9 +146,10 @@ html,body{background:var(--gap);color:var(--cream);-webkit-text-size-adjust:100%
   </section>
 
 </main>
-<div class="stamp">ASCENDANTS · A1.3 · new background</div>
+<div class="stamp">ASCENDANTS · A1.4 · chart-run pair</div>
 
-<script src="ascendant-library.js?v=1"></script>
+<script src="dev-review-engine.js?v=7"></script>
+<script src="ascendant-library.js?v=2"></script>
 <script>
 /* ===== COPY BANKS (fixed copy, draft pending Jason's practitioner approval) =====
    Western = the outer world: how you step in and how others experience you.
@@ -156,36 +157,6 @@ html,body{background:var(--gap);color:var(--cream);-webkit-text-size-adjust:100%
    No sign numbers anywhere. */
 var SIGN_ORDER = ["aries","taurus","gemini","cancer","leo","virgo","libra","scorpio","sagittarius","capricorn","aquarius","pisces"];
 var GLYPH = {aries:"\u2648",taurus:"\u2649",gemini:"\u264A",cancer:"\u264B",leo:"\u264C",virgo:"\u264D",libra:"\u264E",scorpio:"\u264F",sagittarius:"\u2650",capricorn:"\u2651",aquarius:"\u2652",pisces:"\u2653"};
-
-var WESTERN = {
- aries:{p:"You meet life by moving first. People tend to see you as bold, direct, and ready for what comes next."},
- taurus:{p:"You meet life with a calm, steady presence. People tend to see you as grounded, patient, and easy to trust."},
- gemini:{p:"You meet life with curiosity and quick conversation. People tend to see you as bright, lively, and easy to talk to."},
- cancer:{p:"You meet life by sensing the mood first. People tend to see you as caring, protective, and quietly warm."},
- leo:{p:"You meet life with warmth and presence. People tend to see you as confident, generous, and hard to overlook."},
- virgo:{p:"You meet life with a careful, observant eye. People tend to see you as capable, thoughtful, and quietly helpful."},
- libra:{p:"You meet life with grace and fairness. People tend to see you as charming, balanced, and easy to be around."},
- scorpio:{p:"You meet life with quiet intensity. People tend to see you as private, magnetic, and hard to fool."},
- sagittarius:{p:"You meet life with optimism and a sense of adventure. People tend to see you as open, frank, and full of energy."},
- capricorn:{p:"You meet life with composure and purpose. People tend to see you as serious, capable, and quietly strong."},
- aquarius:{p:"You meet life with an independent, original view. People tend to see you as friendly, unusual, and a bit unpredictable."},
- pisces:{p:"You meet life with gentleness and imagination. People tend to see you as kind, intuitive, and easy to confide in."}
-};
-
-var VEDIC = {
- aries:{r:"Mars",p:"Mars guides your chart. Inside, you feel a push to act on what is true, and life keeps asking you for courage."},
- taurus:{r:"Venus",p:"Venus guides your chart. Inside, you need what is real and lasting, and life asks you to build it with patience."},
- gemini:{r:"Mercury",p:"Mercury guides your chart. Inside, you need to understand and connect, and life asks you to use your words well."},
- cancer:{r:"the Moon",p:"The Moon guides your chart. Inside, you live by feeling and belonging, and life asks you to nurture without losing yourself."},
- leo:{r:"the Sun",p:"The Sun guides your chart. Inside, you need to live from the heart, and life asks you to lead with integrity."},
- virgo:{r:"Mercury",p:"Mercury guides your chart. Inside, you need order and usefulness, and life asks you to serve without self-criticism."},
- libra:{r:"Venus",p:"Venus guides your chart. Inside, you need balance and fairness, and life asks you to find your own center within relationships."},
- scorpio:{r:"Mars",p:"Mars guides your chart. Inside, you need depth and truth, and life asks you to face what others avoid."},
- sagittarius:{r:"Jupiter",p:"Jupiter guides your chart. Inside, you need meaning and truth, and life asks you to live by what you believe."},
- capricorn:{r:"Saturn",p:"Saturn guides your chart. Inside, you need to earn your place, and life asks you to build something that lasts."},
- aquarius:{r:"Saturn",p:"Saturn guides your chart. Inside, you stand a little apart, and life asks you to serve something bigger than yourself."},
- pisces:{r:"Jupiter",p:"Jupiter guides your chart. Inside, you feel deeply and widely, and life asks you to trust what you sense."}
-};
 
 /* Combined synthesis. Key = western|vedic. With the present ayanamsa the Vedic rising is
    the same sign or the sign before the Western one, so these 24 pairs cover real charts. */
@@ -223,29 +194,46 @@ function combinedText(w,v){
 function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
 
 
-/* ===== DATA ===== signs come from ascendant-library.js (COZ_ASC.resolve), the one
-   source shared with ascendant-reading.html. Nothing is recalculated here. */
+/* ===== DATA (A1.4) =====
+   Signs come ONLY from the validated chart-run pair (COZ_ASC.ensurePair): both
+   engines, same run ID, same birth fingerprint. Previews and full readings come
+   from the Ascendant generator, once per run and system, cached. */
 (function(){
-  var R=window.COZ_ASC.resolve(), w=R.western, v=R.vedic;
+  var A=window.COZ_ASC;
   var $=function(id){return document.getElementById(id);};
-  var CHEV='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 9l7 7 7-7"/></svg>';
-
-  function fill(pre,sign,bank,label,sys){
-    var tog=$(pre+"Tog");
-    if(!sign){ $(pre+"Prev").textContent="Your "+label+" Ascendant appears here once your chart has been calculated."; tog.style.visibility="hidden"; return; }
-    $(pre+"Glyph").textContent=GLYPH[sign]+"\uFE0E";
-    $(pre+"Sign").textContent=cap(sign)+" Rising";
-    $(pre+"Prev").textContent=bank[sign].p;
-    tog.addEventListener("click",function(){
-      try{ sessionStorage.setItem("cozAscScroll", String(window.scrollY)); }catch(e){}
-      location.href="ascendant-reading.html?sys="+sys+window.COZ_ASC.qaQuery();
-    });
-  }
-  fill("w",w,WESTERN,"Western","western");
-  fill("v",v,VEDIC,"Vedic","vedic");
+  ["w","v"].forEach(function(pre){ $(pre+"Tog").style.visibility="hidden"; $(pre+"Prev").textContent="Preparing your Ascendant\u2026"; });
+  $("cPrev").textContent="";
   /* came back from a full reading without Safari's page cache: put the reader where they were */
   try{ var y=parseFloat(sessionStorage.getItem("cozAscScroll")); if(y>0){ sessionStorage.removeItem("cozAscScroll"); requestAnimationFrame(function(){ window.scrollTo(0,y); }); } }catch(e){}
-  $("cPrev").textContent=(w&&v)?combinedText(w,v):"Once both Ascendants are calculated, this is where they come together.";
+
+  A.ensurePair().then(function(res){
+    if(!res.ok){
+      console.log("[COZ ASC] pair refused:", res.reason);
+      $("wPrev").textContent=""; $("vPrev").textContent="";
+      $("cPrev").textContent=A.PAIR_FAIL;
+      return;
+    }
+    var w=res.pair.tropical.sign, v=res.pair.vedic.sign;
+    [["w",w,"tropical","western"],["v",v,"vedic","vedic"]].forEach(function(x){
+      var pre=x[0], sign=x[1], sys=x[2], page=x[3];
+      $(pre+"Glyph").textContent=GLYPH[sign]+"\uFE0E";
+      $(pre+"Glyph").setAttribute("aria-label",cap(sign)+" zodiac glyph");
+      $(pre+"Sign").textContent=cap(sign)+" Rising";
+      var tog=$(pre+"Tog");
+      tog.addEventListener("click",function(){
+        try{ sessionStorage.setItem("cozAscScroll", String(window.scrollY)); }catch(e){}
+        location.href="ascendant-reading.html?sys="+page;
+      });
+      A.getReading(sys,res).then(function(rec){
+        $(pre+"Prev").textContent=rec.preview;
+        tog.style.visibility="visible";
+      }).catch(function(e){
+        console.log("[COZ ASC] "+sys+" reading:", e&&e.message);
+        $(pre+"Prev").textContent=(e&&e.message)||"DEV: reading unavailable";
+      });
+    });
+    $("cPrev").textContent=combinedText(w,v);
+  });
 })();
 </script>
 </body>
