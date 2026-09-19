@@ -6,38 +6,55 @@
 <title>Your Combined Reading · CozAlyze</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400;500&family=EB+Garamond:ital@1&display=swap" rel="stylesheet">
 <style>
-/* COZALYZE · YOUR COMBINED READING · CR1.1
-   Background = his mockup art with the lettering removed (sun, moon, clouds and the
-   CozAlyze wordmark stay as art). Every word on the page is live text, laid out in the
-   mockup's own pixels (932 wide) and scaled by --k, so the page grows naturally. */
-:root{ --cream:#EEE7D8; --gold:#D6B98C; --gold-soft:#B89A6E; --navy:rgb(1,10,23);
-  --head:"Cinzel",Georgia,serif; --sans:"Montserrat","Helvetica Neue",Arial,sans-serif; }
+/* COZALYZE · YOUR COMBINED READING · CR2.0 · page shell
+   His backdrop (1206x2622) in three verbatim pieces so the page can grow when a
+   section opens: combined-top.jpg (rows 0-800: sun, moon, logo), combined-mid.png
+   (one row averaged from his plain middle, repeated), combined-bottom.jpg (rows
+   2150-2622: tagline + nav). All wording is live text.
+   GENERATOR NOT BUILT: the three analyses wait on the Tropical evidence-selection
+   system (his ruling, Sep 19). Nothing on this page generates language. */
+:root{ --cream:#EEE7D8; --gold:#D6B98C; --gold-soft:#B89A6E; --navy:rgb(1,11,26);
+  --head:"Cinzel",Georgia,serif; --sans:"Montserrat","Helvetica Neue",Arial,sans-serif; --body:"EB Garamond",Georgia,serif; }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{background:var(--navy);color:var(--cream);-webkit-text-size-adjust:100%}
-/* CR1.1: his full backdrop (1206x2622) used verbatim as the page, text laid over it */
-.page{position:relative;width:100%;max-width:640px;margin:0 auto;container-type:inline-size;
-  height:calc(2622 * 100cqw / 1206);
-  background:var(--navy) url("combined-bg.jpg?v=3") center top/100% auto no-repeat;text-align:center}
-.page,.page *{--k:calc(100cqw / 932)}
-.content{position:absolute;left:0;right:0;top:calc(395 * 100cqw / 1206)}
-.nav .home{left:calc(127 * 100cqw / 1206);width:calc(240 * 100cqw / 1206)}
-.nav .saved{left:calc(470 * 100cqw / 1206);width:calc(225 * 100cqw / 1206)}
-.nav .acct{left:calc(830 * 100cqw / 1206);width:calc(219 * 100cqw / 1206)}
-.nav a{position:absolute;top:calc(2519 * 100cqw / 1206);height:calc(76 * 100cqw / 1206);display:block;-webkit-tap-highlight-color:transparent}
-h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-height:.96;letter-spacing:.02em;
-  color:var(--cream);text-shadow:0 calc(3 * var(--k)) calc(10 * var(--k)) rgba(0,0,0,.65)}
-.sys{font-family:var(--sans);font-weight:400;font-size:calc(25 * var(--k));letter-spacing:.3em;margin-right:-.3em;margin-top:calc(26 * var(--k))}
-.theme{font-family:var(--sans);font-weight:400;font-size:calc(21 * var(--k));line-height:1.62;letter-spacing:.3em;margin-right:-.3em;margin-top:calc(32 * var(--k))}
-.short{width:calc(108 * var(--k));height:1px;margin:calc(46 * var(--k)) auto 0;background:var(--gold-soft);opacity:.8}
-section{padding:0 calc(120 * var(--k))}
+.page{position:relative;width:100%;max-width:640px;margin:0 auto;container-type:inline-size;text-align:center;
+  background:url("combined-top.jpg?v=1") center top/100% auto no-repeat, url("combined-mid.png?v=1") center top/100% 1px repeat-y, var(--navy)}
+.page,.page *{--k:calc(100cqw / 932);--K:calc(100cqw / 1206)}
+.content{padding-top:calc(395 * var(--K));min-height:calc(2150 * var(--K))}
+h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-height:.96;letter-spacing:.02em;color:var(--cream);
+  text-shadow:0 calc(3 * var(--k)) calc(10 * var(--k)) rgba(0,0,0,.65)}
+.sys{font-family:var(--sans);font-weight:400;font-size:calc(22 * var(--k));letter-spacing:.22em;margin-right:-.22em;margin-top:calc(26 * var(--k));white-space:nowrap}
+.theme{font-family:var(--sans);font-weight:400;font-size:calc(21 * var(--k));line-height:1.62;letter-spacing:.3em;margin-right:-.3em;margin-top:calc(30 * var(--k))}
+.short{width:calc(108 * var(--k));height:1px;margin:calc(44 * var(--k)) auto 0;background:var(--gold-soft);opacity:.8}
+.status{font-family:var(--sans);font-weight:300;font-size:max(13px,calc(26 * var(--k)));line-height:1.5;color:var(--cream);margin:calc(40 * var(--k)) calc(120 * var(--k)) 0}
+.sec{padding:0 calc(110 * var(--k))}
 .num{font-family:var(--head);font-weight:400;font-size:calc(24 * var(--k));color:var(--gold-soft);margin-top:calc(38 * var(--k));line-height:1}
 .sec h2{font-family:var(--head);font-weight:500;font-size:calc(38 * var(--k));letter-spacing:.02em;line-height:1.1;color:var(--cream);margin-top:calc(22 * var(--k));white-space:nowrap}
-.sec p{font-family:var(--sans);font-weight:300;font-size:calc(27 * var(--k));line-height:1.48;letter-spacing:.015em;color:var(--cream);margin:calc(26 * var(--k)) auto 0;max-width:calc(640 * var(--k))}
-.div{position:relative;height:calc(28 * var(--k));margin:calc(38 * var(--k)) calc(172 * var(--k)) 0;display:flex;align-items:center}
+.prev{font-family:var(--sans);font-weight:300;font-size:calc(27 * var(--k));line-height:1.48;letter-spacing:.015em;color:var(--cream);margin:calc(24 * var(--k)) auto 0;max-width:calc(680 * var(--k))}
+.rfa{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:.5em;
+  margin-top:calc(20 * var(--k));padding:8px 6px;font-family:var(--sans);font-weight:500;font-size:max(11px,calc(21 * var(--k)));
+  letter-spacing:.2em;color:var(--gold);-webkit-tap-highlight-color:transparent}
+.rfa svg{width:1.05em;height:1.05em;transition:transform .45s ease}
+.rfa[aria-expanded="true"] svg{transform:rotate(180deg)}
+.rfa:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+.acc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s ease}
+.acc.open{grid-template-rows:1fr}
+.acc-in{overflow:hidden}
+.body{text-align:left;padding:calc(18 * var(--k)) calc(10 * var(--k)) 0}
+.body p{font-family:var(--sans);font-weight:300;font-size:max(15px,calc(30 * var(--k)));line-height:1.6;color:var(--cream)}
+.body p+p{margin-top:.95em}
+.body .dev{font-style:italic;color:var(--gold);text-align:center}
+.div{height:calc(28 * var(--k));margin:calc(38 * var(--k)) calc(172 * var(--k)) 0;display:flex;align-items:center}
 .div::before,.div::after{content:"";flex:1;height:1px;background:var(--gold-soft);opacity:.85}
 .div svg{width:calc(24 * var(--k));height:calc(24 * var(--k));margin:0 calc(6 * var(--k));color:var(--gold);flex:none}
+.note{font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--cream);opacity:.85;margin:calc(56 * var(--k)) calc(90 * var(--k)) 0}
+.art-bottom{position:relative;height:calc(472 * var(--K));background:url("combined-bottom.jpg?v=1") center top/100% auto no-repeat}
+.nav a{position:absolute;top:calc(369 * var(--K));height:calc(76 * var(--K));display:block;-webkit-tap-highlight-color:transparent}
+.nav .home{left:calc(127 * var(--K));width:calc(240 * var(--K))}
+.nav .saved{left:calc(470 * var(--K));width:calc(225 * var(--K))}
+.nav .acct{left:calc(830 * var(--K));width:calc(219 * var(--K))}
 .stamp{position:fixed;right:6px;bottom:2px;z-index:2;font:8px/1 var(--sans);letter-spacing:.08em;color:rgba(204,164,102,.45);pointer-events:none}
 </style>
 </head>
@@ -45,36 +62,93 @@ section{padding:0 calc(120 * var(--k))}
 <main class="page">
  <div class="content">
   <h1>YOUR<br>COMBINED<br>READING</h1>
-  <p class="sys">Tropical + Vedic</p>
+  <p class="sys">Western (Tropical) + Vedic (Sidereal)</p>
   <p class="theme">HOW YOUR TWO CHARTS<br>SPEAK TOGETHER</p>
   <div class="short" aria-hidden="true"></div>
+  <p class="status" id="status" hidden></p>
 
   <section class="sec" id="shared-themes">
     <p class="num">I</p>
     <h2>SHARED THEMES</h2>
-    <p>The patterns that appear in both your Tropical and Vedic charts, revealing your core gifts, recurring lessons, and the deeper story that stays consistent across systems.</p>
+    <p class="prev">The patterns that repeat across both charts—showing where your outward expression and inner blueprint reinforce similar qualities, needs, and recurring life themes.</p>
+    <button class="rfa" type="button" aria-expanded="false" aria-controls="acc-shared" hidden>READ FULL ANALYSIS <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg></button>
+    <div class="acc" id="acc-shared"><div class="acc-in"><div class="body" data-key="sharedThemes" data-label="Shared Themes"></div></div></div>
   </section>
   <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
 
   <section class="sec" id="different-emphases">
     <p class="num">II</p>
     <h2>DIFFERENT EMPHASES</h2>
-    <p>Where each system offers a unique perspective — highlighting different facets of your personality, timing, and life path, and how they complement each other.</p>
+    <p class="prev">Where the two systems place their attention differently—revealing distinct perspectives on your personality, relationships, and direction, and how those perspectives may complement one another.</p>
+    <button class="rfa" type="button" aria-expanded="false" aria-controls="acc-different" hidden>READ FULL ANALYSIS <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg></button>
+    <div class="acc" id="acc-different"><div class="acc-in"><div class="body" data-key="differentEmphases" data-label="Different Emphases"></div></div></div>
   </section>
   <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
 
   <section class="sec" id="integrated-view">
     <p class="num">III</p>
     <h2>YOUR INTEGRATED VIEW</h2>
-    <p>A unified interpretation that brings the two systems together — giving you a fuller, richer understanding of who you are and what’s ahead.</p>
+    <p class="prev">A unified interpretation that brings both perspectives together—showing how your outward expression and inner blueprint may operate as parts of one more complete picture.</p>
+    <button class="rfa" type="button" aria-expanded="false" aria-controls="acc-integrated" hidden>READ FULL ANALYSIS <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 9l7 7 7-7"/></svg></button>
+    <div class="acc" id="acc-integrated"><div class="acc-in"><div class="body" data-key="integratedView" data-label="Your Integrated View"></div></div></div>
   </section>
+
+  <p class="note">These themes describe possible patterns—not fixed outcomes.</p>
  </div>
+ <div class="art-bottom">
   <nav class="nav" aria-label="Main">
     <a class="home" href="compare-reading.html" aria-label="Home"></a>
     <a class="saved" href="#" aria-label="Saved"></a>
     <a class="acct" href="#" aria-label="Account"></a>
   </nav>
+ </div>
 </main>
-<div class="stamp">COMBINED READING PAGE · CR1.1 · his backdrop</div>
+<div class="stamp">COMBINED READING · CR2.1 · evidence structure · no generator</div>
+
+<script src="dev-review-engine.js?v=8"></script>
+<script src="ascendant-library.js?v=3"></script>
+<script src="compare-evidence.js?v=1"></script>
+<script>
+(function(){
+  var FAIL = "We couldn\u2019t load both charts for this reading. Please return and run your chart again.";
+  var status = document.getElementById("status");
+  var buttons = [].slice.call(document.querySelectorAll(".rfa"));
+
+  /* accordion: one section open at a time, nothing regenerates on open or close */
+  function setOpen(btn, open){
+    var acc = document.getElementById(btn.getAttribute("aria-controls"));
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    acc.classList.toggle("open", open);
+  }
+  buttons.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var opening = btn.getAttribute("aria-expanded") !== "true";
+      buttons.forEach(function(b){ if (b !== btn) setOpen(b, false); });
+      setOpen(btn, opening);
+    });
+  });
+
+  /* input gate: only a validated chart-run pair (same run ID + birth fingerprint
+     in both engines' saved charts). Never an older chart. */
+  window.COZ_ASC.ensurePair().then(function(res){
+    if (!res.ok){
+      console.log("[COZ COMBINED] pair refused:", res.reason);
+      status.textContent = FAIL; status.hidden = false;
+      return;
+    }
+    window.COZ_COMBINED_INPUT = { runId: res.pair.runId, fingerprint: res.pair.fingerprint, engineVersions: res.pair.engineVersions };
+    /* CR2.1: internal evidence manifest for testing and review only, never rendered */
+    window.COZ_COMPARE_EVIDENCE.buildManifest(res).then(function(m){
+      window.COZ_COMBINED_MANIFEST = m; console.log("[COZ COMBINED] manifest", m.items.length, "items", JSON.stringify(m.coverage));
+    }).catch(function(e){ console.log("[COZ COMBINED] manifest failed:", e && e.message); });
+    /* Development shell: the analyses are not generated yet. */
+    [].slice.call(document.querySelectorAll(".body")).forEach(function(b){
+      b.innerHTML = '<p class="dev">[Development] The personalized ' + b.getAttribute("data-label") +
+        ' analysis is not built yet. It waits on the Tropical evidence-selection system.</p>';
+    });
+    buttons.forEach(function(b){ b.hidden = false; });
+  });
+})();
+</script>
 </body>
 </html>

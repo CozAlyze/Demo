@@ -1,4 +1,4 @@
-/* COZALYZE · ASCENDANT LIBRARY · L2.0 · chart-run pairing + Ascendant-only generation
+/* COZALYZE · ASCENDANT LIBRARY · L2.1 · chart-run pairing (+ engine versions) + Ascendant-only generation
    DEMO / DEVELOPMENT ONLY. Shared by your-ascendants.html and ascendant-reading.html.
 
    PAIRING. Scene 1 stamps every chart run with runId + a normalized birth fingerprint
@@ -54,7 +54,8 @@
     return { runId: bd.runId, fingerprint: bd.fingerprint, birth: bd };
   }
   function runMatches(chart, run){
-    return !!(chart && chart.run && run && chart.run.runId === run.runId && chart.run.fingerprint === run.fingerprint);
+    /* L2.1: a saved chart without an engine version predates the version rule and is recalculated */
+    return !!(chart && chart.run && run && chart.run.runId === run.runId && chart.run.fingerprint === run.fingerprint && chart.run.engineVersion);
   }
   function tropicalChart(run){ var c = lsJSON("cozTropicalChartJSON"); return runMatches(c, run) ? c : null; }
   function vedicChart(run){ var c = lsJSON("cozChartJSON"); return runMatches(c, run) ? c : null; }
@@ -94,6 +95,7 @@
         if (!ts || !vs || !vAsc || signOf(vAsc.signNumber) !== vs) return { ok:false, reason:"Ascendant missing from a saved chart" };
         var pair = {
           runId: run.runId, fingerprint: run.fingerprint,
+          engineVersions: { tropical: t.run.engineVersion, vedic: v.run.engineVersion },
           tropical: { sign: ts, degree: tAsc.degree, minute: tAsc.minute },
           vedic: { sign: vs, degree: vAsc.degrees, minute: vAsc.minutes, nakshatra: vAsc.nakshatra || null },
           builtAt: new Date().toISOString()
@@ -232,7 +234,7 @@
   /* ---------------- generation + cache ---------------- */
   function cacheKey(sys, ctx){
     var sign = sys === "tropical" ? ctx.pair.tropical.sign : ctx.pair.vedic.sign;
-    return "cozAscReading:" + [ctx.pair.runId, ctx.pair.fingerprint, sys, sign, ENGINE_VERSION].join("|");
+    return "cozAscReading:" + [ctx.pair.runId, ctx.pair.fingerprint, sys, sign, ctx.pair.engineVersions[sys === "tropical" ? "tropical" : "vedic"], ENGINE_VERSION].join("|");
   }
   function getCached(sys, ctx){ var c = lsJSON(cacheKey(sys, ctx)); return c && Array.isArray(c.paragraphs) ? c : null; }
   function logCall(entry){

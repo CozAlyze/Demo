@@ -890,7 +890,7 @@ console.log('[EMERGE FLOW] 5. tropical-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 console.log('[EMERGE FLOW] 6. calculation branch: TROPICAL — no ayanamsa (true tropical longitudes)');
 document.getElementById('stamp').textContent =
-  'TROPICAL v18.90 chart run · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'TROPICAL v18.91 engine version · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -1247,7 +1247,7 @@ BODIES.unshift({ key:'Rising', ab:'AC', label: SIGNS[ascSign] + ' Rising',
         balance: BALANCE,
         interpretations: {}     /* filled by the approved interpretation source only, never here */
       };
-      payload.run = { runId: SAVED.runId || null, fingerprint: SAVED.fingerprint || null, system: 'tropical', exportedAt: new Date().toISOString() };   /* chart-run stamp */
+      payload.run = { runId: SAVED.runId || null, fingerprint: SAVED.fingerprint || null, system: 'tropical', engineVersion: 'cozalyze-tropical-engine 18.91', exportedAt: new Date().toISOString() };   /* bump engineVersion whenever any calculation changes */   /* chart-run stamp */
       localStorage.setItem('cozTropicalChartJSON', JSON.stringify(payload));
       try { if (COZ_EXPORT_ONLY && window.parent !== window) window.parent.postMessage({ type:'COZ_EXPORT_DONE', system:'tropical', runId: payload.run.runId }, '*'); } catch(_){}
       console.log('[EMERGE TRACE tropical-chart-export] wrote cozTropicalChartJSON — ' + bodyRows.length + ' bodies, ' + cuspRows.length + ' cusps, ' + ASPECTS.length + ' aspects');

@@ -1035,7 +1035,7 @@ var BIRTH = __ok ? {
 console.log('[EMERGE FLOW] 5. sidereal-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 document.getElementById('stamp').textContent =
-  'SIDEREAL v19.94 chart run · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'SIDEREAL v19.95 engine version · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -4168,7 +4168,7 @@ try {
     /* v19.93: full name onto the printable chart's identity block (BC2.1 renders
        person.name when present, omits the block cleanly when absent) */
     if (SAVED.name && String(SAVED.name).trim()) payload.person = { name: String(SAVED.name).trim() };
-    payload.run = { runId: SAVED.runId || null, fingerprint: SAVED.fingerprint || null, system: 'sidereal', exportedAt: new Date().toISOString() };   /* chart-run stamp */
+    payload.run = { runId: SAVED.runId || null, fingerprint: SAVED.fingerprint || null, system: 'sidereal', engineVersion: 'cozalyze-sidereal-engine 19.95', exportedAt: new Date().toISOString() };   /* bump engineVersion whenever any calculation changes */   /* chart-run stamp */
     localStorage.setItem('cozChartJSON', JSON.stringify(payload));
     try { if (COZ_EXPORT_ONLY && window.parent !== window) window.parent.postMessage({ type:'COZ_EXPORT_DONE', system:'sidereal', runId: payload.run.runId }, '*'); } catch(_){}
     console.log('[EMERGE FLOW] 8. birth-chart export written: cozChartJSON', payload.reportId, '\u00B7', planets.length, 'bodies \u00B7 panchanga', panchanga.length, 'rows');

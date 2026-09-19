@@ -218,5 +218,32 @@
     };
   }
 
-  global.CozDevReview = { generateDevReview: generateDevReview, selectAscendantEvidence: selectAscendantEvidence };
+  /* Compare evidence (Sep 19): the SAME Section 1 and Section 2 record matching
+     generateDevReview uses, returned as whole records (with their status, eligibility
+     and source IDs) so the Compare evidence manifest can cite them. Additive only. */
+  function selectRecords(chart, claimData) {
+    var s1 = computeS1Keys(chart);
+    var moon = findPlanet(chart, "Moon"), moonSign = signName(moon.signNumber);
+    var s2Keys = ["graha-in-sign.mo." + moonSign, "graha-in-house.mo." + moon.house,
+                  "nakshatra." + nakKey(moon.nakshatra), "pada." + nakKey(moon.nakshatra) + "." + moon.pada];
+    function pick(files, fn) {
+      var out = [], seen = {};
+      (files || []).forEach(function (file, fi) {
+        (file.records || []).forEach(function (rec) {
+          if (!fn(rec)) return;
+          var id = rec.recordId || rec.modelId || rec.coverageItem;
+          if (seen[id]) return; seen[id] = true;
+          out.push({ record: rec, fileIndex: fi });
+        });
+      });
+      return out;
+    }
+    return {
+      section1Keys: s1.keys, section2Keys: s2Keys,
+      section1: pick(claimData.section1Files, function (rec) { return recordMatchesKeys(rec, s1.keys); }),
+      section2: pick(claimData.section2Files, function (rec) { return recordMatchesKeys(rec, s2Keys) || recordMatchesSelector(rec, chart); })
+    };
+  }
+
+  global.CozDevReview = { generateDevReview: generateDevReview, selectAscendantEvidence: selectAscendantEvidence, selectRecords: selectRecords };
 })(typeof window !== "undefined" ? window : globalThis);
