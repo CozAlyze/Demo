@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPARE · COMBINED READING · C2.2 · ascendants door
+   COZALYZE · COMPARE · COMBINED READING · C2.5 · reveal on combined
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -448,7 +448,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   <div class="vedic-reading-content" id="vedicContent"></div>
 </main>
 
-<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C2.2 · ascendants door</div>
+<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C2.5 · reveal on combined</div>
 
 <script>
 /* ============================================================
@@ -552,7 +552,7 @@ function readingPageHref() {
   if (params.get("w")) q.set("w", params.get("w"));
   if (params.get("v")) q.set("v", params.get("v"));
   const s = q.toString();
-  return "your-ascendants.html";
+  return "combined-reading.html";   /* C2.5: the sun reveal lands on Your Combined Reading */
 }
 
 function goDashboard() {
@@ -791,7 +791,7 @@ function finishReveal(immediate) {
   revealDone = true;
   revealTimers.forEach(clearTimeout); revealTimers = [];
   const land = () => {
-    location.href = readingPageHref();          // C2.1: opens Your Ascendants
+    location.href = readingPageHref();          // C2.5: opens Your Combined Reading
     revealEl.classList.remove("is-on", "is-closing", "asc-off");
     try { revealVideo.pause(); } catch (e) {}
     lockScroll(false);
@@ -824,10 +824,13 @@ function cancelReveal() {
   syncReadyState();
 }
 
-/* C2.2 (his ruling, Sep 18): Your Ascendants carries the sun reveal and opens the
-   Ascendants page. Your Combined Reading stays inactive until its own visual and
-   spec exist. */
-document.querySelector('[data-dash="ascendant"]').addEventListener("click", startReveal);
+/* C2.5 (his ruling, Sep 19): the chart-opening sunburst belongs to the FIRST tab.
+   Your Combined Reading plays it and lands on combined-reading.html.
+   Your Ascendants opens its page directly, no reveal. */
+document.getElementById("hotReading").addEventListener("click", startReveal);
+document.querySelector('[data-dash="ascendant"]').addEventListener("click", function () {
+  location.href = "your-ascendants.html";
+});
 document.getElementById("revealBack").addEventListener("click", cancelReveal);
 revealVideo.addEventListener("ended", () => { if (!revealEl.classList.contains("is-through")) finishReveal(false); });
 revealVideo.addEventListener("error", () => finishReveal(false));
@@ -872,7 +875,7 @@ showFromHash();
 
 /* ---------- reveal sound (Sep 1): the reading tap fires the app's harmony cue through
    the living frame's engine and re-asserts the bed, the same way the old Vedic page did ---------- */
-document.querySelector('[data-dash="ascendant"]').addEventListener("click", function(){
+document.getElementById("hotReading").addEventListener("click", function(){
   try {
     const snd = (window.parent !== window) ? window.parent.EMERGE_SOUND : null;
     if (snd){ snd.loop("ambient"); snd.play("harmony"); }
