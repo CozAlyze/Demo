@@ -1,4 +1,6 @@
-/* COZALYZE · ASCENDANT LIBRARY · L2.1 · chart-run pairing (+ engine versions) + Ascendant-only generation
+/* COZALYZE · ASCENDANT LIBRARY · L2.2 · chart-run pairing (+ engine versions) + Ascendant-only generation
+   L2.2: third reading "combined" (How They Work Together), built from both evidence sets;
+   missing charts are exported in parallel; every API call has a 90 second timeout.
    DEMO / DEVELOPMENT ONLY. Shared by your-ascendants.html and ascendant-reading.html.
 
    PAIRING. Scene 1 stamps every chart run with runId + a normalized birth fingerprint
@@ -20,6 +22,8 @@
   var GLYPH = {aries:"\u2648",taurus:"\u2649",gemini:"\u264A",cancer:"\u264B",leo:"\u264C",virgo:"\u264D",
     libra:"\u264E",scorpio:"\u264F",sagittarius:"\u2650",capricorn:"\u2651",aquarius:"\u2652",pisces:"\u2653"};
   var ENGINE_VERSION = "asc-gen-1.0";
+  var COMBINED_VERSION = "asc-comb-1.0";
+  var CALL_TIMEOUT_MS = 90000;
   var PAIR_FAIL = "We couldn\u2019t load both Ascendants for this chart. Please return and run your chart again.";
   var DEFAULT_MODEL = "claude-sonnet-4-6";
 
@@ -85,7 +89,8 @@
       var need = [];
       if (!tropicalChart(run)) need.push(["tropical-reveal.html", tropicalChart]);
       if (!vedicChart(run))    need.push(["sidereal-reveal.html", vedicChart]);
-      return need.reduce(function(p, n){ return p.then(function(){ return silentExport(n[0], n[1], run); }); }, Promise.resolve())
+      /* L2.2: both missing engines load at the same time instead of one after the other */
+      return Promise.all(need.map(function(n){ return silentExport(n[0], n[1], run); }))
       .then(function(){
         var t = tropicalChart(run), v = vedicChart(run);
         if (!t || !v) return { ok:false, reason:"one system did not produce a chart for this run" };
@@ -185,6 +190,42 @@
     GROUNDING, ""
   ].concat(COMMON_TAIL).join("\n");
 
+  var SYS_COMBINED = [
+    "You write 'How They Work Together', the combined Ascendant reading on CozAlyze's Your Ascendants page. It connects the person's Western (Tropical) Ascendant and Vedic (Sidereal) Ascendant into one short reading. It is not a full-chart reading.",
+    "",
+    "FRAME. The Western rising sign describes outward style: first impression, how the person steps into new situations, how others first experience them. The Vedic rising sign is the foundation of the chart: inner orientation, basic temperament, and the direction life keeps returning to. State this frame once, in plain words, in the first paragraph. Never defend the idea that the two systems can coexist more than once in the whole reading.",
+    "",
+    "STRUCTURE. Exactly five paragraphs, each doing one new job. 1: what each rising sign describes, stated once. 2: if the signs match, what that match means (little gap between how people read the person and who they are inside); if they differ, what each sign adds, outside and inside, never framed as a conflict. If the signs differ you may say once, plainly, that the two systems measure the zodiac differently; never explain the mechanics. 3: how the pairing shows up in daily life, drawn from the Vedic guiding planet's life area and the Western chart ruler's placement. 4: the main challenge the evidence supports. 5: a practical direction that pulls the reading together and adds no new factor.",
+    "",
+    "NO REPETITION. Every paragraph must add a point no earlier paragraph made. Do not restate earlier paragraphs in the last one; arrive at one sharper conclusion instead. No 6+ word phrase may repeat anywhere.",
+    "",
+    "BRIDGES. Connect a Western point and a Vedic point only when evidence on both sides supports that link. If it does not, let the two points stand side by side without inventing a relationship between them. Offer practical guidance only when the evidence supports it.",
+    "",
+    "SCOPE. Write only about areas the evidence covers. Do not mention relationships, career, money, or any life area the supplied evidence does not address, and never promise topics you will not cover.",
+    "",
+    "CONCRETE LABELS. When a point comes from a life area, name that area in plain words ('the part of your chart tied to home and family'), never vague labels like 'factors in the area of personal values', 'emotional and mental indicators', or 'different parts of the charts'.",
+    "",
+    "BANNED PHRASES. Never write: 'one perspective', 'the other perspective', 'both may be true', 'this is not a contradiction', 'the two systems seem to converge', 'the pattern described there', 'tapestry', 'delve'.",
+    "",
+    VOICE, "",
+    "PLAIN LANGUAGE. Planets appear only as influences ('Venus's influence'). The Sun and the Moon always take the article: 'the Sun's influence', 'the Moon's influence'. Never house numbers, degrees, rulerships, the phrase 'chart ruler', aspect names, 'sits in', or any technical mechanics. Never ayanamsha, Lagna, nakshatras, padas, dashas, or other Vedic technical terms; 'Vedic' and 'Western' are allowed. The rising sign names are allowed. The reader never learns where a statement comes from.",
+    "",
+    GROUNDING, "",
+    "REGISTER. Set the possibility frame once ('your charts suggest'), then write with direct confidence. Use 'may' at most once per paragraph, only where there is real uncertainty. Never 'you are always', 'you will', 'this guarantees'. No predictions, medical claims, mythology, deities, or moral judgments. Do not use em dashes; use commas.",
+    "",
+    "SHAPE. Five connected paragraphs, 250 to 340 words in total. No headings, no lists, no labels.",
+    "",
+    "OUTPUT. Return ONLY a JSON object, no prose before or after, no code fences: {\"preview\": \"one sentence of at most 22 words\", \"paragraphs\": [five paragraph strings]}."
+  ].join("\n");
+
+  function userMsgCombined(ev){
+    var t = userMsgTropical(ev.tropical).split("\n"), v = userMsgVedic(ev.vedic).split("\n");
+    t = t.slice(0, t.length - 2); v = v.slice(0, v.length - 2);
+    return ["Western rising: " + ev.tropical.ascendant.sign + ". Vedic rising: " + cap(ev.vedic.ascSign) + ". Same sign in both systems: " + (ev.same ? "yes" : "no") + ".",
+      "", "WESTERN EVIDENCE", t.join("\n"), "", "VEDIC EVIDENCE", v.join("\n"), "",
+      "Write the How They Work Together reading now. JSON only."].join("\n");
+  }
+
   function userMsgTropical(ev){
     var L = ["Western (Tropical) chart, " + ev.houseSystem + " houses, tropical zodiac:",
       "Ascendant: " + ev.ascendant.sign + " " + ev.ascendant.degree + "\u00B0" + ("0" + ev.ascendant.minute).slice(-2) + "\u2032"];
@@ -212,8 +253,11 @@
   /* ---------------- validation ---------------- */
   var FORBID = {
     tropical: /\b(sidereal|ayanamsh?a|vedic|lagna|nakshatras?|padas?|dashas?|rahu|ketu|drishti|yogas?|karakas?|jyotish)\b/i,
-    vedic: /\b(tropical|western zodiac|padas?|nakshatras?)\b/i
+    vedic: /\b(tropical|western zodiac|padas?|nakshatras?)\b/i,
+    combined: /\b(ayanamsh?a|lagna|nakshatras?|padas?|dashas?|drishti|jyotish|tapestry|delve)\b/i
   };
+  var RANGE = { tropical: [275, 375], vedic: [275, 375], combined: [250, 340] };
+  var BANNED_COMBINED = /\b(one perspective|the other perspective|both may be true|this is not a contradiction|the two systems seem to converge|the pattern described there)\b/i;
   var FORBID_BOTH = /\b(you will|you are always|guarantee[sd]?|destined|chart ruler)\b|\b\d{1,2}(st|nd|rd|th) house\b|\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth) house\b|\u00B0/i;
   function words(ps){ return ps.join(" ").trim().split(/\s+/).filter(Boolean).length; }
   function tidy(t){ return String(t).replace(/\s*\u2014\s*/g, ", ").replace(/\s*\u2013\s*/g, ", ").replace(/,\s*,/g, ",").replace(/\s{2,}/g, " ").trim(); }
@@ -221,20 +265,28 @@
     var problems = [];
     if (!out || !Array.isArray(out.paragraphs)) return ["no paragraphs array"];
     if (out.paragraphs.length !== 5) problems.push("paragraph count " + out.paragraphs.length + " (need 5)");
-    var w = words(out.paragraphs);
-    if (w < 275 || w > 375) problems.push("length " + w + " words (need 275-375)");
+    var w = words(out.paragraphs), rg = RANGE[sys];
+    if (w < rg[0] || w > rg[1]) problems.push("length " + w + " words (need " + rg[0] + "-" + rg[1] + ")");
     var all = out.paragraphs.join(" ") + " " + (out.preview || "");
     var m = all.match(FORBID[sys]) || all.match(FORBID_BOTH);
     if (m) problems.push("forbidden term: " + m[0]);
-    if (sys === "vedic" && ev && ev.ascNakshatra && new RegExp("\\b" + ev.ascNakshatra + "\\b", "i").test(all)) problems.push("names the nakshatra");
+    var nak = sys === "vedic" ? ev && ev.ascNakshatra : sys === "combined" ? ev && ev.vedic && ev.vedic.ascNakshatra : null;
+    if (nak && new RegExp("\\b" + nak + "\\b", "i").test(all)) problems.push("names the nakshatra");
+    if (sys === "combined"){
+      var b = all.match(BANNED_COMBINED); if (b) problems.push("banned phrase: " + b[0]);
+      out.paragraphs.forEach(function(p, i){ var n = (p.match(/\bmay\b/gi) || []).length; if (n > 1) problems.push("paragraph " + (i + 1) + " uses 'may' " + n + " times (max 1)"); });
+    }
     if (/^#|\n#/.test(all)) problems.push("heading");
     return problems;
   }
 
   /* ---------------- generation + cache ---------------- */
+  function signFor(sys, ctx){
+    return sys === "tropical" ? ctx.pair.tropical.sign : sys === "vedic" ? ctx.pair.vedic.sign : ctx.pair.tropical.sign + "+" + ctx.pair.vedic.sign;
+  }
   function cacheKey(sys, ctx){
-    var sign = sys === "tropical" ? ctx.pair.tropical.sign : ctx.pair.vedic.sign;
-    return "cozAscReading:" + [ctx.pair.runId, ctx.pair.fingerprint, sys, sign, ctx.pair.engineVersions[sys === "tropical" ? "tropical" : "vedic"], ENGINE_VERSION].join("|");
+    var ev = ctx.pair.engineVersions, eng = sys === "tropical" ? ev.tropical : sys === "vedic" ? ev.vedic : ev.tropical + "+" + ev.vedic;
+    return "cozAscReading:" + [ctx.pair.runId, ctx.pair.fingerprint, sys, signFor(sys, ctx), eng, sys === "combined" ? COMBINED_VERSION : ENGINE_VERSION].join("|");
   }
   function getCached(sys, ctx){ var c = lsJSON(cacheKey(sys, ctx)); return c && Array.isArray(c.paragraphs) ? c : null; }
   function logCall(entry){
@@ -251,19 +303,28 @@
     try { apiKey = localStorage.getItem("cozTestApiKey"); model = localStorage.getItem("cozTestModel") || model; } catch(e){}
     if (!apiKey) return Promise.reject(new Error("DEV: no test API key on this device. Open test-index.html and enter the Demo test key."));
 
-    inPage[key] = (sys === "tropical" ? Promise.resolve(tropicalEvidence(ctx.charts.tropical)) : vedicEvidence(ctx.charts.vedic))
+    var evP = sys === "tropical" ? Promise.resolve(tropicalEvidence(ctx.charts.tropical))
+      : sys === "vedic" ? vedicEvidence(ctx.charts.vedic)
+      : vedicEvidence(ctx.charts.vedic).then(function(v){
+          return { tropical: tropicalEvidence(ctx.charts.tropical), vedic: v, same: ctx.pair.tropical.sign === ctx.pair.vedic.sign };
+        });
+    inPage[key] = evP
     .then(function(ev){
-      if (sys === "vedic" && (!ev.claimSentences || !ev.claimSentences.length)) throw new Error("DEV: no Section 1 evidence matched this chart");
-      var system = sys === "tropical" ? SYS_TROPICAL : SYS_VEDIC;
-      var user = sys === "tropical" ? userMsgTropical(ev) : userMsgVedic(ev);
+      var vev = sys === "combined" ? ev.vedic : ev;
+      if (sys !== "tropical" && (!vev.claimSentences || !vev.claimSentences.length)) throw new Error("DEV: no Section 1 evidence matched this chart");
+      var system = sys === "tropical" ? SYS_TROPICAL : sys === "vedic" ? SYS_VEDIC : SYS_COMBINED;
+      var user = sys === "tropical" ? userMsgTropical(ev) : sys === "vedic" ? userMsgVedic(ev) : userMsgCombined(ev);
       function call(msg, attempt){
         logCall({ key: key, system: sys, attempt: attempt, at: new Date().toISOString() });
+        var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+        var tm = ctl ? setTimeout(function(){ ctl.abort(); }, CALL_TIMEOUT_MS) : null;
         return fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
+          method: "POST", signal: ctl ? ctl.signal : undefined,
           headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01",
                      "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
           body: JSON.stringify({ model: model, max_tokens: 1800, system: system, messages: [{ role: "user", content: msg }] })
-        }).then(function(r){ return r.text().then(function(t){ if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); })
+        }).then(function(r){ return r.text().then(function(t){ clearTimeout(tm); if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); },
+          function(err){ clearTimeout(tm); if (err && err.name === "AbortError") throw new Error("DEV: " + sys + " reading timed out after " + (CALL_TIMEOUT_MS / 1000) + " seconds (attempt " + attempt + ")"); throw err; })
         .then(function(data){
           var text = (data.content || []).filter(function(b){ return b.type === "text"; }).map(function(b){ return b.text; }).join("\n");
           var clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
@@ -275,11 +336,11 @@
           if (problems.length && attempt === 1)
             return call(user + "\n\nYour previous attempt had these problems: " + problems.join("; ") + ". Fix them and return the full JSON again.", 2)
               .then(function(r2){ r2.usageTotal = [data.usage].concat(r2.usageTotal || []); return r2; });
-          if (!out || !Array.isArray(out.paragraphs) || problems.some(function(p){ return /forbidden|nakshatra|no paragraphs|heading/.test(p); }))
+          if (!out || !Array.isArray(out.paragraphs) || problems.some(function(p){ return /forbidden|nakshatra|no paragraphs|heading|banned/.test(p); }))
             throw new Error("DEV: generated " + sys + " reading failed validation: " + problems.join("; "));
           if (!out.preview) out.preview = out.paragraphs[0].split(/(?<=[.!?])\s/)[0];
           return { paragraphs: out.paragraphs, preview: out.preview, attempts: attempt, usageTotal: [data.usage],
-                   trace: { engineVersion: ENGINE_VERSION, model: model, system: sys, validation: problems, words: words(out.paragraphs),
+                   trace: { engineVersion: sys === "combined" ? COMBINED_VERSION : ENGINE_VERSION, model: model, system: sys, validation: problems, words: words(out.paragraphs),
                             evidence: ev, systemPrompt: system, userMessage: user, rawResponse: text } };
         });
       }
@@ -287,9 +348,11 @@
     })
     .then(function(r){
       var rec = { paragraphs: r.paragraphs, preview: r.preview, runId: ctx.pair.runId, fingerprint: ctx.pair.fingerprint,
-                  system: sys, sign: sys === "tropical" ? ctx.pair.tropical.sign : ctx.pair.vedic.sign,
-                  engineVersion: ENGINE_VERSION, generatedAt: new Date().toISOString(), developmentOnly: true,
-                  provenance: sys === "vedic" ? "Section 1 claim records + Vedic generator guardrails" : "Tropical spec + tropical engine chart data (first wiring, unreviewed)",
+                  system: sys, sign: signFor(sys, ctx),
+                  engineVersion: sys === "combined" ? COMBINED_VERSION : ENGINE_VERSION, generatedAt: new Date().toISOString(), developmentOnly: true,
+                  provenance: sys === "vedic" ? "Section 1 claim records + Vedic generator guardrails"
+                    : sys === "combined" ? "Section 1 claim records + tropical engine chart data, combined synthesis (first wiring, unreviewed)"
+                    : "Tropical spec + tropical engine chart data (first wiring, unreviewed)",
                   attempts: r.attempts, trace: r.trace };
       try { localStorage.setItem(key, JSON.stringify(rec)); } catch(e){}
       window.COZ_ASC_TRACE = window.COZ_ASC_TRACE || {}; window.COZ_ASC_TRACE[sys] = rec.trace;
@@ -301,5 +364,5 @@
 
   window.COZ_ASC = { SIGNS: SIGNS, GLYPH: GLYPH, cap: cap, PAIR_FAIL: PAIR_FAIL, ENGINE_VERSION: ENGINE_VERSION,
     fingerprint: cozBirthFingerprint, currentRun: currentRun, ensurePair: ensurePair, getReading: getReading, getCached: getCached,
-    _prompts: { SYS_VEDIC: SYS_VEDIC, SYS_TROPICAL: SYS_TROPICAL } };
+    _prompts: { SYS_VEDIC: SYS_VEDIC, SYS_TROPICAL: SYS_TROPICAL, SYS_COMBINED: SYS_COMBINED } };
 })();

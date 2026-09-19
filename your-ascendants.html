@@ -9,7 +9,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="ascendants-bg.jpg?v=3">
 <style>
-/* YOUR ASCENDANTS · A1.4
+/* YOUR ASCENDANTS · A1.5
+   A1.5: the How They Work Together panel opens the combined reading
+   (ascendant-reading.html?sys=combined). No visual change.
    Background = Jason's baked art, used verbatim (ascendants-bg.jpg, 1185x2576).
    All positions are written in the art's own pixels and scaled by --k, so every
    overlay stays locked to the baked frames on any screen width.
@@ -91,6 +93,7 @@ html,body{background:var(--gap);color:var(--cream);-webkit-text-size-adjust:100%
 .nav .saved{left:calc(470 * var(--k));width:calc(210 * var(--k))}
 .nav .acct{left:calc(820 * var(--k));width:calc(210 * var(--k))}
 
+.comb.tap{cursor:pointer;-webkit-tap-highlight-color:transparent}
 .stamp{position:fixed;right:6px;bottom:2px;font:8px/1 var(--sans);letter-spacing:.08em;color:rgba(204,164,102,.45);pointer-events:none;z-index:9}
 </style>
 </head>
@@ -133,7 +136,7 @@ html,body{background:var(--gap);color:var(--cream);-webkit-text-size-adjust:100%
 
 
   <section class="band c">
-    <div class="abs comb">
+    <div class="abs comb" id="comb">
       <div class="ttl"><span>HOW THEY WORK TOGETHER</span></div>
       <div class="star">&#10022;</div>
       <p id="cPrev"></p>
@@ -146,10 +149,10 @@ html,body{background:var(--gap);color:var(--cream);-webkit-text-size-adjust:100%
   </section>
 
 </main>
-<div class="stamp">ASCENDANTS · A1.4 · chart-run pair</div>
+<div class="stamp">ASCENDANTS · A1.5 · chart-run pair</div>
 
 <script src="dev-review-engine.js?v=8"></script>
-<script src="ascendant-library.js?v=3"></script>
+<script src="ascendant-library.js?v=4"></script>
 <script>
 /* ===== COPY BANKS (fixed copy, draft pending Jason's practitioner approval) =====
    Western = the outer world: how you step in and how others experience you.
@@ -233,6 +236,19 @@ function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
       });
     });
     $("cPrev").textContent=combinedText(w,v);
+    /* A1.5: How They Work Together opens its own full reading. Generation starts now,
+       in parallel with the two cards, so it is usually ready by the time it is tapped. */
+    A.getReading("combined",res).catch(function(e){ console.log("[COZ ASC] combined reading:", e&&e.message); });
+    var comb=$("comb");
+    comb.classList.add("tap");
+    comb.setAttribute("role","button"); comb.setAttribute("tabindex","0");
+    comb.setAttribute("aria-label","How They Work Together, read full analysis");
+    function openComb(){
+      try{ sessionStorage.setItem("cozAscScroll", String(window.scrollY)); }catch(e){}
+      location.href="ascendant-reading.html?sys=combined";
+    }
+    comb.addEventListener("click",openComb);
+    comb.addEventListener("keydown",function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); openComb(); } });
   });
 })();
 </script>

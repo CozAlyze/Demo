@@ -8,8 +8,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
-/* COZALYZE · ASCENDANT FULL READING · R1.1
-   One template for both systems: ?sys=western or ?sys=vedic.
+/* COZALYZE · ASCENDANT FULL READING · R1.2
+   One template for all three readings: ?sys=western, ?sys=vedic or ?sys=combined
+   (How They Work Together: same layout, no frame art, both sign names).
    Signs and copy come from ascendant-library.js (shared with your-ascendants.html). */
 :root{
   --navy:#030b17;
@@ -41,6 +42,7 @@ main{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:max(22px,
 .note{font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--cream);opacity:.85;margin-top:2.2em}
 .back{display:inline-block;margin-top:1.9em;padding:10px 6px;font-family:var(--head);font-weight:500;font-size:clamp(13px,3.9vw,16px);letter-spacing:.2em;color:var(--champ);text-decoration:none;-webkit-tap-highlight-color:transparent}
 .back:focus-visible{outline:1px solid var(--champ);outline-offset:4px}
+.combined .frame{display:none}
 .stamp{position:fixed;right:6px;bottom:2px;z-index:2;font:8px/1 var(--head);letter-spacing:.08em;color:rgba(204,164,102,.45);pointer-events:none}
 </style>
 </head>
@@ -53,25 +55,30 @@ main{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:max(22px,
     <span class="glyph" id="glyph" role="img"></span>
   </div>
   <p class="sys" id="sys"></p>
-  <p class="your">YOUR ASCENDANT</p>
+  <p class="your" id="your">YOUR ASCENDANT</p>
   <h1 class="sign" id="sign"></h1>
-  <p class="meet">HOW YOU MEET THE WORLD</p>
+  <p class="meet" id="meet">HOW YOU MEET THE WORLD</p>
   <article class="reading" id="reading"></article>
   <p class="note">These themes describe possible patterns—not fixed outcomes.</p>
   <a class="back" id="back" href="your-ascendants.html">&lsaquo; BACK TO YOUR ASCENDANTS</a>
 </main>
-<div class="stamp">ASCENDANT READING · R1.1 · dev draft</div>
+<div class="stamp">ASCENDANT READING · R1.2 · dev draft</div>
 
 <script src="dev-review-engine.js?v=8"></script>
-<script src="ascendant-library.js?v=3"></script>
+<script src="ascendant-library.js?v=4"></script>
 <script>
 (function(){
   var A=window.COZ_ASC, q=new URLSearchParams(location.search);
-  var page=q.get("sys")==="vedic"?"vedic":"western", sys=page==="vedic"?"vedic":"tropical";
+  var qs=q.get("sys"), page=qs==="vedic"?"vedic":qs==="combined"?"combined":"western";
+  var sys=page==="vedic"?"vedic":page==="combined"?"combined":"tropical";
   var main=document.getElementById("page");
   main.classList.add(page);
-  document.getElementById("frameImg").src=(page==="vedic"?"frame-vedic.png":"frame-western.png")+"?v=1";
-  document.getElementById("sys").textContent=page==="vedic"?"VEDIC (SIDEREAL)":"WESTERN (TROPICAL)";
+  if(page!=="combined") document.getElementById("frameImg").src=(page==="vedic"?"frame-vedic.png":"frame-western.png")+"?v=1";
+  document.getElementById("sys").textContent=page==="vedic"?"VEDIC (SIDEREAL)":page==="combined"?"WESTERN + VEDIC":"WESTERN (TROPICAL)";
+  if(page==="combined"){
+    document.getElementById("your").textContent="YOUR ASCENDANTS";
+    document.getElementById("meet").textContent="HOW THEY WORK TOGETHER";
+  }
   var label=page==="vedic"?"Vedic":"Western";
   var g=document.getElementById("glyph"), h=document.getElementById("sign"), r=document.getElementById("reading");
   g.setAttribute("aria-hidden","true");
@@ -82,7 +89,8 @@ main{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:max(22px,
     h.style.fontSize="";
     var t=h.querySelector("span"); if(!t) return;
     var fs=parseFloat(getComputedStyle(h).fontSize);
-    while(t.getBoundingClientRect().width>h.clientWidth && fs>18){ fs-=0.5; h.style.fontSize=fs+"px"; }
+    var floor=page==="combined"?14:18;
+    while(t.getBoundingClientRect().width>h.clientWidth && fs>floor){ fs-=0.5; h.style.fontSize=fs+"px"; }
   }
   if(document.fonts&&document.fonts.ready) document.fonts.ready.then(fit);
   addEventListener("resize",fit);
@@ -90,13 +98,20 @@ main{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:max(22px,
 
   A.ensurePair().then(function(res){
     if(!res.ok){ r.innerHTML='<p class="dev">'+esc(A.PAIR_FAIL)+'</p>'; return; }
-    var sign=sys==="tropical"?res.pair.tropical.sign:res.pair.vedic.sign;
-    g.textContent=A.GLYPH[sign]+"\uFE0E";
-    g.removeAttribute("aria-hidden");
-    g.setAttribute("aria-label",A.cap(sign)+" zodiac glyph");
-    h.innerHTML="<span>"+sign.toUpperCase()+" RISING</span>";
-    fit();
-    document.title=A.cap(sign)+" Rising \u00B7 "+label+" Ascendant \u00B7 CozAlyze";
+    if(sys==="combined"){
+      var ws=res.pair.tropical.sign, vs=res.pair.vedic.sign;
+      h.innerHTML="<span>"+ws.toUpperCase()+" + "+vs.toUpperCase()+"</span>";
+      fit();
+      document.title="How They Work Together \u00B7 Your Ascendants \u00B7 CozAlyze";
+    } else {
+      var sign=sys==="tropical"?res.pair.tropical.sign:res.pair.vedic.sign;
+      g.textContent=A.GLYPH[sign]+"\uFE0E";
+      g.removeAttribute("aria-hidden");
+      g.setAttribute("aria-label",A.cap(sign)+" zodiac glyph");
+      h.innerHTML="<span>"+sign.toUpperCase()+" RISING</span>";
+      fit();
+      document.title=A.cap(sign)+" Rising \u00B7 "+label+" Ascendant \u00B7 CozAlyze";
+    }
     return A.getReading(sys,res).then(function(rec){
       r.innerHTML=rec.paragraphs.map(function(t){ return "<p>"+esc(t)+"</p>"; }).join("");
     }).catch(function(e){
