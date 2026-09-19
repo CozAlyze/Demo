@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your Combined Reading · CozAlyze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400&display=swap" rel="stylesheet">
+<style>
+/* COZALYZE · YOUR COMBINED READING · CR1.1
+   Background = his mockup art with the lettering removed (sun, moon, clouds and the
+   CozAlyze wordmark stay as art). Every word on the page is live text, laid out in the
+   mockup's own pixels (932 wide) and scaled by --k, so the page grows naturally. */
+:root{ --cream:#EEE7D8; --gold:#D6B98C; --gold-soft:#B89A6E; --navy:rgb(1,10,23);
+  --head:"Cinzel",Georgia,serif; --sans:"Montserrat","Helvetica Neue",Arial,sans-serif; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--navy);color:var(--cream);-webkit-text-size-adjust:100%}
+/* CR1.1: his full backdrop (1206x2622) used verbatim as the page, text laid over it */
+.page{position:relative;width:100%;max-width:640px;margin:0 auto;container-type:inline-size;
+  height:calc(2622 * 100cqw / 1206);
+  background:var(--navy) url("combined-bg.jpg?v=3") center top/100% auto no-repeat;text-align:center}
+.page,.page *{--k:calc(100cqw / 932)}
+.content{position:absolute;left:0;right:0;top:calc(395 * 100cqw / 1206)}
+.nav .home{left:calc(127 * 100cqw / 1206);width:calc(240 * 100cqw / 1206)}
+.nav .saved{left:calc(470 * 100cqw / 1206);width:calc(225 * 100cqw / 1206)}
+.nav .acct{left:calc(830 * 100cqw / 1206);width:calc(219 * 100cqw / 1206)}
+.nav a{position:absolute;top:calc(2519 * 100cqw / 1206);height:calc(76 * 100cqw / 1206);display:block;-webkit-tap-highlight-color:transparent}
+h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-height:.96;letter-spacing:.02em;
+  color:var(--cream);text-shadow:0 calc(3 * var(--k)) calc(10 * var(--k)) rgba(0,0,0,.65)}
+.sys{font-family:var(--sans);font-weight:400;font-size:calc(25 * var(--k));letter-spacing:.3em;margin-right:-.3em;margin-top:calc(26 * var(--k))}
+.theme{font-family:var(--sans);font-weight:400;font-size:calc(21 * var(--k));line-height:1.62;letter-spacing:.3em;margin-right:-.3em;margin-top:calc(32 * var(--k))}
+.short{width:calc(108 * var(--k));height:1px;margin:calc(46 * var(--k)) auto 0;background:var(--gold-soft);opacity:.8}
+section{padding:0 calc(120 * var(--k))}
+.num{font-family:var(--head);font-weight:400;font-size:calc(24 * var(--k));color:var(--gold-soft);margin-top:calc(38 * var(--k));line-height:1}
+.sec h2{font-family:var(--head);font-weight:500;font-size:calc(38 * var(--k));letter-spacing:.02em;line-height:1.1;color:var(--cream);margin-top:calc(22 * var(--k));white-space:nowrap}
+.sec p{font-family:var(--sans);font-weight:300;font-size:calc(27 * var(--k));line-height:1.48;letter-spacing:.015em;color:var(--cream);margin:calc(26 * var(--k)) auto 0;max-width:calc(640 * var(--k))}
+.div{position:relative;height:calc(28 * var(--k));margin:calc(38 * var(--k)) calc(172 * var(--k)) 0;display:flex;align-items:center}
+.div::before,.div::after{content:"";flex:1;height:1px;background:var(--gold-soft);opacity:.85}
+.div svg{width:calc(24 * var(--k));height:calc(24 * var(--k));margin:0 calc(6 * var(--k));color:var(--gold);flex:none}
+.stamp{position:fixed;right:6px;bottom:2px;z-index:2;font:8px/1 var(--sans);letter-spacing:.08em;color:rgba(204,164,102,.45);pointer-events:none}
+</style>
+</head>
+<body>
+<main class="page">
+ <div class="content">
+  <h1>YOUR<br>COMBINED<br>READING</h1>
+  <p class="sys">Tropical + Vedic</p>
+  <p class="theme">HOW YOUR TWO CHARTS<br>SPEAK TOGETHER</p>
+  <div class="short" aria-hidden="true"></div>
+
+  <section class="sec" id="shared-themes">
+    <p class="num">I</p>
+    <h2>SHARED THEMES</h2>
+    <p>The patterns that appear in both your Tropical and Vedic charts, revealing your core gifts, recurring lessons, and the deeper story that stays consistent across systems.</p>
+  </section>
+  <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
+
+  <section class="sec" id="different-emphases">
+    <p class="num">II</p>
+    <h2>DIFFERENT EMPHASES</h2>
+    <p>Where each system offers a unique perspective — highlighting different facets of your personality, timing, and life path, and how they complement each other.</p>
+  </section>
+  <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
+
+  <section class="sec" id="integrated-view">
+    <p class="num">III</p>
+    <h2>YOUR INTEGRATED VIEW</h2>
+    <p>A unified interpretation that brings the two systems together — giving you a fuller, richer understanding of who you are and what’s ahead.</p>
+  </section>
+ </div>
+  <nav class="nav" aria-label="Main">
+    <a class="home" href="compare-reading.html" aria-label="Home"></a>
+    <a class="saved" href="#" aria-label="Saved"></a>
+    <a class="acct" href="#" aria-label="Account"></a>
+  </nav>
+</main>
+<div class="stamp">COMBINED READING PAGE · CR1.1 · his backdrop</div>
+</body>
+</html>
