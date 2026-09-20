@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Vedic Flight Test F1.0</title>
+<!--
+   VEDIC FLIGHT TEST · F1.0
+   A test page only. It does not touch vedic-reading.html.
+   Needs these files beside it in the same repo folder:
+     vedic-dash.jpg              (already in the master)
+     vedic-reading-reveal.mp4    (already in the master)
+     space-flight.mp4            (new, the approved P4.2 flight)
+
+   What it plays, all timings and values copied from the master vedic-reading.html:
+     tap Your Vedic Reading
+     0.0s   his 2.5s reveal clip plays (panel turn, starburst, orbital diagram)
+     1.5s   the drive into the sun starts: grows 5.5x about the sun at 40.6% of the clip height,
+            over 3.2s on cubic-bezier(0.42, 0, 0.9, 0.35)
+     3.1s   the cream to gold light starts taking the screen (1.4s, ease-in)
+     4.5s   full light. The space flight starts underneath it.
+     4.85s  the light clears over 1.8s, onto the first stars
+     end    the flight finishes. On the real page this is where the reading lands.
+-->
+<style>
+:root { --vedic-navy:#000f26; }
+html,body { margin:0; height:100%; background:var(--vedic-navy); overflow:hidden; -webkit-text-size-adjust:100%; }
+body { -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-select:none; }
+
+.layer { position:fixed; inset:0; overflow:hidden; background:var(--vedic-navy); }
+/* same stage as the master: contain-fit box with the clip's exact aspect, centred */
+.stage { position:absolute; left:50%; top:50%; aspect-ratio:1068 / 1940;
+  width:min(100vw, calc(100svh * 1068 / 1940));
+  transform:translate(-50%,-50%) scale(1); will-change:transform; overflow:hidden; }
+.stage img, .stage video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; display:block; }
+
+#dash { z-index:5; }
+.hot { position:absolute; background:transparent; border:0; padding:0; margin:0; color:transparent; font-size:0; cursor:pointer; }
+
+#reveal { z-index:20; display:none; }
+#reveal.is-on { display:block; }
+/* through the sun, copied from the master */
+#reveal.is-through .stage { transform-origin:50% 40.6%;
+  transition:transform 3200ms cubic-bezier(0.42, 0, 0.9, 0.35), transform-origin 0s;
+  transform:translate(-50%, calc(-50% + 9.4%)) scale(5.5); }
+.curtain { position:absolute; inset:0; opacity:0; pointer-events:none;
+  background:radial-gradient(circle at 50% 50%, #fff6df 0%, #f1d9a6 45%, #e4b978 100%);
+  transition:opacity 1400ms ease-in; }
+#reveal.is-closing .curtain { opacity:1; }
+
+#flightLayer { z-index:10; background:#000; display:none; }
+#flightLayer.is-on { display:block; }
+#flight { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#000; display:block; }
+
+#light { position:fixed; inset:0; z-index:90; pointer-events:none; opacity:0;
+  background:radial-gradient(circle at 50% 42%, #fff6df 0%, #f1d9a6 45%, #e4b978 100%);
+  transition:opacity 1800ms ease-out; }
+#light.on { opacity:1; transition:none; }
+
+#end { z-index:30; background:#000; display:none; align-items:center; justify-content:center; text-align:center; }
+#end.is-on { display:flex; }
+#end div { font:500 12px/1.9 -apple-system,"SF Pro Text","Helvetica Neue",sans-serif; letter-spacing:.16em; text-transform:uppercase; color:rgba(201,161,94,.75); padding:0 28px; }
+
+.stamp { position:fixed; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 6px); z-index:99; text-align:center; pointer-events:none;
+  font:500 9px/1.4 -apple-system,"SF Pro Text","Helvetica Neue",sans-serif; letter-spacing:.18em; text-transform:uppercase; color:rgba(201,161,94,.5); }
+</style>
+</head>
+<body>
+
+<div class="layer" id="dash">
+  <div class="stage">
+    <img src="vedic-dash.jpg?v=24" alt="" width="1068" height="1940">
+    <button class="hot" id="hotReading" type="button" style="left:19.66%;top:54.54%;width:58.8%;height:4.74%" aria-label="Your Vedic Reading">Your Vedic Reading</button>
+  </div>
+</div>
+
+<div class="layer" id="flightLayer">
+  <video id="flight" src="space-flight.mp4?v=1" muted playsinline preload="auto"></video>
+</div>
+
+<div class="layer" id="reveal">
+  <div class="stage" id="revealStage">
+    <img src="vedic-dash.jpg?v=24" alt="" width="1068" height="1940">
+    <video id="revealVideo" src="vedic-reading-reveal.mp4?v=24" muted playsinline preload="auto"></video>
+  </div>
+  <div class="curtain"></div>
+</div>
+
+<div id="light"></div>
+
+<div class="layer" id="end"><div id="endText"></div></div>
+
+<div class="stamp" id="stamp">VEDIC FLIGHT TEST · F1.0</div>
+
+<script>
+(function(){
+  var reveal=document.getElementById('reveal'), rv=document.getElementById('revealVideo');
+  var fl=document.getElementById('flight'), flLayer=document.getElementById('flightLayer');
+  var light=document.getElementById('light'), end=document.getElementById('end'), endText=document.getElementById('endText');
+  var stamp=document.getElementById('stamp'), hot=document.getElementById('hotReading');
+  var running=false, started=false, timers=[], t0=0, tick=0;
+
+  try{ rv.load(); fl.load(); }catch(e){}
+
+  function later(fn,ms){ timers.push(setTimeout(fn,ms)); }
+  function clock(){ stamp.textContent='VEDIC FLIGHT TEST · F1.0 · '+((performance.now()-t0)/1000).toFixed(1)+'s'; }
+
+  function start(){
+    if(running) return; running=true; started=false;
+    t0=performance.now(); tick=setInterval(clock,100);
+    /* prime the flight inside the tap, so iPhone lets it start later on its own */
+    try{ var pp=fl.play(); if(pp&&pp.then) pp.then(function(){ if(!flLayer.classList.contains('is-on')){ fl.pause(); fl.currentTime=0; } }).catch(function(){}); }catch(e){}
+    reveal.classList.remove('is-through','is-closing'); reveal.classList.add('is-on');
+    try{ rv.currentTime=0; }catch(e){}
+    var p=rv.play(); if(p&&p.catch) p.catch(function(){ toFlight(); });
+    later(function(){ if(!started) toFlight(); },7000);          // stall guard, same as the master
+  }
+
+  rv.addEventListener('playing',function(){
+    if(started||!running) return; started=true;
+    later(function(){ reveal.classList.add('is-through'); },1500);
+    later(function(){ reveal.classList.add('is-closing'); },3100);
+    later(toFlight,4500);
+  });
+
+  var handed=false;
+  function toFlight(){
+    if(handed) return; handed=true;
+    light.classList.add('on');                                    // full light
+    flLayer.classList.add('is-on');
+    try{ fl.currentTime=0; }catch(e){}
+    var p=fl.play(); if(p&&p.catch) p.catch(function(){});
+    reveal.classList.remove('is-on','is-through','is-closing');
+    try{ rv.pause(); }catch(e){}
+    document.getElementById('dash').style.display='none';
+    later(function(){ requestAnimationFrame(function(){ requestAnimationFrame(function(){ light.classList.remove('on'); }); }); },350);
+  }
+
+  fl.addEventListener('ended',function(){
+    clearInterval(tick);
+    var total=((performance.now()-t0)/1000).toFixed(1);
+    stamp.textContent='VEDIC FLIGHT TEST · F1.0 · '+total+'s';
+    endText.innerHTML='The reading lands here<br>Tap to '+total+' seconds<br><br>Tap anywhere to run it again';
+    end.classList.add('is-on');
+  });
+
+  end.addEventListener('click',function(){ location.reload(); });
+  hot.addEventListener('click',start);
+})();
+</script>
+</body>
+</html>
