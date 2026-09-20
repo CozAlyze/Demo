@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Vedic Flight Test F1.0</title>
+<title>Vedic Flight Test F1.1</title>
 <!--
-   VEDIC FLIGHT TEST · F1.0
+   VEDIC FLIGHT TEST · F1.1
    A test page only. It does not touch vedic-reading.html.
    Needs these files beside it in the same repo folder:
      vedic-dash.jpg              (already in the master)
@@ -75,7 +75,7 @@ body { -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-s
 </div>
 
 <div class="layer" id="flightLayer">
-  <video id="flight" src="space-flight.mp4?v=1" muted playsinline preload="auto"></video>
+  <video id="flight" src="space-flight.mp4?v=2" muted playsinline preload="auto"></video>
 </div>
 
 <div class="layer" id="reveal">
@@ -90,7 +90,7 @@ body { -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-s
 
 <div class="layer" id="end"><div id="endText"></div></div>
 
-<div class="stamp" id="stamp">VEDIC FLIGHT TEST · F1.0</div>
+<div class="stamp" id="stamp">VEDIC FLIGHT TEST · F1.1</div>
 
 <script>
 (function(){
@@ -98,12 +98,28 @@ body { -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-s
   var fl=document.getElementById('flight'), flLayer=document.getElementById('flightLayer');
   var light=document.getElementById('light'), end=document.getElementById('end'), endText=document.getElementById('endText');
   var stamp=document.getElementById('stamp'), hot=document.getElementById('hotReading');
-  var running=false, started=false, timers=[], t0=0, tick=0;
+  var running=false, started=false, timers=[], t0=0, tick=0, handed=false, lastT=-1, stalls=0, note='';
 
+  /* load both clips as soon as the page opens, so neither has to buffer mid-shot */
   try{ rv.load(); fl.load(); }catch(e){}
+  fl.addEventListener('waiting',function(){ note='buffering'; });
+  fl.addEventListener('playing',function(){ note=''; });
 
   function later(fn,ms){ timers.push(setTimeout(fn,ms)); }
-  function clock(){ stamp.textContent='VEDIC FLIGHT TEST · F1.0 · '+((performance.now()-t0)/1000).toFixed(1)+'s'; }
+  function clock(){
+    var el=((performance.now()-t0)/1000);
+    var line='VEDIC FLIGHT TEST · F1.1 · '+el.toFixed(1)+'s';
+    if(handed){
+      var vt=fl.currentTime||0, dur=fl.duration||0;
+      line+=' · flight '+vt.toFixed(1)+(dur?'/'+dur.toFixed(1):'')+(note?' · '+note:'')+(stalls?' · nudged '+stalls:'');
+      /* if the clip stops advancing but has not reached the end, start it again */
+      if(Math.abs(vt-lastT)<0.02 && dur && vt < dur-0.4){
+        if(fl.paused){ stalls++; try{ fl.play(); }catch(e){} }
+      }
+      lastT=vt;
+    }
+    stamp.textContent=line;
+  }
 
   function start(){
     if(running) return; running=true; started=false;
@@ -123,24 +139,24 @@ body { -webkit-tap-highlight-color:transparent; -webkit-user-select:none; user-s
     later(toFlight,4500);
   });
 
-  var handed=false;
   function toFlight(){
     if(handed) return; handed=true;
     light.classList.add('on');                                    // full light
     flLayer.classList.add('is-on');
     try{ fl.currentTime=0; }catch(e){}
-    var p=fl.play(); if(p&&p.catch) p.catch(function(){});
+    var p=fl.play(); if(p&&p.catch) p.catch(function(err){ note='play blocked'; });
     reveal.classList.remove('is-on','is-through','is-closing');
     try{ rv.pause(); }catch(e){}
     document.getElementById('dash').style.display='none';
     later(function(){ requestAnimationFrame(function(){ requestAnimationFrame(function(){ light.classList.remove('on'); }); }); },350);
   }
 
+  fl.addEventListener('error',function(){ note='video error'; });
   fl.addEventListener('ended',function(){
     clearInterval(tick);
     var total=((performance.now()-t0)/1000).toFixed(1);
-    stamp.textContent='VEDIC FLIGHT TEST · F1.0 · '+total+'s';
-    endText.innerHTML='The reading lands here<br>Tap to '+total+' seconds<br><br>Tap anywhere to run it again';
+    stamp.textContent='VEDIC FLIGHT TEST · F1.1 · '+total+'s';
+    endText.innerHTML='The reading lands here<br>Tap to '+total+' seconds<br>Flight played '+(fl.currentTime||0).toFixed(1)+' of '+(fl.duration||0).toFixed(1)+' seconds'+(stalls?'<br>Nudged '+stalls+' times':'')+'<br><br>Tap anywhere to run it again';
     end.classList.add('is-on');
   });
 
