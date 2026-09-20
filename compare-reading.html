@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPARE · COMBINED READING · C2.5 · reveal on combined
+   COZALYZE · COMPARE · COMBINED READING · C3.0 · one clip
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -426,7 +426,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 <div class="reveal" id="reveal" role="dialog" aria-label="Opening your Combined reading">
   <div class="stage" id="revealStage">
     <img class="stage-art" src="compare-dash.jpg?v=10" alt="" width="1084" height="1908">
-    <video id="revealVideo" src="compare-reading-reveal.mp4?v=10" muted playsinline preload="auto" aria-hidden="true"></video>
+    <video id="revealVideo" src="compare-reading-reveal-full.mp4?v=10" muted playsinline preload="auto" aria-hidden="true"></video>
     <div class="asc-patch asc-patch-glyph" aria-hidden="true"></div>
     <div class="asc-patch asc-patch-text" aria-hidden="true"></div>
     <div class="asc-glyph" aria-hidden="true"></div>
@@ -448,7 +448,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   <div class="vedic-reading-content" id="vedicContent"></div>
 </main>
 
-<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C2.5 · reveal on combined</div>
+<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C3.0 · one clip</div>
 
 <script>
 /* ============================================================
@@ -780,10 +780,10 @@ revealVideo.addEventListener("playing", () => {
      blooming, the light takes the screen while the stage is still growing, the page
      lands under the light and the light clears. No hold anywhere. */
   revealTimers.push(setTimeout(() => revealEl.classList.add("is-through"), 1500));
-  revealTimers.push(setTimeout(() => revealEl.classList.add("is-closing"), 3100));
-  revealTimers.push(setTimeout(() => finishReveal("through"), 4500));
+  /* Sep 20: the reveal, the drive through the sun, the light and the space flight are now ONE clip
+     (compare-reading-reveal-full.mp4). The page just plays it and lands when it ends. */
   // hard cap a little past the clip's 2.5s so a stalled clip never traps anyone
-  revealTimers.push(setTimeout(() => finishReveal(false), 5200));   /* stall guard only */   /* the clip ends first; this only catches a stall */
+  revealTimers.push(setTimeout(() => finishReveal(false), 47000));   /* stall guard only: the clip runs 44.5s */
 });
 
 function finishReveal(immediate) {
@@ -832,7 +832,7 @@ document.querySelector('[data-dash="ascendant"]').addEventListener("click", func
   location.href = "your-ascendants.html";
 });
 document.getElementById("revealBack").addEventListener("click", cancelReveal);
-revealVideo.addEventListener("ended", () => { if (!revealEl.classList.contains("is-through")) finishReveal(false); });
+revealVideo.addEventListener("ended", () => finishReveal(true));   /* the clip ends on open space, the reading is already underneath */
 revealVideo.addEventListener("error", () => finishReveal(false));
 
 /* Section links are plain hash links: every section is its own history entry,
