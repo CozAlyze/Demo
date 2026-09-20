@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE VEDIC READING · R3.7 · flight
+   COZALYZE · COMPLETE VEDIC READING · R4.0 · one clip
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -346,12 +346,6 @@ body[data-view="reading"] .dash { display: none; }
   pointer-events: none;
 }
 .reveal.is-closing .reveal-curtain { opacity: 1; }
-/* Sep 20: the space flight. One video that opens on the same full light the drive ends on,
-   clears to the stars and flies, so it picks up exactly where the camera goes through the sun.
-   It covers the screen while the reading is generated underneath, then fades out. */
-.flight { position: fixed; inset: 0; z-index: 9999; background: #000; opacity: 0; visibility: hidden; transition: opacity 700ms ease-out, visibility 0s linear 700ms; }
-.flight.is-on { opacity: 1; visibility: visible; transition: opacity 0s, visibility 0s; }
-.flight video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; background: #000; }
 .reveal-back {
   position: absolute;
   top: calc(env(safe-area-inset-top) + 10px);
@@ -574,14 +568,13 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 <div class="reveal" id="reveal" role="dialog" aria-label="Opening your Vedic reading">
   <div class="stage" id="revealStage">
     <img class="stage-art" src="vedic-dash.jpg?v=24" alt="" width="1068" height="1940">
-    <video id="revealVideo" src="vedic-reading-reveal.mp4?v=24" muted playsinline preload="auto" aria-hidden="true"></video>
+    <video id="revealVideo" src="vedic-reading-reveal-full.mp4?v=24" muted playsinline preload="auto" aria-hidden="true"></video>
     <div class="asc-patch asc-patch-glyph" aria-hidden="true"></div>
     <div class="asc-patch asc-patch-text" aria-hidden="true"></div>
     <div class="asc-glyph" aria-hidden="true"></div>
     <div class="asc-label" aria-hidden="true"></div>
   </div>
   <div class="reveal-curtain" aria-hidden="true"></div>
-  <div class="flight" id="flightLayer" aria-hidden="true"><video id="flightVideo" src="reading-flight.mp4?v=1" muted playsinline preload="auto" disablepictureinpicture></video></div>
   <button class="reveal-back" id="revealBack" type="button" aria-label="Return to your Vedic dashboard">
     <svg viewBox="0 0 30 20" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M29 10H2M9 3 2 10l7 7"/></svg>
   </button>
@@ -620,7 +613,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R3.7 · flight</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R4.0 · one clip</div>
 
 <script src="dev-review-engine.js?v=6"></script>
 <script>
@@ -1192,24 +1185,7 @@ try { revealVideo.load(); } catch (e) {}
 
 function lockScroll(on) { document.body.classList.toggle("scroll-locked", on); }
 
-function primeFlight(){
-  /* iPhone only lets a clip start if a finger started it. The flight begins several seconds
-     after the tap, so we start it here, inside the tap, and stop it again straight away. */
-  try {
-    const v = document.getElementById("flightVideo");
-    if (!v) return;
-    v.muted = true;
-    const p = v.play();
-    if (p && p.then) p.then(() => {
-      if (!document.getElementById("flightLayer").classList.contains("is-on")) {
-        try { v.pause(); v.currentTime = 0; } catch (e) {}
-      }
-    }).catch(() => {});
-  } catch (e) {}
-}
-
 function startReveal() {
-  primeFlight();
   if (revealActive || !readingReady()) return;
   revealActive = true; revealDone = false;
   document.getElementById("hotReading").disabled = true;
@@ -1243,10 +1219,10 @@ revealVideo.addEventListener("playing", () => {
      blooming, the light takes the screen while the stage is still growing, the page
      lands under the light and the light clears. No hold anywhere. */
   revealTimers.push(setTimeout(() => revealEl.classList.add("is-through"), 1500));
-  revealTimers.push(setTimeout(() => revealEl.classList.add("is-closing"), 3100));
-  revealTimers.push(setTimeout(() => finishReveal("through"), 4500));
+  /* Sep 20: the reveal, the drive through the sun, the light and the space flight are now ONE clip
+     (vedic-reading-reveal-full.mp4). The page just plays it and lands when it ends. */
   // hard cap a little past the clip's 2.5s so a stalled clip never traps anyone
-  revealTimers.push(setTimeout(() => finishReveal(false), 5200));   /* stall guard only */   /* the clip ends first; this only catches a stall */
+  revealTimers.push(setTimeout(() => finishReveal(false), 47000));   /* stall guard only: the clip runs 44.5s */
 });
 
 function finishReveal(immediate) {
@@ -1276,7 +1252,6 @@ function finishReveal(immediate) {
     try { window.__cozLightIn(); } catch (e) {}
     land();
     revealEl.classList.remove("is-through");
-    if (startFlight()) return;                       /* the flight opens on the same light and carries it */
     setTimeout(() => { try { window.__cozLightOut(); } catch (e) {} }, 350);
     return;
   }
@@ -1296,53 +1271,9 @@ function cancelReveal() {
   syncReadyState();
 }
 
-/* ---- space flight ---------------------------------------------------------
-   Plays after the camera goes through the sun. The clip's first frame IS the full
-   light, so there is nothing to match up: the light simply keeps going and clears
-   onto the stars. The reading is being generated underneath the whole time. */
-const flightLayer = document.getElementById("flightLayer");
-const flightVideo = document.getElementById("flightVideo");
-let flightNudge = 0;
-
-function endFlight(){
-  if (!flightLayer.classList.contains("is-on")) { try { window.__cozLightOut(); } catch (e) {} return; }
-  flightLayer.classList.remove("is-on");
-  clearInterval(flightNudge); flightNudge = 0;
-  try { window.__cozLightOut(); } catch (e) {}
-  setTimeout(() => { try { flightVideo.pause(); flightVideo.currentTime = 0; } catch (e) {} }, 800);
-}
-
-function startFlight(){
-  if (!flightVideo || !flightVideo.canPlayType || !flightVideo.canPlayType("video/mp4")) return false;
-  flightLayer.classList.add("is-on");
-  try { flightVideo.currentTime = 0; } catch (e) {}
-  const p = flightVideo.play();
-  if (p && p.catch) p.catch(() => { endFlight(); });
-  /* if it has not actually started moving within 2.5s, give up and let the reading through
-     rather than leaving the screen stuck on the light */
-  setTimeout(() => {
-    if (flightLayer.classList.contains("is-on") && (flightVideo.currentTime || 0) < 0.3) endFlight();
-  }, 2500);
-  /* if the clip ever stalls, start it again rather than sit on a frozen frame */
-  let last = -1;
-  clearInterval(flightNudge);
-  flightNudge = setInterval(() => {
-    const t = flightVideo.currentTime || 0, d = flightVideo.duration || 0;
-    if (d && t >= d - 0.25) { endFlight(); return; }
-    if (Math.abs(t - last) < 0.02 && flightVideo.paused) { try { flightVideo.play(); } catch (e) {} }
-    last = t;
-  }, 500);
-  return true;
-}
-
-flightVideo.addEventListener("ended", endFlight);
-flightVideo.addEventListener("error", endFlight);
-flightLayer.addEventListener("click", endFlight);      /* tap to skip */
-try { flightVideo.load(); } catch (e) {}
-
 document.getElementById("hotReading").addEventListener("click", startReveal);
 document.getElementById("revealBack").addEventListener("click", cancelReveal);
-revealVideo.addEventListener("ended", () => { if (!revealEl.classList.contains("is-through")) finishReveal(false); });
+revealVideo.addEventListener("ended", () => finishReveal(true));   /* the clip ends on open space, the reading is already underneath */
 revealVideo.addEventListener("error", () => finishReveal(false));
 
 /* Section links are plain hash links: every section is its own history entry,
