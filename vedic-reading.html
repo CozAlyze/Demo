@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE VEDIC READING · R3.6 · flight
+   COZALYZE · COMPLETE VEDIC READING · R3.7 · flight
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -620,7 +620,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R3.6 · flight</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R3.7 · flight</div>
 
 <script src="dev-review-engine.js?v=6"></script>
 <script>
@@ -1192,7 +1192,24 @@ try { revealVideo.load(); } catch (e) {}
 
 function lockScroll(on) { document.body.classList.toggle("scroll-locked", on); }
 
+function primeFlight(){
+  /* iPhone only lets a clip start if a finger started it. The flight begins several seconds
+     after the tap, so we start it here, inside the tap, and stop it again straight away. */
+  try {
+    const v = document.getElementById("flightVideo");
+    if (!v) return;
+    v.muted = true;
+    const p = v.play();
+    if (p && p.then) p.then(() => {
+      if (!document.getElementById("flightLayer").classList.contains("is-on")) {
+        try { v.pause(); v.currentTime = 0; } catch (e) {}
+      }
+    }).catch(() => {});
+  } catch (e) {}
+}
+
 function startReveal() {
+  primeFlight();
   if (revealActive || !readingReady()) return;
   revealActive = true; revealDone = false;
   document.getElementById("hotReading").disabled = true;
@@ -1288,7 +1305,7 @@ const flightVideo = document.getElementById("flightVideo");
 let flightNudge = 0;
 
 function endFlight(){
-  if (!flightLayer.classList.contains("is-on")) return;
+  if (!flightLayer.classList.contains("is-on")) { try { window.__cozLightOut(); } catch (e) {} return; }
   flightLayer.classList.remove("is-on");
   clearInterval(flightNudge); flightNudge = 0;
   try { window.__cozLightOut(); } catch (e) {}
@@ -1301,6 +1318,11 @@ function startFlight(){
   try { flightVideo.currentTime = 0; } catch (e) {}
   const p = flightVideo.play();
   if (p && p.catch) p.catch(() => { endFlight(); });
+  /* if it has not actually started moving within 2.5s, give up and let the reading through
+     rather than leaving the screen stuck on the light */
+  setTimeout(() => {
+    if (flightLayer.classList.contains("is-on") && (flightVideo.currentTime || 0) < 0.3) endFlight();
+  }, 2500);
   /* if the clip ever stalls, start it again rather than sit on a frozen frame */
   let last = -1;
   clearInterval(flightNudge);
