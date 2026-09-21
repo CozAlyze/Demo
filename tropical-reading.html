@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE TROPICAL READING · T3.0 · one clip
+   COZALYZE · COMPLETE TROPICAL READING · T3.2 · one clip
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -474,6 +474,14 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 /* text zoom (Sep 1 ruling): wherever there is reading text, two fingers scale it up
    to 2x and back; the text reflows, nothing else on the page zooms */
 #vedicContent, #asqContent .wrap { zoom: var(--coz-text-zoom, 1); }
+
+/* Sep 20: the reveal stage un-zooms from the dashboard's 1.3 to 1 while the gold
+   light covers the screen, so the flight plays full size instead of cropped. */
+#revealStage, #tropicalRevealStage, #compareRevealStage,
+.reveal .stage {
+  transform: translate(-50%, calc(-50% + var(--dash-pan, 0px))) scale(var(--reveal-zoom, var(--dash-zoom, 1)));
+  transition: transform 1300ms cubic-bezier(0.33, 0, 0.2, 1);
+}
 </style>
 </head>
 <body data-view="dashboard">
@@ -503,7 +511,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 <div class="reveal" id="reveal" role="dialog" aria-label="Opening your Tropical reading">
   <div class="stage" id="revealStage">
     <img class="stage-art" src="tropical-dash.jpg?v=10" alt="" width="972" height="2128">
-    <video id="revealVideo" src="tropical-reading-reveal-full.mp4?v=13" muted playsinline preload="auto" aria-hidden="true"></video>
+    <video id="revealVideo" src="tropical-reading-reveal-full.mp4?v=1080" muted playsinline preload="auto" aria-hidden="true"></video>
     <div class="asc-patch asc-patch-glyph" aria-hidden="true"></div>
     <div class="asc-patch asc-patch-text" aria-hidden="true"></div>
     <div class="asc-glyph" aria-hidden="true"></div>
@@ -547,7 +555,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
 </nav>
 
-<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T3.0 · one clip</div>
+<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T3.2 · one clip</div>
 
 <script>
 /* ============================================================
@@ -1368,6 +1376,21 @@ document.getElementById("hotReading").addEventListener("click", function(){
   document.addEventListener("touchend", end); document.addEventListener("touchcancel", end);
 })();
 
+
+/* Sep 20: un-zoom the reveal stage during the gold light (3.6s in), restore on exit. */
+(function () {
+  var st = document.querySelector(".reveal .stage");
+  if (!st) return;
+  var t = null;
+  var vid = document.querySelector(".reveal video");
+  if (!vid) return;
+  function unzoom() { st.style.setProperty("--reveal-zoom", "1"); }
+  function reset() { clearTimeout(t); st.style.removeProperty("--reveal-zoom"); }
+  vid.addEventListener("playing", function () { clearTimeout(t); t = setTimeout(unzoom, 3600); });
+  vid.addEventListener("ended", reset);
+  vid.addEventListener("error", reset);
+  vid.addEventListener("pause", function () { if (vid.currentTime === 0) reset(); });
+})();
 </script>
 </body>
 </html>
