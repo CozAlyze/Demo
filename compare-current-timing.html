@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your Current Timing · CozAlyze</title>
+<!--
+  COZALYZE · COMPARE · CURRENT TIMING · CT2.1 · overview
+  Reached from compare-reading.html ("Your Current Timing").
+
+  Artwork: compare-current-timing-bg.jpg (his composite, 1206 x 2622). Baked in:
+  logo, CozAlyze, title, subtitle, Vedic Cycle / Tropical Sky, the empty
+  diagram with its lotus, divider and moon phases, You Are Here, the
+  Where The Two Meet panel and its button, the tagline, the nav bar.
+  This page draws no visual element of its own. Live text and glyphs are
+  positioned at percentage coordinates measured from that file, the same
+  technique as current-life-cycle.html.
+
+  Live per person (compare-current-timing.js): Mahadasha glyph + name,
+  the Mahadasha-Antardasha pair, and only the Tropical transit planets
+  that are inside the TRANSIT_POLICY orbs right now (0 to 3). The panel
+  carries his approved fixed copy. No Antardasha dates: the painted
+  Vedic half has no free space between the pair and the lotus.
+
+  Transit planets use the platform's existing Unicode planet symbols
+  (the same set coz-graha.js uses). No sphere art exists in the repo, so none is shown.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="compare-current-timing-bg.jpg?v=1">
+<style>
+:root {
+  --gold: #e6c07f;
+  --ivory: #efeeee;
+  --serif: "EB Garamond", Georgia, serif;
+  --symbols: "Apple Symbols", "Segoe UI Symbol", "Noto Sans Symbols 2", Georgia, serif;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; background: rgb(0,2,8); overflow-x: hidden; color: var(--ivory);
+  font-family: var(--serif); -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;
+}
+body { padding-bottom: env(safe-area-inset-bottom); }
+.ct-stage {
+  position: relative; width: 100%; margin: 0 auto;
+  aspect-ratio: 1206 / 2622;
+  background: url("compare-current-timing-bg.jpg?v=1") center top / 100% 100% no-repeat;
+  container-type: inline-size; overflow: hidden;
+}
+@media (min-width: 520px) { .ct-stage { max-width: 480px; } }
+
+.p { position: absolute; transform: translate(-50%, -50%); line-height: 1; text-align: center; white-space: nowrap; }
+
+/* Vedic half, centred on the painted divider at x 38.47% */
+.v-glyph { left: 38.47%; top: 29.94%; font-family: var(--symbols); font-size: 6.4cqw; color: var(--gold); }
+.v-lord  { left: 38.47%; top: 32.49%; font-size: 3.6cqw; font-weight: 500; letter-spacing: .09em; text-transform: uppercase; color: #fff; }
+.v-pair  { left: 38.47%; top: 36.0%;  font-size: 2.5cqw; letter-spacing: .05em; text-transform: uppercase; color: #fff; }
+
+/* Tropical half, three slots on the painted orbits */
+.t-glyph { font-family: var(--symbols); font-size: 4.8cqw; color: var(--gold); }
+
+.ct-summary {
+  position: absolute; left: 13%; right: 13%; top: 58.3%; height: 11.1%;
+  display: flex; align-items: center; justify-content: center; text-align: center;
+  font-size: 3.15cqw; line-height: 1.32; color: var(--ivory); min-width: 0;
+}
+.ct-summary p { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+.hot { position: absolute; display: block; -webkit-tap-highlight-color: transparent; }
+.hot:focus-visible { outline: 1px solid var(--gold); outline-offset: 2px; }
+.read { left: 12.9%; top: 69.4%; width: 74.2%; height: 4.2%; border-radius: 999px; }
+.nav-home { left: 10.5%; top: 96.1%; width: 24.5%; height: 2.7%; }
+.nav-saved { left: 35%; top: 96.1%; width: 26%; height: 2.7%; }
+.nav-acct { left: 61%; top: 96.1%; width: 26%; height: 2.7%; }
+.read[aria-disabled="true"] { pointer-events: none; }
+
+.stamp { position: fixed; right: 6px; bottom: 2px; font: 8px/1 var(--serif); letter-spacing: .08em; color: rgba(204,164,102,.45); pointer-events: none; z-index: 9; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<main class="ct-stage" id="stage">
+  <h1 class="sr">Your Current Timing</h1>
+  <div class="p v-glyph" id="vGlyph" aria-hidden="true"></div>
+  <div class="p v-lord" id="vLord"></div>
+  <div class="p v-pair" id="vPair"></div>
+  <div id="tSlots"></div>
+  <div class="ct-summary" id="summary"><p>Your Vedic timing describes the longer chapter unfolding through your current Mahadasha and Antardasha. Tropical transits describe the shorter planetary conditions interacting with your natal chart now. Together, they offer two time scales for understanding the themes receiving emphasis in the present moment.</p></div>
+  <a class="hot read" id="read" href="compare-current-timing-reading.html" aria-label="Read your full timing" aria-disabled="true"></a>
+  <nav aria-label="Main">
+    <a class="hot nav-home" href="compare-reading.html" aria-label="Home"></a>
+    <a class="hot nav-saved" href="#" aria-label="Saved"></a>
+    <a class="hot nav-acct" href="#" aria-label="Profile"></a>
+  </nav>
+</main>
+<div class="stamp" aria-hidden="true">CURRENT TIMING · CT2.1 · overview</div>
+
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+<script src="coz-graha.js"></script>
+<script src="dev-review-engine.js?v=8"></script>
+<script src="ascendant-library.js?v=4"></script>
+<script src="compare-current-timing.js?v=2"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var G = window.COZ_GRAHA, TM = window.COZ_TIMING;
+
+  /* Slot positions measured on the painted orbits of compare-current-timing-bg.jpg. */
+  var SLOTS = [
+    { sx: 64.2, sy: 28.99 },
+    { sx: 67.7, sy: 33.33 },
+    { sx: 63.6, sy: 38.44 }
+  ];
+  var PAIR_MAX_CQW = 19;   /* painted room between the inner ring and the centre line */
+
+  function fitPair(el) {
+    var stage = $('stage'), max = stage.clientWidth * PAIR_MAX_CQW / 100;
+    el.style.fontSize = '';
+    var w = el.scrollWidth;
+    if (w > max) el.style.fontSize = (parseFloat(getComputedStyle(el).fontSize) * max / w) + 'px';
+  }
+
+  /* The approved copy is fixed wording, so it cannot be shortened. On very
+     narrow screens the type steps down only as far as the painted panel requires. */
+  function fitSummary() {
+    var box = $('summary'), p = box.firstChild;
+    p.style.fontSize = '';
+    for (var i = 0; i < 12 && p.offsetHeight > box.clientHeight; i++) {
+      p.style.fontSize = (parseFloat(getComputedStyle(p).fontSize) * 0.96) + 'px';
+    }
+  }
+  fitSummary();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitSummary);
+
+  function paintSlots(d) {
+    /* fast transits take slots 0 and 1, the slow transit slot 2; empty slots stay empty */
+    var html = '';
+    d.fast.map(function (h, i) { return [h, i]; }).concat(d.slow ? [[d.slow, 2]] : []).forEach(function (x) {
+      var h = x[0], s = SLOTS[x[1]];
+      html += '<div class="p t-glyph" style="left:' + s.sx + '%;top:' + s.sy + '%" role="img" aria-label="' +
+              h.planet + ' transit, ' + h.aspect + ' to natal ' + h.target + '">' + TM.TGLYPH[h.planet] + '\uFE0E</div>';
+    });
+    $('tSlots').innerHTML = html;
+  }
+
+  TM.load().then(function (d) {
+    if (!d.ok) {
+      $('summary').firstChild.textContent = TM.FAIL;
+      fitSummary();
+      if (window.console) console.warn('[CURRENT TIMING] fail-closed: ' + d.reason);
+      return;
+    }
+    $('vGlyph').innerHTML = G.glyphSVG(d.md.lord, '');
+    $('vLord').textContent = d.md.lord;
+    $('vPair').textContent = d.md.lord + ' \u2013 ' + d.ad.lord;
+    fitPair($('vPair'));
+    paintSlots(d);
+
+    $('read').removeAttribute('aria-disabled');
+    var refit = function () { fitPair($('vPair')); fitSummary(); };
+    window.addEventListener('resize', refit);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+  });
+})();
+</script>
+</body>
+</html>
