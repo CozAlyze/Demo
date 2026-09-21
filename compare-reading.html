@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPARE · COMBINED READING · C3.3 · one clip
+   COZALYZE · COMPARE · COMBINED READING · C3.4 · timing + charts doors
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -422,8 +422,8 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 
     <button class="hot hot-reading" id="hotReading" type="button" style="left:23.99%;top:57.23%;width:53.04%;height:4.19%" aria-label="Your Combined Reading">Your Combined Reading</button>
     <button class="hot" type="button" data-dash="ascendant"  style="left:23.99%;top:62.63%;width:53.04%;height:4.45%" aria-label="Your Ascendants">Your Ascendants</button>
-    <button class="hot" type="button" data-dash="timing" style="left:23.99%;top:69.18%;width:53.04%;height:4.45%" aria-label="Your Current Timing">Your Current Timing</button>
-    <button class="hot" type="button" data-dash="birth-charts" style="left:23.99%;top:75.21%;width:53.04%;height:4.45%" aria-label="Your Birth Charts">Your Birth Charts</button>
+    <button class="hot" type="button" data-dash="timing" data-href="compare-current-timing.html" style="left:23.99%;top:69.18%;width:53.04%;height:4.45%" aria-label="Your Current Timing">Your Current Timing</button>
+    <button class="hot" type="button" data-dash="birth-charts" data-href="compare-birth-charts.html" style="left:23.99%;top:75.21%;width:53.04%;height:4.45%" aria-label="Your Birth Charts">Your Birth Charts</button>
     <button class="hot" type="button" data-dash="home"    style="left:18.91%;top:86.74%;width:20.11%;height:3.14%" aria-label="Home">Home</button>
     <button class="hot" type="button" data-dash="saved"   style="left:39.02%;top:86.74%;width:20.11%;height:3.14%" aria-label="Saved">Saved</button>
     <button class="hot" type="button" data-dash="account" style="left:59.13%;top:86.74%;width:20.11%;height:3.14%" aria-label="Account">Account</button>
@@ -456,7 +456,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   <div class="vedic-reading-content" id="vedicContent"></div>
 </main>
 
-<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C3.3 · one clip</div>
+<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C3.4 · timing + charts doors</div>
 
 <script>
 /* ============================================================

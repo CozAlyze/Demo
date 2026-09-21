@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your Birth Charts · CozAlyze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400;500&family=EB+Garamond:ital@1&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="compare-timing-reading-top.jpg?v=1">
+<style>
+/* COZALYZE · COMPARE · YOUR BIRTH CHARTS · BCH1.0 · chooser
+   Two doors only: vedic-birth-chart.html and tropical-birth-chart.html,
+   neither chart page is touched. Shell reused from the Current Timing
+   reading (itself the Combined Reading shell).
+   Page shell, type, dividers, accordion, pager and nav are the Combined
+   Reading (CR2.x) implementation, reused as-is: tokens, --k/--K scaling,
+   .div star divider, .acc grid accordion, .pager, .art-bottom nav.
+   His background (1206x2622) in three verbatim pieces so the page grows with
+   the reading: compare-timing-reading-top.jpg (rows 0-2220: sky, logo,
+   wordmark), compare-timing-reading-mid.png (one row averaged from his plain
+   band 2220-2340, repeated), compare-timing-reading-bottom.jpg (rows
+   2340-2622: tagline + nav). Nothing is stretched. All wording is live. */
+:root{ --cream:#EEE7D8; --gold:#D6B98C; --gold-soft:#B89A6E; --navy:rgb(0,2,8);
+  --head:"Cinzel",Georgia,serif; --sans:"Montserrat","Helvetica Neue",Arial,sans-serif; --body:"EB Garamond",Georgia,serif; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--navy);color:var(--cream);-webkit-text-size-adjust:100%;overflow-x:hidden}
+body{padding-bottom:env(safe-area-inset-bottom)}
+.page{position:relative;width:100%;max-width:640px;margin:0 auto;container-type:inline-size;text-align:center;
+  background:url("compare-timing-reading-top.jpg?v=1") center top/100% auto no-repeat, url("compare-timing-reading-mid.png?v=1") center top/100% 1px repeat-y, var(--navy)}
+.page,.page *{--k:calc(100cqw / 932);--K:calc(100cqw / 1206)}
+.content{padding-top:calc(350 * var(--K));min-height:calc(1500 * var(--K));padding-bottom:calc(40 * var(--K))}
+.content *{min-width:0}
+h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)));line-height:1.02;letter-spacing:.02em;color:var(--cream);
+  text-shadow:0 calc(3 * var(--k)) calc(10 * var(--k)) rgba(0,0,0,.65);padding:0 calc(40 * var(--k))}
+.full{font-family:var(--head);font-weight:400;font-size:max(17px,calc(44 * var(--k)));line-height:1.1;color:var(--cream);margin-top:calc(14 * var(--k))}
+.sys{font-family:var(--sans);font-weight:400;font-size:max(12px,calc(24 * var(--k)));letter-spacing:.04em;margin-top:calc(18 * var(--k));padding:0 calc(40 * var(--k))}
+.theme{font-family:var(--sans);font-weight:400;font-size:max(10.5px,calc(19 * var(--k)));line-height:1.62;letter-spacing:.2em;color:var(--gold);
+  margin-top:calc(26 * var(--k));padding:0 calc(50 * var(--k));overflow-wrap:anywhere}
+.theme span{white-space:nowrap}
+.status{font-family:var(--sans);font-weight:300;font-size:max(15px,calc(28 * var(--k)));line-height:1.5;color:var(--cream);margin:calc(40 * var(--k)) calc(110 * var(--k)) 0}
+.div{height:calc(28 * var(--k));margin:calc(38 * var(--k)) calc(90 * var(--k)) 0;display:flex;align-items:center}
+.div::before,.div::after{content:"";flex:1;height:1px;background:var(--gold-soft);opacity:.85}
+.div svg{width:calc(24 * var(--k));height:calc(24 * var(--k));margin:0 calc(6 * var(--k));color:var(--gold);flex:none}
+.sec{padding:0 calc(90 * var(--k))}
+.acc-btn{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;width:100%;min-height:44px;
+  display:flex;align-items:center;gap:calc(24 * var(--k));text-align:left;color:inherit;padding:calc(26 * var(--k)) 0 calc(8 * var(--k));
+  -webkit-tap-highlight-color:transparent}
+.acc-btn:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+.acc-btn .txt{flex:1;min-width:0}
+.acc-btn .t{display:block;font-family:var(--head);font-weight:500;font-size:max(16px,calc(38 * var(--k)));letter-spacing:.06em;line-height:1.15;color:var(--gold);overflow-wrap:anywhere}
+.acc-btn .sub{display:block;font-family:var(--sans);font-weight:300;font-size:max(13px,calc(25 * var(--k)));line-height:1.4;letter-spacing:.015em;color:var(--cream);margin-top:calc(8 * var(--k))}
+.acc-btn svg{width:max(18px,calc(34 * var(--k)));height:max(18px,calc(34 * var(--k)));flex:none;color:var(--gold);transition:transform .45s ease}
+.acc-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+.acc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s ease}
+.acc.open{grid-template-rows:1fr}
+.acc-in{overflow:hidden;visibility:hidden;transition:visibility 0s .45s}
+.acc.open .acc-in{visibility:visible;transition:visibility 0s 0s}
+.body{text-align:left;padding:calc(18 * var(--k)) 0 calc(6 * var(--k))}
+.body p{font-family:var(--sans);font-weight:300;font-size:max(15px,calc(30 * var(--k)));line-height:1.6;color:var(--cream);overflow-wrap:anywhere}
+.body p+p{margin-top:.95em}
+.method{margin-top:calc(46 * var(--k))}
+.mlink{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;min-height:44px;padding:0 12px;
+  font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--gold);-webkit-tap-highlight-color:transparent}
+.mlink:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+.note{font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--cream);opacity:.85;margin:calc(10 * var(--k)) calc(90 * var(--k)) 0}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:calc(46 * var(--k)) calc(90 * var(--k)) 0}
+.pager a{font-family:var(--head);font-weight:500;font-size:max(11.5px,calc(22 * var(--k)));letter-spacing:.18em;color:var(--gold);text-decoration:none;
+  padding:10px 4px;min-height:44px;display:inline-flex;align-items:center;-webkit-tap-highlight-color:transparent}
+.pager a:focus-visible{outline:1px solid var(--gold);outline-offset:4px}
+.art-bottom{position:relative;height:calc(282 * var(--K));background:url("compare-timing-reading-bottom.jpg?v=1") center top/100% auto no-repeat}
+.nav a{position:absolute;top:calc(172 * var(--K));height:calc(80 * var(--K));min-height:44px;display:block;-webkit-tap-highlight-color:transparent}
+.nav .home{left:calc(127 * var(--K));width:calc(240 * var(--K))}
+.nav .saved{left:calc(470 * var(--K));width:calc(225 * var(--K))}
+.nav .acct{left:calc(830 * var(--K));width:calc(219 * var(--K))}
+.nav a:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+
+.door{display:flex;align-items:center;justify-content:center;min-height:44px;margin:0 calc(90 * var(--k));padding:calc(30 * var(--k)) 0;
+  font-family:var(--head);font-weight:500;font-size:max(16px,calc(38 * var(--k)));letter-spacing:.06em;color:var(--gold);text-decoration:none;
+  -webkit-tap-highlight-color:transparent;overflow-wrap:anywhere}
+.door:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+.stamp{position:fixed;right:6px;bottom:2px;z-index:2;font:8px/1 var(--sans);letter-spacing:.08em;color:rgba(204,164,102,.45);pointer-events:none}
+</style>
+</head>
+<body>
+<main class="page">
+ <div class="content">
+  <h1>Your Birth Charts</h1>
+  <p class="sys">Vedic (Sidereal) + Tropical (Western)</p>
+  <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
+  <a class="door" href="vedic-birth-chart.html">VEDIC BIRTH CHART</a>
+  <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
+  <a class="door" href="tropical-birth-chart.html">TROPICAL BIRTH CHART</a>
+  <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
+  <nav class="pager" aria-label="Page navigation">
+    <a href="compare-reading.html">&lsaquo; COMPARE</a>
+  </nav>
+ </div>
+ <div class="art-bottom">
+  <nav class="nav" aria-label="Main">
+    <a class="home" href="compare-reading.html" aria-label="Home"></a>
+    <a class="saved" href="#" aria-label="Saved"></a>
+    <a class="acct" href="#" aria-label="Profile"></a>
+  </nav>
+ </div>
+</main>
+<div class="stamp">BIRTH CHARTS · BCH1.0 · chooser</div>
+</body>
+</html>
