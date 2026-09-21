@@ -1035,7 +1035,7 @@ var BIRTH = __ok ? {
 console.log('[EMERGE FLOW] 5. sidereal-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 document.getElementById('stamp').textContent =
-  'SIDEREAL v19.95 engine version · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'SIDEREAL v19.96 engine version · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -3790,20 +3790,30 @@ function dashIntroZoom(ov){
     var full = sc.offsetHeight, vh = window.innerHeight;
     if (!full || full <= vh * 1.05) return;
     var s = vh / full;
-    ov.__introLock = true;
-    sc.style.transition = 'none';
-    sc.style.transform = 'scale(' + s.toFixed(4) + ')';
-    sc.style.pointerEvents = 'none';
-    ov.style.overflow = 'hidden';
-    window.setTimeout(function(){
-      sc.style.transition = 'transform 1.8s cubic-bezier(0.22,0.61,0.36,1)';
-      sc.style.transform = 'scale(1)';
+    /* Sep 21 fix: the intro is decorative only. Buttons stay tappable the whole
+       time (no pointer-events lock; transformed hotspots still hit-test
+       correctly). Pinch waits for the intro via __introLock, and a failsafe
+       restores everything even if a timer or transition is lost. */
+    var restored = false, restore = function(){
+      if (restored) return; restored = true;
+      sc.style.transition = ''; sc.style.transform = ''; sc.style.pointerEvents = '';
+      ov.style.overflow = ''; ov.__introLock = false;
+      try { ov.scrollTop = 0; } catch(_){}
+    };
+    try {
+      ov.__introLock = true;
+      sc.style.transition = 'none';
+      sc.style.transform = 'scale(' + s.toFixed(4) + ')';
+      ov.style.overflow = 'hidden';
       window.setTimeout(function(){
-        sc.style.transition = ''; sc.style.transform = ''; sc.style.pointerEvents = '';
-        ov.style.overflow = ''; ov.__introLock = false;
-        try { ov.scrollTop = 0; } catch(_){}
-      }, 1950);
-    }, 3000);
+        try {
+          sc.style.transition = 'transform 1.8s cubic-bezier(0.22,0.61,0.36,1)';
+          sc.style.transform = 'scale(1)';
+        } catch(_){ restore(); }
+        window.setTimeout(restore, 1950);
+      }, 3000);
+      window.setTimeout(restore, 6000);          /* failsafe */
+    } catch(e){ restore(); }
   };
   var imgs = Array.prototype.slice.call(sc.querySelectorAll('img'));
   var pending = imgs.filter(function(i){ return !i.complete; }).length;
