@@ -253,7 +253,7 @@ button{font:inherit}
   <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
   <div id="reportMount"></div>
 </div>
-<div class="build-stamp">BIRTH CHART · TBC1.2 · wheel radius fix</div>
+<div class="build-stamp">BIRTH CHART · TBC1.3 · full wheel</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -390,7 +390,7 @@ function wheelTheta(lon, asc){ return mod(180 + mod(lon - asc, 360), 360); }
 function renderWheel(chart){
   var frame = el("div","chart-frame");
   var cx = 150, cy = 150;
-  var rOuter = 122, rSignRing = 108, rHouseRing = 92, rPlanetTrue = 82, rPlanetLabel = 66, rAspect = 82;
+  var rOuter = 122, rSignRing = 108, rHouseRing = 92, rPlanetTrue = 82, rPlanetLabel = 66, rAspect = 56, rInner = 56;
   var asc = chart.angles.ascendant.longitude;
   var svg = svgEl("svg",{class:"western-wheel", viewBox:"0 0 300 300", role:"img",
     "aria-label":"Circular Western natal chart with the Ascendant in " + chart.angles.ascendant.sign});
@@ -398,6 +398,7 @@ function renderWheel(chart){
   svg.appendChild(svgEl("circle",{class:"wheel-ring", cx:cx, cy:cy, r:rOuter}));
   svg.appendChild(svgEl("circle",{class:"wheel-ring", cx:cx, cy:cy, r:rSignRing}));
   svg.appendChild(svgEl("circle",{class:"wheel-ring", cx:cx, cy:cy, r:rHouseRing}));
+  svg.appendChild(svgEl("circle",{class:"wheel-ring", cx:cx, cy:cy, r:rInner}));
 
   /* 12 sign boundary lines + glyphs at each sign's midpoint */
   for (var s = 0; s < 12; s++){
@@ -419,12 +420,12 @@ function renderWheel(chart){
     for (var h = 1; h <= 12; h++){
       var lon = byHouse[h];
       var isAngle = (h === 1 || h === 4 || h === 7 || h === 10);
-      var q1 = wheelPoint(lon, asc, cx, cy, rHouseRing);
-      var q2 = wheelPoint(lon, asc, cx, cy, isAngle ? rOuter : rHouseRing + 10);
+      var q1 = wheelPoint(lon, asc, cx, cy, rInner);
+      var q2 = wheelPoint(lon, asc, cx, cy, isAngle ? rOuter : rSignRing);
       svg.appendChild(svgEl("line",{class: isAngle ? "wheel-axis" : "wheel-cusp", x1:q1.x, y1:q1.y, x2:q2.x, y2:q2.y}));
       var nextLon = byHouse[(h % 12) + 1];
       var span = mod(nextLon - lon, 360); if (span === 0) span = 30;
-      var numPt = wheelPoint(lon + span/2, asc, cx, cy, rHouseRing - 9);
+      var numPt = wheelPoint(lon + span/2, asc, cx, cy, rInner - 8);
       var num = svgEl("text",{class:"wheel-housenum", x:numPt.x, y:numPt.y});
       num.textContent = String(h);
       svg.appendChild(num);
