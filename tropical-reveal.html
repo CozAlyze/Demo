@@ -3392,7 +3392,7 @@ function compareCheckout(){
   console.log('[EMERGE FLOW] compare door: tropical asc', a.tropical, '| sidereal asc', a.sidereal);
   window.dispatchEvent(new CustomEvent('EMERGE_CHECKOUT_REQUESTED', { detail: { product: 'compare', price: 75 } }));
   /* compare-reading.html paints its Ascendants glyph from the TROPICAL sign (its own contract) */
-  cozHandoff('COMPARE', 'compare-reading.html?asc=' + a.tropical + '&v=8');
+  cozHandoff('COMPARE', 'compare-reading.html?asc=' + a.tropical + '&v=9');   /* v=9: C3.4 timing + charts doors, busts the cached C3.3 */
 }
 var cozInfoOverlayEl = null, cozInfoReturnTo = null, cozInfoOpenFor = null, cozInfoCloseTimer = null;
 function cozInfoBuild(){
