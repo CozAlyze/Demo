@@ -1035,7 +1035,7 @@ var BIRTH = __ok ? {
 console.log('[EMERGE FLOW] 5. sidereal-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 document.getElementById('stamp').textContent =
-  'SIDEREAL v19.96 engine version · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'SIDEREAL v19.97 engine version · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -3507,10 +3507,10 @@ function openCompleteChartResult(){
    ?v= on both so Safari cannot serve the old pricing.jpg from cache. */
 /* Sep 3: brand-new price-page art, both sizes (his Canva exports). Cache bumped
    past every earlier version so no phone can serve the old page. */
-var DASH_SRC = (window.innerWidth < 900) ? 'dash-mobile.jpg?v=35' : 'pricing.jpg?v=4';
+var DASH_SRC = (window.innerWidth < 900) ? 'dash-mobile.webp?v=1' : 'pricing.jpg?v=4';
 /* Sep 3: the mobile page continues past the price art into his new
    Expanding Perspectives section (six cards, two per row) as a second image */
-var DASH_EXPANDING_SRC = (window.innerWidth < 900) ? 'expanding-mobile.png?v=1' : null;
+var DASH_EXPANDING_SRC = (window.innerWidth < 900) ? 'expanding-mobile.webp?v=1' : null;
 /* WHAT'S INCLUDED (Sep 1): the Vedic $49 handler is now a named function so the
    art hotspot and the modal's Continue to Checkout button share ONE route. Body unchanged. */
 function vedicCheckout(){
