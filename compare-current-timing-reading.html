@@ -9,7 +9,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400;500&family=EB+Garamond:ital@1&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="compare-timing-reading-top.jpg?v=1">
 <style>
-/* COZALYZE · COMPARE · CURRENT TIMING · CT2.1 · full reading
+/* COZALYZE · COMPARE · CURRENT TIMING · CT3.0 · full reading
+   CT3.0: expanded readings (layered banks in compare-current-timing.js);
+   a paragraph starting "## " renders as a transit subheading, reusing the
+   accordion title's own Cinzel gold at body scale.
    Page shell, type, dividers, accordion, pager and nav are the Combined
    Reading (CR2.x) implementation, reused as-is: tokens, --k/--K scaling,
    .div star divider, .acc grid accordion, .pager, .art-bottom nav.
@@ -56,6 +59,8 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
 .body{text-align:left;padding:calc(18 * var(--k)) 0 calc(6 * var(--k))}
 .body p{font-family:var(--sans);font-weight:300;font-size:max(15px,calc(30 * var(--k)));line-height:1.6;color:var(--cream);overflow-wrap:anywhere}
 .body p+p{margin-top:.95em}
+.body h3{font-family:var(--head);font-weight:500;font-size:max(13.5px,calc(26 * var(--k)));letter-spacing:.06em;line-height:1.3;color:var(--gold);margin:1.5em 0 .45em}
+.body h3:first-child{margin-top:.2em}
 .method{margin-top:calc(46 * var(--k))}
 .mlink{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;min-height:44px;padding:0 12px;
   font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--gold);-webkit-tap-highlight-color:transparent}
@@ -124,13 +129,13 @@ dialog.mdl::backdrop{background:rgba(0,2,8,.78)}
     <div id="mdlBody"></div>
   </div>
 </dialog>
-<div class="stamp">CURRENT TIMING · CT2.1 · full reading</div>
+<div class="stamp">CURRENT TIMING · CT3.0 · full reading</div>
 
 <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
 <script src="coz-graha.js"></script>
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=4"></script>
-<script src="compare-current-timing.js?v=2"></script>
+<script src="compare-current-timing.js?v=3"></script>
 <script>
 (function(){
   'use strict';
@@ -151,7 +156,7 @@ dialog.mdl::backdrop{background:rgba(0,2,8,.78)}
         '<span class="txt"><span class="t">' + esc(s.title.toUpperCase()) + '</span><span class="sub">' + esc(s.subtitle) + '</span></span>' + CHEV +
       '</button></h2>' +
       '<div class="acc" id="' + id + '" role="region" aria-labelledby="btn-' + s.id + '"><div class="acc-in"><div class="body">' +
-        s.paras.map(function(p){ return '<p>' + esc(p) + '</p>'; }).join('') +
+        s.paras.map(function(p){ return p.indexOf('## ') === 0 ? '<h3>' + esc(p.slice(3)) + '</h3>' : '<p>' + esc(p) + '</p>'; }).join('') +
       '</div></div></div>' +
     '</section>';
   }
@@ -180,7 +185,10 @@ dialog.mdl::backdrop{background:rgba(0,2,8,.78)}
     var year = lc.yearLengthDays ? (lc.mode === 'synodic_354_fixed' ? 'Synodic year, ' : lc.mode + ', ') + String(lc.yearLengthDays) + ' days' : null;
     var shown = d.fast.concat(d.slow ? [d.slow] : []);
     var active = shown.length ? shown.map(function(h){
-      return h.planet + ' ' + h.aspect + ' natal ' + h.target + ', orb ' + h.orb.toFixed(2) + '\u00B0, ' + cap(h.status);
+      var w = h.window, fmt = function(t){ return new Date(t).toLocaleString('en-US', { dateStyle:'medium', timeStyle:'short' }); };
+      return h.planet + ' ' + h.aspect + ' natal ' + h.target + ', orb ' + h.orb.toFixed(2) + '\u00B0, ' + cap(h.status) +
+        '\nIn orb ' + (w.openStart ? 'before ' : '') + fmt(w.entry) + ' to ' + (w.openEnd ? 'after ' : '') + fmt(w.exit) +
+        (w.passes.length ? '\nExact ' + w.passes.map(fmt).join('; ') : (w.closest ? '\nNot exact in this window; closest ' + fmt(w.closest.t) + ', ' + w.closest.f.toFixed(2) + '\u00B0 from exact' : ''));
     }).join('\n') : 'None within the current orbs';
     var html =
       '<h3>VEDIC LIFE CYCLE</h3>' + rows([
@@ -191,7 +199,8 @@ dialog.mdl::backdrop{background:rgba(0,2,8,.78)}
         ['Nodes', calc.nodes],
         ['Year length', year],
         ['Current Mahadasha', d.md.lord + ', ' + day(d.md.startTimestamp) + ' to ' + day(d.md.endTimestamp)],
-        ['Current Antardasha', d.ad.lord + ', ' + day(d.ad.startTimestamp) + ' to ' + day(d.ad.endTimestamp)]
+        ['Current Antardasha', d.ad.lord + ', ' + day(d.ad.startTimestamp) + ' to ' + day(d.ad.endTimestamp)],
+        ['Graha drishti', 'Whole sign. Every graha aspects the 7th house from itself; Mars also the 4th and 8th, Jupiter the 5th and 9th, Saturn the 3rd and 10th. Rahu and Ketu are not assigned aspects.']
       ]) +
       '<h3>TROPICAL TRANSITS</h3>' + rows([
         ['Zodiac', st.zodiac || 'Tropical'],
@@ -203,6 +212,7 @@ dialog.mdl::backdrop{background:rgba(0,2,8,.78)}
         ['Transiting planets', P.fastPlanets.concat(P.slowPlanets).join(', ') + (P.moonIncluded ? ', Moon' : '; the Moon is not included')],
         ['Shown', P.announcementWindowDays ? 'Contacts within orb, and up to ' + P.announcementWindowDays + ' days ahead' : 'Only contacts already within orb'],
         ['Active transits', active],
+        ['Exact', 'An exact pass is the moment the aspect angle is actually reached. The status reads Exact while the orb is within ' + P.exactThresholdDegrees + '\u00B0. Active dates are solved from the planet\u2019s actual motion, including retrograde periods.'],
         ['Nodes', (st.nodeType || P.nodeType) + ' node']
       ]);
     $('mdlBody').innerHTML = html.replace(/\n/g, '<br>');
