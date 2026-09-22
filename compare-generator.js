@@ -10,9 +10,10 @@
    Western claim-system version ("none"), so it can never be reused as a production result
    and is invalidated when any of those change. */
 (function(){
-  var PROMPT_VERSION = "cmp-prompt 0.2-dev";
+  var PROMPT_VERSION = "cmp-prompt 0.3-dev two-step";
   var WESTERN_CLAIM_SYSTEM = "none";                     // bump when the Tropical claim system exists
-  var RANGES = { sharedThemes: [325, 450, 5, 5], differentEmphases: [325, 450, 5, 5], integratedView: [375, 500, 5, 6] };
+  /* agreed Combined Reading size (Sep 22): about 150 / 200 / 120 words, ~470 total */
+  var RANGES = { sharedThemes: [120, 190, 2, 3], differentEmphases: [160, 250, 2, 4], integratedView: [95, 155, 1, 2] };
   var DEFAULT_MODEL = "claude-sonnet-4-6";
   var PLANETS = ["Sun","Moon","Mercury","Venus","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto","Rahu","Ketu"];
   var NAKSHATRAS = ["Ashwini","Bharani","Krittika","Rohini","Mrigashira","Ardra","Punarvasu","Pushya","Ashlesha","Magha",
@@ -27,13 +28,13 @@
     "",
     "EVIDENCE. Use only the evidence supplied. Vedic evidence is a set of eligible claim statements: rephrase and connect them, never add a meaning they do not support, and never extend a claim into anything listed under its prohibited extensions. Western evidence is placements with no approved meanings: interpret them conservatively, never more strongly than the Vedic claims you pair them with.",
     "",
-    "SHARED THEMES THRESHOLD. A shared theme needs ALL of: at least one Vedic claim, at least one clearly relevant Western factor, and a real reason the two point to the same functional pattern. If either side is weak, omit that theme entirely. Never write that one side offers only a light or faint signal: a weak convergence is left out, not hedged. Do not pad to reach five topics: five paragraphs may explore two or three strong convergences in more depth.",
+    "SHARED THEMES THRESHOLD. A shared theme needs ALL of: at least one Vedic claim, at least one clearly relevant Western factor, and a real reason the two point to the same functional pattern. If either side is weak, omit that theme entirely. Never write that one side offers only a light or faint signal: a weak convergence is left out, not hedged. Do not pad to reach a topic count. Two or three paragraphs may explore the strongest convergences in more depth.",
     "DIFFERENCES THRESHOLD. Every difference needs at least one Western factor, at least one Vedic claim, and a genuine difference in function or emphasis. A sign change alone is never a difference. A theme supported on only one side gets no comparison at all.",
     "",
     "SECTIONS.",
-    "sharedThemes: convergence. Open directly with this person's first convergence; at most one short framing clause, and never explain the product or the zodiacs. Wording like 'Both perspectives may draw attention to', 'A similar pattern appears through different parts of the two charts', 'The two systems seem to converge around', 'This theme may be experienced both outwardly and internally'. Never 'confirmed twice' or anything implying repetition makes it certain. Exactly five paragraphs, 325 to 450 words.",
-    "differentEmphases: distinction. Two to four real differences, balanced between the systems, explained as different layers, contexts or expressions. Wording like 'Your Western chart places greater emphasis on', 'Your Vedic chart brings more attention to', 'These are not necessarily opposing descriptions', 'One perspective describes how the pattern may be expressed; the other describes what may be driving it.' Exactly five paragraphs, 325 to 450 words.",
-    "integratedView: synthesis ONLY of propositions already established in sharedThemes or differentEmphases. No new factor, claim, theme, prediction or outcome. Do not infer results (for example that decisions work out, hold up, succeed or pay off), and do not make identity-essence judgments such as where the person feels most like themselves or who they really are. Explain how the two emphases may interact, where they reinforce each other, where conscious balance may help, how a difference may become complementary, and the clearest takeaway. Wording like 'Taken together', 'The fuller picture suggests', 'You may recognize both patterns operating in different circumstances', 'Neither perspective needs to cancel the other'. The last paragraph is a concise, specific synthesis, not a motivational ending. Five or six paragraphs, 375 to 500 words.",
+    "sharedThemes: convergence. Open directly with this person's first convergence; at most one short framing clause, and never explain the product or the zodiacs. Wording like 'Both perspectives may draw attention to', 'A similar pattern appears through different parts of the two charts', 'The two systems seem to converge around', 'This theme may be experienced both outwardly and internally'. Never 'confirmed twice' or anything implying repetition makes it certain. Two or three paragraphs, 120 to 190 words in total.",
+    "differentEmphases: distinction. Two to four real differences, balanced between the systems, explained as different layers, contexts or expressions. Wording like 'Your Western chart places greater emphasis on', 'Your Vedic chart brings more attention to', 'These are not necessarily opposing descriptions', 'One perspective describes how the pattern may be expressed; the other describes what may be driving it.' Two to four paragraphs, 160 to 250 words in total.",
+    "integratedView: synthesis ONLY of propositions already established in sharedThemes or differentEmphases. No new factor, claim, theme, prediction or outcome. Do not infer results (for example that decisions work out, hold up, succeed or pay off), and do not make identity-essence judgments such as where the person feels most like themselves or who they really are. Explain how the two emphases may interact, where they reinforce each other, where conscious balance may help, how a difference may become complementary, and the clearest takeaway. Wording like 'Taken together', 'The fuller picture suggests', 'You may recognize both patterns operating in different circumstances', 'Neither perspective needs to cancel the other'. The last paragraph is a concise, specific synthesis, not a motivational ending. One or two paragraphs, 95 to 155 words in total.",
     "Each section does a different job; do not repeat the same conclusion across the three.",
     "",
     "CUSTOMER LANGUAGE. Say 'your Western chart' or 'your Western chart using the tropical zodiac', and 'your Vedic chart' or 'your Vedic chart using the sidereal zodiac'; never 'Tropical astrology'. The ONLY chart terms allowed in the prose are the two rising signs by name. Do not name any planet or graha, including the Sun, the Moon and the guiding planet: describe what the factor does in plain words instead. Never name a nakshatra, a pada, a house or house number, another zodiac sign, an aspect, a rulership, a claim ID or a factor label.",
@@ -152,7 +153,9 @@
 
   /* Sep 22 (item 5): cache-only lookup, and an in-flight marker so a generation started
      in index.html (the living page) is not duplicated by the reading page. */
-  var INFLIGHT = "cozCombinedGenInFlight", INFLIGHT_MAX_MS = 150000;
+  /* v5: the write is two sequential calls, so the shared in-flight window covers both and
+     is refreshed whenever a stage or retry begins */
+  var INFLIGHT = "cozCombinedGenInFlight", INFLIGHT_MAX_MS = 420000;
   function peek(pair, man){
     try { var c = JSON.parse(localStorage.getItem(cacheKey(pair, man)) || "null"); if (c && c.sharedThemes){ c.fromCache = true; return c; } } catch(e){}
     return null;
@@ -182,20 +185,86 @@
       throw e;
     });
   }
-  var inPage = null;
+  var inPage = null, inPageKey = null;
+  /* v5 (Sep 22): TWO STEPS. Step 1 writes sharedThemes and differentEmphases. Step 2 writes
+     integratedView and is handed the exact evidence ids step 1 used, because the writer kept
+     citing fresh Vedic claims there and failing the "no new evidence" rule on every pass. */
+  function idsUsed(out){
+    var f = {}, c = {}, t = {}, ids = [];
+    ["sharedThemes", "differentEmphases"].forEach(function(k){
+      ((out && out[k] && out[k].evidence) || []).forEach(function(e){
+        if (e.id) ids.push(e.id);
+        (e.tropicalFactors || []).forEach(function(x){ f[x] = 1; });
+        (e.vedicClaimIds || []).forEach(function(x){ c[x] = 1; });
+        if (e.theme) t[e.theme] = 1;
+      });
+    });
+    return { factors: Object.keys(f), claims: Object.keys(c), themes: Object.keys(t), entryIds: ids };
+  }
+  function stage2Message(user, part1, man, pair, sup){
+    var u = idsUsed(part1);
+    /* v5: step 2 is built from the two written sections plus ONLY the evidence they used.
+       Evidence that Integrated View may not cite never appears in this prompt at all. */
+    var allowed = ["Rising signs: Western " + cap(pair.tropical.sign) + ", Vedic " + cap(pair.vedic.sign) + ".", ""];
+    u.themes.forEach(function(t){
+      allowed.push("THEME " + t + (THEME_LABEL[t] ? " (" + THEME_LABEL[t] + ")" : ""));
+      var fs = u.factors.filter(function(f){ return (man.items || []).some(function(i){ return i.system === "tropical" && i.factorId === f && i.themeKey === t; }); });
+      allowed.push("  Western factors used: " + (fs.join(", ") || "(none)"));
+      var lines = [], seen = {};
+      (man.items || []).forEach(function(i){
+        if (i.system !== "vedic" || i.themeKey !== t) return;
+        var supplied = false;
+        (i.claimMeanings || []).forEach(function(c){
+          if (seen[c.claimId] || u.claims.indexOf(c.claimId) < 0) return;
+          seen[c.claimId] = 1; supplied = true; lines.push("   - [" + c.claimId + "] " + c.meaning);
+        });
+        /* the safety boundaries travel with the allowed claims; records that supplied no
+           allowed claim contribute nothing, so no fresh evidence is exposed */
+        if (supplied && i.prohibitedExtensions && i.prohibitedExtensions.length)
+          lines.push("     prohibited extensions: " + i.prohibitedExtensions.join("; "));
+      });
+      allowed.push(lines.length ? "  Vedic claims used:" : "  Vedic claims used: (none)");
+      lines.forEach(function(l){ allowed.push(l); });
+      allowed.push("");
+    });
+    return [
+      allowed.join("\n"),
+      "",
+      "STEP 2 of 2. Sections I and II are already written and are shown below. Write ONLY integratedView now.",
+      "",
+      "SECTION I (sharedThemes), as written:",
+      (part1.sharedThemes.paragraphs || []).join("\n\n"),
+      "",
+      "SECTION II (differentEmphases), as written:",
+      (part1.differentEmphases.paragraphs || []).join("\n\n"),
+      "",
+      "HARD LIMIT. integratedView may use ONLY these ids, and no others:",
+      "  Western factors allowed: " + (u.factors.join(", ") || "(none)"),
+      "  Vedic claims allowed: " + (u.claims.join(", ") || "(none)"),
+      "  themes allowed: " + (u.themes.join(", ") || "(none)"),
+      "  buildsOn must reference these entries: " + (u.entryIds.join(", ") || "(none)"),
+      "Any other factor id, claim id or theme is a failure. Introduce no new evidence, no new theme and no new conclusion; synthesize what Sections I and II already establish.",
+      "",
+      "Return ONLY this JSON, no prose, no code fences:",
+      "{\"integratedView\": {\"paragraphs\": [...], \"wordCount\": n, \"evidence\": [{\"id\": \"I1\", \"theme\": themeKey, \"paragraphs\": [numbers], \"use\": \"integrated\", \"tropicalFactors\": [...], \"vedicClaimIds\": [...], \"buildsOn\": [...], \"why\": \"...\"}]}}"
+    ].join("\n");
+  }
   function getCombined(pairCtx, man){
     var key = cacheKey(pairCtx.pair, man);
     var hit = peek(pairCtx.pair, man); if (hit) return Promise.resolve(hit);
-    if (inPage) return inPage;
+    if (inPage && inPageKey === key) return inPage;      /* same chart run only */
+    inPage = null; inPageKey = null;
     var apiKey = null, model = DEFAULT_MODEL;
     try { apiKey = localStorage.getItem("cozTestApiKey"); model = localStorage.getItem("cozTestModel") || model; } catch(e){}
     if (!apiKey) return Promise.reject(new Error("DEV: no test API key on this device. Open test-index.html and enter the Demo test key."));
     var sup = supplied(man);
     if (!Object.keys(sup.comparable).some(function(k){ return sup.comparable[k]; })) return Promise.reject(new Error("DEV: no theme has eligible evidence on both sides for this chart"));
     var user = userMessage(man, pairCtx.pair, sup);
-    function call(msg, attempt, retryReason){
+    var STEP1 = user + "\n\nSTEP 1 of 2. Write ONLY sharedThemes and differentEmphases now, in the shape given above. Leave integratedView out entirely; it is written in a second step.";
+    function call(msg, attempt, retryReason, stage, base){
       logCall({ key: key, attempt: attempt, retryReason: retryReason || null, at: new Date().toISOString() });
-      try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify({ key: key, attempt: attempt, startedAt: Date.now() })); } catch(e){}
+      markInFlight(key, true);                       /* refresh the window at every stage and retry */
+      try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify({ key: key, stage: stage, attempt: attempt, startedAt: Date.now() })); } catch(e){}
       /* v4: a call that has not answered in 150 s is abandoned (it was able to hang forever) */
       var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
       var tm = ctl ? setTimeout(function(){ ctl.abort(); }, 150000) : null;
@@ -209,14 +278,19 @@
         var text = (data.content || []).filter(function(b){ return b.type === "text"; }).map(function(b){ return b.text; }).join("\n");
         var clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
         var out = null; try { out = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1)); } catch(e){}
+        /* step 1 is judged on its own two sections; step 2 is judged as the finished
+           reading, with the sections step 1 already wrote merged back in */
+        if (stage === 1 && out) out = { sharedThemes: out.sharedThemes, differentEmphases: out.differentEmphases };
+        if (stage === 2 && out) out = { sharedThemes: base.sharedThemes, differentEmphases: base.differentEmphases, integratedView: out.integratedView };
         var v = validate(out, sup, pairCtx.pair);
+        if (stage === 1) v.hard = v.hard.filter(function(p){ return p.indexOf("integratedView") !== 0; });
         /* v4 (Sep 22): only HARD failures (forbidden terms, missing or untraceable evidence,
            wrong paragraph count) earn a second full pass. Soft notes, such as a word count
            a little outside its range, are accepted and recorded; they were doubling the wait. */
         var retryable = v.hard;
         try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify({ key: key, attempt: attempt, done: !retryable.length || attempt === 2, at: Date.now() })); } catch(e){}
         if (retryable.length && attempt === 1)
-          return call(user + "\n\nYour previous attempt failed these checks: " + retryable.join("; ") + ". Fix every one and return the full JSON again.", 2, retryable.join("; "))
+          return call(msg.split("\n\nYour previous attempt failed")[0] + "\n\nYour previous attempt failed these checks: " + retryable.join("; ") + ". Fix every one and return the JSON again.", 2, retryable.join("; "), stage, base)
             .then(function(r2){ r2.firstAttemptProblems = retryable; return r2; });
         if (v.hard.length) {
           var err = new Error("DEV: the writer's draft failed these checks twice: " + v.hard.slice(0, 4).join("; "));
@@ -224,11 +298,16 @@
           try { localStorage.setItem("cozCombinedGenLastFail", JSON.stringify({ at: new Date().toISOString(), hard: v.hard, soft: v.soft })); } catch (e) {}
           throw err;
         }
-        return { out: out, attempts: attempt, validation: v, raw: text };
+        return { out: out, attempts: attempt, validation: v, raw: text, stage: stage };
       });
     }
     markInFlight(key, true);
-    inPage = call(user, 1).then(function(r){
+    inPage = call(STEP1, 1, null, 1).then(function(r1){
+      /* step 2: the Integrated View, with the allow-list from step 1 */
+      return call(stage2Message(user, r1.out, man, pairCtx.pair, sup), 1, null, 2, r1.out).then(function(r2){
+        return { out: r2.out, attempts: r1.attempts + r2.attempts, validation: r2.validation, raw: r1.raw + "\n---\n" + r2.raw };
+      });
+    }).then(function(r){
       var used = {};
       ["sharedThemes","differentEmphases","integratedView"].forEach(function(k){ (r.out[k].evidence || []).forEach(function(e){ (e.vedicClaimIds || []).forEach(function(c){ used[c] = sup.vedicStatus[c]; }); }); });
       var rec = {
@@ -245,9 +324,11 @@
       markInFlight(key, false);
       return rec;
     });
-    inPage.catch(function(){ inPage = null; markInFlight(key, false); });
+    inPageKey = key;
+    inPage.then(function(){ inPage = null; inPageKey = null; },
+                function(){ inPage = null; inPageKey = null; markInFlight(key, false); });
     return inPage;
   }
 
-  window.COZ_COMBINED_GEN = { PROMPT_VERSION: PROMPT_VERSION, getCombined: getCombined, peek: peek, inFlight: inFlight, _system: SYSTEM, _validate: validate, _supplied: supplied, _userMessage: userMessage };
+  window.COZ_COMBINED_GEN = { PROMPT_VERSION: PROMPT_VERSION, getCombined: getCombined, peek: peek, inFlight: inFlight, _system: SYSTEM, _validate: validate, _supplied: supplied, _userMessage: userMessage , _stage2: stage2Message};
 })();

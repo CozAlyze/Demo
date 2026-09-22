@@ -2970,7 +2970,7 @@ document.querySelectorAll('.syscard').forEach(card => {
   function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('failed ' + src)); }; document.head.appendChild(s); }); }
   function cozPregenCombined(){
     var chain = Promise.resolve();
-    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=4'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
+    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=5'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
     return chain.then(function(){ return window.COZ_ASC.ensurePair(); }).then(function(res){
       if (!res || !res.ok) { console.log('[COZ PREGEN] pair refused:', res && res.reason); return; }
       if (cozPregenRuns[res.pair.runId]) return; cozPregenRuns[res.pair.runId] = true;
@@ -3011,8 +3011,12 @@ document.querySelectorAll('.syscard').forEach(card => {
       window.removeEventListener('message', onDone);
       console.log('[COZ PREGEN] vedic sections 3-6 ' + (m.ok ? 'ready' : 'skipped'));
       drop();
+      /* Sep 22 (his ruling): the Compare readings are written from the chart result too,
+         whether or not Compare is chosen. Started after the Vedic pre-write so only one
+         call runs at a time. */
+      cozPregenCombined();
     });
-    setTimeout(drop, 240000);
+    setTimeout(function(){ drop(); cozPregenCombined(); }, 240000);   /* failsafe: Compare still starts */
     document.body.appendChild(fr);
     console.log('[COZ PREGEN] vedic sections 3-6 started at the chart result');
   }
