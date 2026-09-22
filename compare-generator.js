@@ -147,6 +147,7 @@
     return "cozCombinedReadingDEV:" + [pair.runId, pair.fingerprint, pair.engineVersions.tropical, pair.engineVersions.vedic,
       PROMPT_VERSION, man.selectionVersion, man.taxonomyVersion, "westernClaims=" + WESTERN_CLAIM_SYSTEM].join("|");
   }
+  function phase(o){ try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify(o)); } catch (e) {} }
   function logCall(e){ try { var L = JSON.parse(localStorage.getItem("cozCombinedGenLog") || "[]"); L.push(e); localStorage.setItem("cozCombinedGenLog", JSON.stringify(L.slice(-40))); } catch(x){} }
 
   /* Sep 22 (item 5): cache-only lookup, and an in-flight marker so a generation started
@@ -217,7 +218,12 @@
         if (retryable.length && attempt === 1)
           return call(user + "\n\nYour previous attempt failed these checks: " + retryable.join("; ") + ". Fix every one and return the full JSON again.", 2, retryable.join("; "))
             .then(function(r2){ r2.firstAttemptProblems = retryable; return r2; });
-        if (v.hard.length) throw new Error("DEV: combined reading failed validation after retry: " + v.hard.join("; "));
+        if (v.hard.length) {
+          var err = new Error("DEV: the writer's draft failed these checks twice: " + v.hard.slice(0, 4).join("; "));
+          err.validation = v; err.attempts = attempt;
+          try { localStorage.setItem("cozCombinedGenLastFail", JSON.stringify({ at: new Date().toISOString(), hard: v.hard, soft: v.soft })); } catch (e) {}
+          throw err;
+        }
         return { out: out, attempts: attempt, validation: v, raw: text };
       });
     }

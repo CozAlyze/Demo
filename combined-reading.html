@@ -118,7 +118,7 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
   </nav>
  </div>
 </main>
-<div class="stamp">COMBINED READING · CR2.6 · faster writer</div>
+<div class="stamp">COMBINED READING · CR2.7 · failure detail</div>
 
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=3"></script>
@@ -236,6 +236,7 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
         clearInterval(tick);
         console.log("[COZ COMBINED]", e && e.message);
         var msg = (e && /load failed|network/i.test(e.message || "")) ? "The connection dropped while your reading was being prepared." : ((e && e.message) || "DEV: reading unavailable");
+        msg += " (" + mmss(Date.now() - t0) + " total)";
         bodies.forEach(function(b, i){ b.innerHTML = '<p class="dev">' + esc(msg) + '</p>' + (i === 0 ? '<p class="dev"><a href="#" class="retry">Try again</a></p>' : ''); });
         var r = document.querySelector(".body .retry"); if (r) r.addEventListener("click", function(ev){ ev.preventDefault(); run(); });
       });
