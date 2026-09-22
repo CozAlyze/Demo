@@ -42,6 +42,10 @@ main{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:max(22px,
 .note{font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--cream);opacity:.85;margin-top:2.2em}
 .back{display:inline-block;margin-top:1.9em;padding:10px 6px;font-family:var(--head);font-weight:500;font-size:clamp(13px,3.9vw,16px);letter-spacing:.2em;color:var(--champ);text-decoration:none;-webkit-tap-highlight-color:transparent}
 .back:focus-visible{outline:1px solid var(--champ);outline-offset:4px}
+/* item 6 (Sep 22): Next sits on the same row as Back, same style, right-aligned */
+.pager{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+.pager .back{text-align:left;flex:1 1 0}
+.pager .next{text-align:right}
 .combined .frame{display:none}
 .stamp{position:fixed;right:6px;bottom:2px;z-index:2;font:8px/1 var(--head);letter-spacing:.08em;color:rgba(204,164,102,.45);pointer-events:none}
 </style>
@@ -60,9 +64,12 @@ main{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:max(22px,
   <p class="meet" id="meet">HOW YOU MEET THE WORLD</p>
   <article class="reading" id="reading"></article>
   <p class="note">These themes describe possible patterns—not fixed outcomes.</p>
-  <a class="back" id="back" href="your-ascendants.html">&lsaquo; BACK TO YOUR ASCENDANTS</a>
+  <div class="pager">
+    <a class="back" id="back" href="your-ascendants.html">&lsaquo; BACK TO YOUR ASCENDANTS</a>
+    <a class="back next" id="next" href="#" hidden></a>
+  </div>
 </main>
-<div class="stamp">ASCENDANT READING · R1.2 · dev draft</div>
+<div class="stamp">ASCENDANT READING · R1.3 · next link</div>
 
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=4"></script>
@@ -119,6 +126,13 @@ main{position:relative;z-index:1;max-width:640px;margin:0 auto;padding:max(22px,
     });
   });
 
+  /* item 6 (Sep 22): Next steps through the Compare sequence.
+     Tropical Ascendant -> Vedic Ascendant -> Your Current Timing. */
+  var NEXT = { western: ["VEDIC ASCENDANT", "ascendant-reading.html?sys=vedic"],
+               vedic:   ["YOUR CURRENT TIMING", "compare-current-timing.html"],
+               combined:["YOUR CURRENT TIMING", "compare-current-timing.html"] };
+  var nx = document.getElementById("next");
+  if (NEXT[page]) { nx.innerHTML = esc(NEXT[page][0]) + " &rsaquo;"; nx.href = NEXT[page][1]; nx.hidden = false; }
   /* back: return to the Ascendants page where the reader left it */
   document.getElementById("back").addEventListener("click",function(e){
     var ref=document.referrer||"";
