@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPARE · COMBINED READING · C3.4 · timing + charts doors
+   COZALYZE · COMPARE · COMBINED READING · C3.5 · open on whole art
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -456,7 +456,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   <div class="vedic-reading-content" id="vedicContent"></div>
 </main>
 
-<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C3.4 · timing + charts doors</div>
+<div class="vedic-stamp" aria-hidden="true">COMBINED READING · C3.5 · open on whole art</div>
 
 <script>
 /* ============================================================
@@ -704,9 +704,12 @@ function dashZoomIn() {
   const target = getComputedStyle(document.documentElement).getPropertyValue("--dash-zoom-in").trim() || "1.12";
   const go = () => { window.__dashZoomed = true; document.documentElement.style.setProperty("--dash-zoom", target); };
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) { go(); return; }
-  const art = document.querySelector("#dashStage .stage-art");
-  const start = () => setTimeout(go, 1900);   /* Sep 1: the frame fades in first, so the whole art is seen before the ease-in */
-  if (art.complete) start(); else art.addEventListener("load", start, { once: true });
+  /* Sep 21 (item 4): index.html shows this page's frame only on the page's load event,
+     so the ease-in is timed from that moment (not from the art image alone). Otherwise,
+     on this heavier page, the ease-in could run while the frame was still hidden and the
+     dashboard appeared already zoomed. */
+  const start = () => setTimeout(go, 1900);   /* the frame fades in first, so the whole art is seen before the ease-in */
+  if (document.readyState === "complete") start(); else window.addEventListener("load", start, { once: true });
 }
 dashZoomIn();
 
