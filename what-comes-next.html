@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>What Comes Next · CozAlyze</title>
 <!--
-  COZALYZE · WHAT COMES NEXT · WCN1.2
+  COZALYZE · WHAT COMES NEXT · WCN1.3
   Reached from current-life-cycle.html, current-season.html and key-time-windows.html.
 
   SCOPE. This page covers the next MAHADASHA only. Key Time Windows already
@@ -155,7 +155,7 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
   </div>
 </div>
 
-<div class="wcn-stamp" aria-hidden="true">WHAT COMES NEXT · WCN1.2</div>
+<div class="wcn-stamp" aria-hidden="true">WHAT COMES NEXT · WCN1.3</div>
 
 <script src="coz-graha.js"></script>
 <script>
@@ -254,7 +254,7 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
 
   var md = lc.mahadasha;
   var nx = lc.nextMahadasha;
-  if (!nx || !nx.lord) { failClosed('no next Mahadasha in timing data (exporter predates WCN1.2)'); return; }
+  if (!nx || !nx.lord) { failClosed('no next Mahadasha in timing data (exporter predates WCN1.3)'); return; }
 
   var p = G.planet(chart, nx.lord);
   if (!p || !(p.house >= 1 && p.house <= 12)) { failClosed('next Mahadasha lord lacks a verified house'); return; }
@@ -323,7 +323,7 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
     '<p class="wcn-disclaimer">' + DISCLAIMER + '</p>' +
 
     '<div class="wcn-explore">' +
-      '<div class="wcn-nav"><a href="current-life-cycle.html">\u2190 Back to Life Cycle Overview</a></div>' +
+      '<div class="wcn-nav"><a href="current-life-cycle.html">\u2190 Back to Life Cycle Overview</a><a href="vedic-birth-chart.html">Next: Your Birth Chart \u2192</a></div>' +
     '</div>';
 
   if (window.console) {

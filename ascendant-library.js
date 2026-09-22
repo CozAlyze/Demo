@@ -1,4 +1,4 @@
-/* COZALYZE · ASCENDANT LIBRARY · L2.3 · (Sep 22: cross-page in-flight marker + network retry, so a reading started early by index.html is waited for, never duplicated) · chart-run pairing (+ engine versions) + Ascendant-only generation
+/* COZALYZE · ASCENDANT LIBRARY · L2.4 · (Sep 22: cross-page in-flight marker + network retry, so a reading started early by index.html is waited for, never duplicated) · chart-run pairing (+ engine versions) + Ascendant-only generation
    L2.2: third reading "combined" (How They Work Together), built from both evidence sets;
    missing charts are exported in parallel; every API call has a 90 second timeout.
    DEMO / DEVELOPMENT ONLY. Shared by your-ascendants.html and ascendant-reading.html.
@@ -309,10 +309,22 @@
       })();
     });
   }
-  function fetchRetry(url, opts, tries){
-    return fetch(url, opts).catch(function(e){
+  /* L2.4: a 429 (too many requests) or 529 (overloaded) is waited out and retried,
+     honouring retry-after; dropped connections are retried too */
+  function retryAfterMs(r, attempt){
+    var h = r.headers && r.headers.get && r.headers.get("retry-after");
+    var s = h ? parseFloat(h) : NaN;
+    return isFinite(s) ? Math.min(s * 1000, 30000) : Math.min(4000 * attempt, 20000);
+  }
+  function fetchRetry(url, opts, tries, attempt){
+    attempt = attempt || 1;
+    return fetch(url, opts).then(function(r){
+      if ((r.status === 429 || r.status === 529) && tries > 0)
+        return new Promise(function(res){ setTimeout(res, retryAfterMs(r, attempt)); }).then(function(){ return fetchRetry(url, opts, tries - 1, attempt + 1); });
+      return r;
+    }).catch(function(e){
       var net = e && e.name !== "AbortError" && (e.name === "TypeError" || /load failed|network/i.test(e.message || ""));
-      if (tries > 0 && net) return new Promise(function(r){ setTimeout(r, 2500); }).then(function(){ return fetchRetry(url, opts, tries - 1); });
+      if (tries > 0 && net) return new Promise(function(r){ setTimeout(r, 2500); }).then(function(){ return fetchRetry(url, opts, tries - 1, attempt + 1); });
       throw e;
     });
   }
@@ -351,7 +363,7 @@
           headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01",
                      "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
           body: JSON.stringify({ model: model, max_tokens: 1800, system: system, messages: [{ role: "user", content: msg }] })
-        }, 2).then(function(r){ return r.text().then(function(t){ clearTimeout(tm); if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); },
+        }, 3).then(function(r){ return r.text().then(function(t){ clearTimeout(tm); if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); },
           function(err){ clearTimeout(tm); if (err && err.name === "AbortError") throw new Error("DEV: " + sys + " reading timed out after " + (CALL_TIMEOUT_MS / 1000) + " seconds (attempt " + attempt + ")"); throw err; })
         .then(function(data){
           var text = (data.content || []).filter(function(b){ return b.type === "text"; }).map(function(b){ return b.text; }).join("\n");

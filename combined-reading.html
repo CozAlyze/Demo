@@ -118,12 +118,12 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
   </nav>
  </div>
 </main>
-<div class="stamp">COMBINED READING · CR2.5 · larger text</div>
+<div class="stamp">COMBINED READING · CR2.6 · faster writer</div>
 
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=3"></script>
 <script src="compare-evidence.js?v=3"></script>
-<script src="compare-generator.js?v=3"></script>
+<script src="compare-generator.js?v=4"></script>
 <script>
 (function(){
   var FAIL = "We couldn\u2019t load both charts for this reading. Please return and run your chart again.";
@@ -214,14 +214,26 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
         })();
       });
     }
+    /* CR2.6: elapsed time while the reading is written, so a long wait can be reported
+       with real numbers (development build) */
+    var t0 = Date.now(), tick = null;
+    function mmss(ms){ var s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); }
+    function showWaiting(){
+      var ph = null; try { ph = JSON.parse(localStorage.getItem("cozCombinedGenPhase") || "null"); } catch(e){}
+      var since = ph && ph.startedAt ? ph.startedAt : t0;
+      var pass = ph && ph.attempt === 2 ? " \u00b7 second pass" : "";
+      bodies.forEach(function(b){ var p = b.querySelector(".wait"); if (p) p.textContent = "Preparing your reading\u2026 " + mmss(Date.now() - since) + pass; });
+    }
     function run(){
-      bodies.forEach(function(b){ b.innerHTML = '<p class="dev">Preparing your reading\u2026</p>'; });
+      bodies.forEach(function(b){ b.innerHTML = '<p class="dev wait">Preparing your reading\u2026</p>'; });
+      clearInterval(tick); tick = setInterval(showWaiting, 1000);
       return E.buildManifest(res).then(function(m){
         window.COZ_COMBINED_MANIFEST = m;
         var hit = G.peek(res.pair, m); if (hit) return hit;
         if (G.inFlight(res.pair, m)) return waitForOtherJob(m).then(function(r){ return r || G.getCombined(res, m); });
         return G.getCombined(res, m);
-      }).then(show).catch(function(e){
+      }).then(function(rec){ clearInterval(tick); show(rec); }).catch(function(e){
+        clearInterval(tick);
         console.log("[COZ COMBINED]", e && e.message);
         var msg = (e && /load failed|network/i.test(e.message || "")) ? "The connection dropped while your reading was being prepared." : ((e && e.message) || "DEV: reading unavailable");
         bodies.forEach(function(b, i){ b.innerHTML = '<p class="dev">' + esc(msg) + '</p>' + (i === 0 ? '<p class="dev"><a href="#" class="retry">Try again</a></p>' : ''); });

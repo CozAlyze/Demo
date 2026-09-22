@@ -161,9 +161,21 @@
   }
   function markInFlight(key, on){ try { if (on) localStorage.setItem(INFLIGHT, JSON.stringify({ key: key, at: Date.now() })); else localStorage.removeItem(INFLIGHT); } catch(e){} }
   /* Safari reports a dropped connection as TypeError "Load failed"; retry those twice */
-  function fetchRetry(url, opts, tries){
-    return fetch(url, opts).catch(function(e){
-      if (tries > 0 && e && (e.name === "TypeError" || /load failed|network/i.test(e.message || ""))) {
+  /* v4: a 429 (too many requests) or 529 (overloaded) is waited out and retried,
+     honouring retry-after when the API sends one */
+  function retryAfterMs(r, attempt){
+    var h = r.headers && r.headers.get && r.headers.get("retry-after");
+    var s = h ? parseFloat(h) : NaN;
+    return isFinite(s) ? Math.min(s * 1000, 30000) : Math.min(4000 * attempt, 20000);
+  }
+  function fetchRetry(url, opts, tries, attempt){
+    attempt = attempt || 1;
+    return fetch(url, opts).then(function(r){
+      if ((r.status === 429 || r.status === 529) && tries > 0)
+        return new Promise(function(res){ setTimeout(res, retryAfterMs(r, attempt)); }).then(function(){ return fetchRetry(url, opts, tries - 1, attempt + 1); });
+      return r;
+    }).catch(function(e){
+      if (tries > 0 && e && e.name !== "AbortError" && (e.name === "TypeError" || /load failed|network/i.test(e.message || ""))) {
         return new Promise(function(res){ setTimeout(res, 2500); }).then(function(){ return fetchRetry(url, opts, tries - 1); });
       }
       throw e;
@@ -182,17 +194,26 @@
     var user = userMessage(man, pairCtx.pair, sup);
     function call(msg, attempt, retryReason){
       logCall({ key: key, attempt: attempt, retryReason: retryReason || null, at: new Date().toISOString() });
+      try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify({ key: key, attempt: attempt, startedAt: Date.now() })); } catch(e){}
+      /* v4: a call that has not answered in 150 s is abandoned (it was able to hang forever) */
+      var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+      var tm = ctl ? setTimeout(function(){ ctl.abort(); }, 150000) : null;
       return fetchRetry("https://api.anthropic.com/v1/messages", {
-        method: "POST",
+        method: "POST", signal: ctl ? ctl.signal : undefined,
         headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
         body: JSON.stringify({ model: model, max_tokens: 7000, system: SYSTEM, messages: [{ role: "user", content: msg }] })
-      }, 2).then(function(r){ return r.text().then(function(t){ if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); })
+      }, 3).then(function(r){ return r.text().then(function(t){ clearTimeout(tm); if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); },
+                 function(e){ clearTimeout(tm); if (e && e.name === "AbortError") throw new Error("DEV: the combined reading took longer than 150 seconds (attempt " + attempt + ")"); throw e; })
       .then(function(data){
         var text = (data.content || []).filter(function(b){ return b.type === "text"; }).map(function(b){ return b.text; }).join("\n");
         var clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
         var out = null; try { out = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1)); } catch(e){}
         var v = validate(out, sup, pairCtx.pair);
-        var retryable = v.hard.concat(v.soft);
+        /* v4 (Sep 22): only HARD failures (forbidden terms, missing or untraceable evidence,
+           wrong paragraph count) earn a second full pass. Soft notes, such as a word count
+           a little outside its range, are accepted and recorded; they were doubling the wait. */
+        var retryable = v.hard;
+        try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify({ key: key, attempt: attempt, done: !retryable.length || attempt === 2, at: Date.now() })); } catch(e){}
         if (retryable.length && attempt === 1)
           return call(user + "\n\nYour previous attempt failed these checks: " + retryable.join("; ") + ". Fix every one and return the full JSON again.", 2, retryable.join("; "))
             .then(function(r2){ r2.firstAttemptProblems = retryable; return r2; });

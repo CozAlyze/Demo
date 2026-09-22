@@ -2970,22 +2970,26 @@ document.querySelectorAll('.syscard').forEach(card => {
   function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('failed ' + src)); }; document.head.appendChild(s); }); }
   function cozPregenCombined(){
     var chain = Promise.resolve();
-    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=3'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
+    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=4'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
     return chain.then(function(){ return window.COZ_ASC.ensurePair(); }).then(function(res){
       if (!res || !res.ok) { console.log('[COZ PREGEN] pair refused:', res && res.reason); return; }
       if (cozPregenRuns[res.pair.runId]) return; cozPregenRuns[res.pair.runId] = true;
-      /* the Combined Reading and the three Ascendant readings (Western, Vedic, How They
-         Work Together) start together, in parallel, into their per-run caches */
-      var combined = window.COZ_COMPARE_EVIDENCE.buildManifest(res).then(function(m){
-        if (window.COZ_COMBINED_GEN.peek(res.pair, m) || window.COZ_COMBINED_GEN.inFlight(res.pair, m)) { console.log('[COZ PREGEN] already cached or in flight'); return; }
+      /* Sep 22: ONE call at a time. Four large calls at once on a single key invite
+         rate-limit refusals, which left the Combined Reading stuck on "preparing".
+         The Combined Reading is written first because it is the first door people open,
+         then the three Ascendant readings, each after the one before it. */
+      var chain = window.COZ_COMPARE_EVIDENCE.buildManifest(res).then(function(m){
+        if (window.COZ_COMBINED_GEN.peek(res.pair, m) || window.COZ_COMBINED_GEN.inFlight(res.pair, m)) { console.log('[COZ PREGEN] combined already cached or in flight'); return; }
         return window.COZ_COMBINED_GEN.getCombined(res, m);
       }).then(function(rec){ if (rec) console.log('[COZ PREGEN] combined reading ready', rec.fromCache ? '(cache)' : '(generated)'); },
               function(e){ console.log('[COZ PREGEN] combined skipped:', e && e.message); });
-      var ascendants = ['tropical', 'vedic', 'combined'].map(function(sys){
-        return window.COZ_ASC.getReading(sys, res).then(function(r){ console.log('[COZ PREGEN] ascendant ' + sys + ' ready', r && r.fromCache ? '(cache)' : '(generated)'); },
-                                                        function(e){ console.log('[COZ PREGEN] ascendant ' + sys + ' skipped:', e && e.message); });
+      ['tropical', 'vedic', 'combined'].forEach(function(sys){
+        chain = chain.then(function(){
+          return window.COZ_ASC.getReading(sys, res).then(function(r){ console.log('[COZ PREGEN] ascendant ' + sys + ' ready', r && r.fromCache ? '(cache)' : '(generated)'); },
+                                                          function(e){ console.log('[COZ PREGEN] ascendant ' + sys + ' skipped:', e && e.message); });
+        });
       });
-      return Promise.all([combined].concat(ascendants));
+      return chain;
     }).catch(function(e){ console.log('[COZ PREGEN] skipped:', e && e.message); });
   }
   window.addEventListener('message', function(ev){
