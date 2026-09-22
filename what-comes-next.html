@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>What Comes Next · CozAlyze</title>
 <!--
-  COZALYZE · WHAT COMES NEXT · WCN1.1
+  COZALYZE · WHAT COMES NEXT · WCN1.2
   Reached from current-life-cycle.html, current-season.html and key-time-windows.html.
 
   SCOPE. This page covers the next MAHADASHA only. Key Time Windows already
@@ -108,7 +108,7 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
   -webkit-tap-highlight-color:transparent}
 .wcn-row:last-of-type{border-bottom:1px solid rgba(212,161,120,.22)}
 .wcn-row .chev{color:var(--vedic-gold-muted);font-size:17px}
-.wcn-nav{display:flex;justify-content:space-between;gap:14px;margin:20px 0 0}
+.wcn-nav{display:flex;justify-content:space-between;gap:14px;margin:20px 0 0;padding:0 24px 34px}
 .wcn-nav a{font-family:var(--body-font);font-size:14.8px;letter-spacing:.03em;color:var(--vedic-gold);text-decoration:none}
 
 .wcn-empty{padding:28px 22px;text-align:center}
@@ -155,7 +155,7 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
   </div>
 </div>
 
-<div class="wcn-stamp" aria-hidden="true">WHAT COMES NEXT · WCN1.1</div>
+<div class="wcn-stamp" aria-hidden="true">WHAT COMES NEXT · WCN1.2</div>
 
 <script src="coz-graha.js"></script>
 <script>
@@ -254,7 +254,7 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
 
   var md = lc.mahadasha;
   var nx = lc.nextMahadasha;
-  if (!nx || !nx.lord) { failClosed('no next Mahadasha in timing data (exporter predates WCN1.1)'); return; }
+  if (!nx || !nx.lord) { failClosed('no next Mahadasha in timing data (exporter predates WCN1.2)'); return; }
 
   var p = G.planet(chart, nx.lord);
   if (!p || !(p.house >= 1 && p.house <= 12)) { failClosed('next Mahadasha lord lacks a verified house'); return; }
@@ -323,9 +323,6 @@ h1.wcn-h1{text-align:center;font-family:var(--display-font);font-weight:500;
     '<p class="wcn-disclaimer">' + DISCLAIMER + '</p>' +
 
     '<div class="wcn-explore">' +
-      '<h2>Explore the Rest of Your Current Life Cycle</h2>' +
-      '<a class="wcn-row" href="current-season.html"><span>01&nbsp;&nbsp;Your Current Season</span><span class="chev">\u203A</span></a>' +
-      '<a class="wcn-row" href="key-time-windows.html"><span>02&nbsp;&nbsp;Key Time Windows</span><span class="chev">\u203A</span></a>' +
       '<div class="wcn-nav"><a href="current-life-cycle.html">\u2190 Back to Life Cycle Overview</a></div>' +
     '</div>';
 

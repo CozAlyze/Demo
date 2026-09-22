@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE TROPICAL READING · T4.0 · skip on reopen
+   COZALYZE · COMPLETE TROPICAL READING · T4.1 · chart recovery
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -596,7 +596,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T4.0 · skip on reopen</div>
+<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T4.1 · chart recovery</div>
 
 <script src="ascendant-library.js"></script>
 <script>
@@ -933,6 +933,10 @@ const SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio
 const SAMPLE_SIGN_IN_ART = "Leo";   // baked into tropical-dash.jpg and the clip's first frames
 const RING_ICON = sign => `ring-${sign.toLowerCase()}.png`;   // his 12 ring icons, in this repo
 
+function verifiedChart() {
+  let rec = null; try { rec = JSON.parse(localStorage.getItem("cozTropicalChartJSON") || "null"); } catch (e) {}
+  return runMatches(rec, currentRun()) ? rec : null;
+}
 function resolveAscendant() {
   const pick = v => { if (!v) return null; v = String(v).trim(); v = v.charAt(0).toUpperCase() + v.slice(1).toLowerCase(); return SIGNS.includes(v) ? v : null; };
   /* T3.8: the Tropical Ascendant comes from the current run's verified chart record.
@@ -968,6 +972,20 @@ function dashZoomIn() {
 dashZoomIn();
 
 const ASC_SIGN = resolveAscendant();
+/* Chart recovery (Sep 22): if no chart record matches the current run (older record,
+   a fresh run, "Go to my chart"), ask the pairing library to calculate the missing side
+   with the real engine for the CURRENT birth data, then reload this page once so every
+   identity-checked part starts from the recovered record. Never a stale record. */
+(function recoverChart(){
+  if (ASC_SIGN) return;
+  const run = currentRun(); if (!run || !window.COZ_ASC || !COZ_ASC.ensurePair) return;
+  const key = "cozChartRecovery:" + run.runId;
+  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1"); } catch (e) { return; }   /* once per run, no loops */
+  COZ_ASC.ensurePair().then(res => {
+    if (res && res.ok && verifiedChart()) { try { console.log("[READING] chart record recovered for the current run; reloading"); } catch (e) {} location.reload(); }
+    else { try { console.log("[READING] chart recovery not possible:", res && res.reason); } catch (e) {} }
+  }).catch(() => {});
+})();
 paintAscendant(document.getElementById("dashStage"), ASC_SIGN);
 paintAscendant(document.getElementById("revealStage"), ASC_SIGN);
 document.querySelector('[data-dash="ascendant"]').setAttribute("aria-label", ASC_SIGN ? `Your Ascendant, ${ASC_SIGN}` : "Your Ascendant");
