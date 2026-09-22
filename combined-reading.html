@@ -118,12 +118,12 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
   </nav>
  </div>
 </main>
-<div class="stamp">COMBINED READING · CR2.3 · dev generator · safeguards</div>
+<div class="stamp">COMBINED READING · CR2.4 · early generation</div>
 
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=3"></script>
 <script src="compare-evidence.js?v=3"></script>
-<script src="compare-generator.js?v=2"></script>
+<script src="compare-generator.js?v=3"></script>
 <script>
 (function(){
   var FAIL = "We couldn\u2019t load both charts for this reading. Please return and run your chart again.";
@@ -191,22 +191,44 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
     window.COZ_COMBINED_INPUT = { runId: res.pair.runId, fingerprint: res.pair.fingerprint, engineVersions: res.pair.engineVersions };
     var bodies = [].slice.call(document.querySelectorAll(".body"));
     function esc(t){ return String(t).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];}); }
-    bodies.forEach(function(b){ b.innerHTML = '<p class="dev">Preparing your reading\u2026</p>'; });
-    /* CR2.2: evidence manifest (internal) -> one development-only generation call, cached */
-    window.COZ_COMPARE_EVIDENCE.buildManifest(res).then(function(m){
-      window.COZ_COMBINED_MANIFEST = m;
-      return window.COZ_COMBINED_GEN.getCombined(res, m);
-    }).then(function(rec){
+    /* CR2.4 (Sep 22, item 5): the generation is normally started earlier by index.html
+       when the Compare dashboard opens. If that job is still running, wait for its result
+       in the shared cache instead of starting a second call. Network drops retry; a
+       Try again control reruns the whole step. */
+    var G = window.COZ_COMBINED_GEN, E = window.COZ_COMPARE_EVIDENCE;
+    function show(rec){
       window.COZ_COMBINED_RECORD = rec;
       if (/[?&]debug=1\b/.test(location.search)) renderTrace(rec, window.COZ_COMBINED_MANIFEST);
       bodies.forEach(function(b){
         var sct = rec[b.getAttribute("data-key")];
         b.innerHTML = sct.paragraphs.map(function(t){ return "<p>" + esc(t) + "</p>"; }).join("");
       });
-    }).catch(function(e){
-      console.log("[COZ COMBINED]", e && e.message);
-      bodies.forEach(function(b){ b.innerHTML = '<p class="dev">' + esc((e && e.message) || "DEV: reading unavailable") + '</p>'; });
-    });
+    }
+    function waitForOtherJob(m){
+      return new Promise(function(resolve){
+        var t0 = Date.now();
+        (function poll(){
+          var hit = G.peek(res.pair, m); if (hit) return resolve(hit);
+          if (!G.inFlight(res.pair, m) || Date.now() - t0 > 150000) return resolve(null);
+          setTimeout(poll, 1500);
+        })();
+      });
+    }
+    function run(){
+      bodies.forEach(function(b){ b.innerHTML = '<p class="dev">Preparing your reading\u2026</p>'; });
+      return E.buildManifest(res).then(function(m){
+        window.COZ_COMBINED_MANIFEST = m;
+        var hit = G.peek(res.pair, m); if (hit) return hit;
+        if (G.inFlight(res.pair, m)) return waitForOtherJob(m).then(function(r){ return r || G.getCombined(res, m); });
+        return G.getCombined(res, m);
+      }).then(show).catch(function(e){
+        console.log("[COZ COMBINED]", e && e.message);
+        var msg = (e && /load failed|network/i.test(e.message || "")) ? "The connection dropped while your reading was being prepared." : ((e && e.message) || "DEV: reading unavailable");
+        bodies.forEach(function(b, i){ b.innerHTML = '<p class="dev">' + esc(msg) + '</p>' + (i === 0 ? '<p class="dev"><a href="#" class="retry">Try again</a></p>' : ''); });
+        var r = document.querySelector(".body .retry"); if (r) r.addEventListener("click", function(ev){ ev.preventDefault(); run(); });
+      });
+    }
+    run();
     buttons.forEach(function(b){ b.hidden = false; });
   });
 })();

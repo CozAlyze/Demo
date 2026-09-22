@@ -149,10 +149,30 @@
   }
   function logCall(e){ try { var L = JSON.parse(localStorage.getItem("cozCombinedGenLog") || "[]"); L.push(e); localStorage.setItem("cozCombinedGenLog", JSON.stringify(L.slice(-40))); } catch(x){} }
 
+  /* Sep 22 (item 5): cache-only lookup, and an in-flight marker so a generation started
+     in index.html (the living page) is not duplicated by the reading page. */
+  var INFLIGHT = "cozCombinedGenInFlight", INFLIGHT_MAX_MS = 150000;
+  function peek(pair, man){
+    try { var c = JSON.parse(localStorage.getItem(cacheKey(pair, man)) || "null"); if (c && c.sharedThemes){ c.fromCache = true; return c; } } catch(e){}
+    return null;
+  }
+  function inFlight(pair, man){
+    try { var m = JSON.parse(localStorage.getItem(INFLIGHT) || "null"); return !!(m && m.key === cacheKey(pair, man) && (Date.now() - m.at) < INFLIGHT_MAX_MS); } catch(e){ return false; }
+  }
+  function markInFlight(key, on){ try { if (on) localStorage.setItem(INFLIGHT, JSON.stringify({ key: key, at: Date.now() })); else localStorage.removeItem(INFLIGHT); } catch(e){} }
+  /* Safari reports a dropped connection as TypeError "Load failed"; retry those twice */
+  function fetchRetry(url, opts, tries){
+    return fetch(url, opts).catch(function(e){
+      if (tries > 0 && e && (e.name === "TypeError" || /load failed|network/i.test(e.message || ""))) {
+        return new Promise(function(res){ setTimeout(res, 2500); }).then(function(){ return fetchRetry(url, opts, tries - 1); });
+      }
+      throw e;
+    });
+  }
   var inPage = null;
   function getCombined(pairCtx, man){
     var key = cacheKey(pairCtx.pair, man);
-    try { var c = JSON.parse(localStorage.getItem(key) || "null"); if (c && c.sharedThemes){ c.fromCache = true; return Promise.resolve(c); } } catch(e){}
+    var hit = peek(pairCtx.pair, man); if (hit) return Promise.resolve(hit);
     if (inPage) return inPage;
     var apiKey = null, model = DEFAULT_MODEL;
     try { apiKey = localStorage.getItem("cozTestApiKey"); model = localStorage.getItem("cozTestModel") || model; } catch(e){}
@@ -162,11 +182,11 @@
     var user = userMessage(man, pairCtx.pair, sup);
     function call(msg, attempt, retryReason){
       logCall({ key: key, attempt: attempt, retryReason: retryReason || null, at: new Date().toISOString() });
-      return fetch("https://api.anthropic.com/v1/messages", {
+      return fetchRetry("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
         body: JSON.stringify({ model: model, max_tokens: 7000, system: SYSTEM, messages: [{ role: "user", content: msg }] })
-      }).then(function(r){ return r.text().then(function(t){ if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); })
+      }, 2).then(function(r){ return r.text().then(function(t){ if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); })
       .then(function(data){
         var text = (data.content || []).filter(function(b){ return b.type === "text"; }).map(function(b){ return b.text; }).join("\n");
         var clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
@@ -180,6 +200,7 @@
         return { out: out, attempts: attempt, validation: v, raw: text };
       });
     }
+    markInFlight(key, true);
     inPage = call(user, 1).then(function(r){
       var used = {};
       ["sharedThemes","differentEmphases","integratedView"].forEach(function(k){ (r.out[k].evidence || []).forEach(function(e){ (e.vedicClaimIds || []).forEach(function(c){ used[c] = sup.vedicStatus[c]; }); }); });
@@ -194,11 +215,12 @@
         trace: { model: model, validation: r.validation, comparableThemes: sup.comparable, systemPrompt: SYSTEM, userMessage: user, rawResponse: r.raw }
       };
       try { localStorage.setItem(key, JSON.stringify(rec)); } catch(e){}
+      markInFlight(key, false);
       return rec;
     });
-    inPage.catch(function(){ inPage = null; });
+    inPage.catch(function(){ inPage = null; markInFlight(key, false); });
     return inPage;
   }
 
-  window.COZ_COMBINED_GEN = { PROMPT_VERSION: PROMPT_VERSION, getCombined: getCombined, _system: SYSTEM, _validate: validate, _supplied: supplied, _userMessage: userMessage };
+  window.COZ_COMBINED_GEN = { PROMPT_VERSION: PROMPT_VERSION, getCombined: getCombined, peek: peek, inFlight: inFlight, _system: SYSTEM, _validate: validate, _supplied: supplied, _userMessage: userMessage };
 })();

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' data: https://api.geoapify.com; media-src 'self' data: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://unpkg.com; worker-src 'self' blob:;">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' data: https://api.geoapify.com https://api.anthropic.com; media-src 'self' data: blob:; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://unpkg.com; worker-src 'self' blob:;">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>EMERGE — Scene 1</title>
 <style>
@@ -2956,6 +2956,35 @@ document.querySelectorAll('.syscard').forEach(card => {
 });
 
 } // end guard
+
+/* Sep 22 (item 5): Combined Reading pre-generation coordinator. Stands on its own so it
+   listens from page load, whichever route the Compare dashboard is reached by. */
+(function(){
+  /* Sep 22 (item 5): Combined Reading pre-generation. The Compare dashboard posts
+     COZ_COMBINED_PREGEN when it opens; this page, which stays alive across the
+     product pages, loads the generator scripts ON DEMAND (never for people who do
+     not enter Compare), runs one generation per chart run and stores it in the
+     shared cache that combined-reading.html reads. Nothing here touches the
+     reveal or the sound. */
+  var cozPregenRuns = {};
+  function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('failed ' + src)); }; document.head.appendChild(s); }); }
+  function cozPregenCombined(){
+    var chain = Promise.resolve();
+    ['ascendant-library.js?v=3', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=3'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
+    return chain.then(function(){ return window.COZ_ASC.ensurePair(); }).then(function(res){
+      if (!res || !res.ok) { console.log('[COZ PREGEN] pair refused:', res && res.reason); return; }
+      if (cozPregenRuns[res.pair.runId]) return; cozPregenRuns[res.pair.runId] = true;
+      return window.COZ_COMPARE_EVIDENCE.buildManifest(res).then(function(m){
+        if (window.COZ_COMBINED_GEN.peek(res.pair, m) || window.COZ_COMBINED_GEN.inFlight(res.pair, m)) { console.log('[COZ PREGEN] already cached or in flight'); return; }
+        return window.COZ_COMBINED_GEN.getCombined(res, m);
+      }).then(function(rec){ if (rec) console.log('[COZ PREGEN] combined reading ready', rec.fromCache ? '(cache)' : '(generated)'); });
+    }).catch(function(e){ console.log('[COZ PREGEN] skipped:', e && e.message); });
+  }
+  window.addEventListener('message', function(ev){
+    var d = ev && ev.data;
+    if (d && d.coz === 'COZ_COMBINED_PREGEN') cozPregenCombined();
+  });
+})();
 
 /* zoom lock (Sep 1): iOS lets a two-finger pinch zoom the whole page even with
    user-scalable=no, and that zoom survives a reload, which is what threw the globe
