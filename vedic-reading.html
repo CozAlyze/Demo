@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE VEDIC READING · R4.3 · one clip
+   COZALYZE · COMPLETE VEDIC READING · R4.7 · ascendant pager
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -621,8 +621,9 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R4.3 · one clip</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R4.7 · ascendant pager</div>
 
+<script src="ascendant-library.js"></script>
 <script src="dev-review-engine.js?v=6"></script>
 <script>
 /* ============================================================
@@ -652,6 +653,19 @@ const SECTION_TOTAL = String(vedicReadingSections.length).padStart(2, "0");
    development-review draft, pending Nina's review -- never a
    production-verified reading.
    ============================================================ */
+/* R4.5 identity (Sep 21): the current chart run (runId + birth fingerprint) from the
+   shared pairing library. The chart record, the sign shown and the reading all derive
+   from it. A chart written for another run is never used. */
+function currentRun() { try { return (window.COZ_ASC && COZ_ASC.currentRun) ? COZ_ASC.currentRun() : null; } catch (e) { return null; } }
+function nonEmpty(x) { return typeof x === "string" && x.trim().length > 0; }
+function runMatches(rec, run) {
+  return !!(rec && rec.run && run && nonEmpty(rec.run.runId) && nonEmpty(rec.run.fingerprint) &&
+            rec.run.runId === run.runId && rec.run.fingerprint === run.fingerprint);
+}
+function verifiedChart() {
+  let c = null; try { c = JSON.parse(localStorage.getItem("cozChartJSON") || "null"); } catch (e) {}
+  return runMatches(c, currentRun()) ? c : null;
+}
 function requestChartData() {
   /* v20.1 fix: chart data arrives via the ?cd= URL parameter, set by index.html's
      GOTO_VEDIC handler directly from sidereal-reveal.html's GOTO_VEDIC message.
@@ -659,10 +673,9 @@ function requestChartData() {
      ever sent the COZ_CHART_READY message that path depended on, so it always
      resolved null. Reading the URL directly is the same reliable pattern already
      used for birth data between index.html and sidereal-reveal.html.) */
-  let chartData = null;
-  try {
-    chartData = JSON.parse(localStorage.getItem('cozChartJSON') || 'null');
-  } catch(_){}
+  /* R4.5: only the chart record stamped with the current run is used */
+  const chartData = verifiedChart();
+  if (!chartData) { window.COZ_VEDIC_NO_CHART = true; try { console.log("[VEDIC READING] no chart record for the current run; reading unavailable"); } catch (e) {} }
   return Promise.resolve(chartData);
 }
 
@@ -760,10 +773,20 @@ function generateSections3to6(chart, reading12, firstName) {
   if (!key) return Promise.reject(new Error("No API key set. Open test-index.html and enter your test key first."));
 
   var facts = cozGenChartFacts(chart);
-  var cacheKey = "cozGenDraft:" + cozGenHash(facts + "|" + (firstName || "") + "|" + model);
+  /* R4.6: the cache entry is keyed and validated on every generation input: the chart
+     facts, the birth fingerprint and run of the chart it was written for, Sections 1-2
+     as supplied to the model, the first name, the model, the system prompt and the
+     generator version. Entries without this metadata (older builds) are never reused. */
+  var GEN_VERSION = "vedic-gen-3to6 1.1";
+  var s12 = JSON.stringify([reading12["essential-nature"] || [], reading12["mind-intuition"] || []]);
+  var inputs = { facts: facts, fingerprint: chart.run && chart.run.fingerprint || "", runId: chart.run && chart.run.runId || "",
+                 s12Hash: cozGenHash(s12), firstName: firstName || "", model: model, promptHash: cozGenHash(COZ_GEN_SYSTEM), genVersion: GEN_VERSION };
+  var cacheKey = "cozGenDraft:" + cozGenHash(JSON.stringify(inputs));
   try {
     var cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
-    if (cached && cached.sections) { cached.trace.fromCache = true; return Promise.resolve(cached); }
+    var same = cached && cached.sections && cached.inputs && Object.keys(inputs).every(function (k) { return cached.inputs[k] === inputs[k]; });
+    if (same) { cached.trace.fromCache = true; return Promise.resolve(cached); }
+    if (cached) { try { console.log("[VEDIC READING] cached draft rejected: inputs or version differ"); } catch (e) {} }
   } catch (_) {}
 
   var userMsg = [
@@ -842,7 +865,7 @@ function generateSections3to6(chart, reading12, firstName) {
     var u = data.usage || {}, inTok = u.input_tokens || 0, outTok = u.output_tokens || 0;
     var PRICE = { input: 3.00, output: 15.00 };   /* USD per million tokens, Sonnet 4.x list price */
     var cost = inTok / 1e6 * PRICE.input + outTok / 1e6 * PRICE.output;
-    var out = { sections: sections, trace: { model: model, generatedAt: new Date().toISOString(), usage: data.usage || null,
+    var out = { sections: sections, inputs: inputs, trace: { model: model, generatedAt: new Date().toISOString(), usage: data.usage || null,
       inputTokens: inTok, outputTokens: outTok, estimatedCostUSD: Math.round(cost * 10000) / 10000,
       chartFacts: facts, systemPrompt: COZ_GEN_SYSTEM, userMessage: userMsg, rawResponse: text, fromCache: false } };
     try { localStorage.setItem(cacheKey, JSON.stringify(out)); } catch (_) {}
@@ -931,7 +954,7 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
     var result = window.CozDevReview.generateDevReview(chart, claimData, snippets36, firstName);
     window.COZ_VEDIC_REVIEW_META = result.meta;
     var hasReviewed = !/no identity match/i.test(String(result.meta.sections3to6Source || ""));
-    if (hasReviewed) { if (result.meta.sections3to6Unverified) result.reading._generated36 = true; window.COZ_VEDIC_READING = result.reading; return; }
+    if (hasReviewed) { if (result.meta.sections3to6Unverified) result.reading._generated36 = true; result.reading.run = { runId: chart.run.runId, fingerprint: chart.run.fingerprint }; window.COZ_VEDIC_READING = result.reading; return; }
     /* No hand-reviewed draft for this chart: generate Sections 3-6 as unverified
        development copy so every chart produces all six sections. */
     return generateSections3to6(chart, result.reading, firstName).then(function (gen) {
@@ -942,6 +965,7 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
       });
       var reading = Object.assign({}, result.reading, gen.sections);
       reading._generated36 = true;
+      reading.run = { runId: chart.run.runId, fingerprint: chart.run.fingerprint };   /* identity of the chart it was written from */
       window.COZ_VEDIC_READING = reading;
       window.COZ_VEDIC_GEN_TRACE = gen.trace;
       try { console.log("[COZ GEN TRACE]", JSON.stringify(gen.trace)); } catch (_) {}
@@ -954,9 +978,18 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
   });
 });
 
+/* a reading is complete only when every section has at least one non-empty paragraph */
+function completeReading(map) {
+  if (!map || typeof map !== "object") return false;
+  return vedicReadingSections.every(sec => Array.isArray(map[sec.id]) && map[sec.id].length > 0 &&
+    map[sec.id].every(p => typeof p === "string" && p.trim().length > 0));
+}
 function loadReading() {
-  if (window.COZ_VEDIC_READING && typeof window.COZ_VEDIC_READING === "object") return window.COZ_VEDIC_READING;
-  return null;
+  const r = window.COZ_VEDIC_READING;
+  if (!r || typeof r !== "object") return null;
+  if (!runMatches(r, currentRun())) { try { console.log("[VEDIC READING] reading does not carry the current run identity; treated as unavailable"); } catch (e) {} return null; }
+  if (!completeReading(r)) { try { console.log("[VEDIC READING] reading is incomplete; treated as unavailable"); } catch (e) {} return null; }
+  return r;
 }
 
 /* ============================================================
@@ -993,6 +1026,7 @@ function sectionById(id) { return vedicReadingSections.find(s => s.id === id) ||
 function renderSection(section) {
   cozCurrentSectionId = section.id;
   const reading = loadReading();
+  if (!reading) { renderUnavailableNotice(); return; }
   const paragraphs = Array.isArray(reading[section.id]) ? reading[section.id] : [];
   const sectionCounter = `${String(section.number).padStart(2, "0")} OF ${SECTION_TOTAL}`;
   const titleClass = section.title.length > 22 ? "vedic-title vedic-title--long" : "vedic-title";
@@ -1048,7 +1082,9 @@ function renderUnavailableNotice() {
     </header>
     <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
     <section class="vedic-body">
-      <p>This chart was calculated successfully. A full composed reading has not yet been generated for this development sample.</p>
+      <p>${window.COZ_VEDIC_NO_CHART
+          ? "Your reading could not be matched to this chart. Run your chart again to see it here."
+          : "This chart was calculated successfully. A full composed reading has not yet been generated for this development sample."}</p>
       <p style="font-size:14px;opacity:.7;word-break:break-all">DEBUG: ${esc(window.COZ_VEDIC_DEBUG || "no debug info captured")}</p>
       <p><button type="button" id="vedicRetry" class="vedic-nav-next">Try again</button></p>
     </section>
@@ -1081,11 +1117,18 @@ function showDashboard() {
   window.scrollTo({ top: 0, behavior: "instant" });
 }
 
+let navGen = 0;   /* R4.6: only the latest route's callback may render or touch history */
 function showFromHash() {
   const id = idFromHash();
+  const myNav = ++navGen;
+  if (window.COZ_ASQ && id !== "ascendant") window.COZ_ASQ.exit();     /* leaving the ascendant route: full cleanup */
   if (!id || id === "dashboard") {
     if (id !== "dashboard") history.replaceState({ id: "dashboard" }, "", "#/dashboard");
     showDashboard();
+    return;
+  }
+  if (id === "ascendant") {
+    if (window.COZ_ASQ) window.COZ_ASQ.enter(); else window.__asqPending = true;   /* module defined below */
     return;
   }
   document.body.dataset.view = "reading";
@@ -1100,6 +1143,7 @@ function showFromHash() {
     old.replaceWith(fresh);
   }
   const proceed = () => {
+    if (myNav !== navGen) return;                       /* the person has navigated on; this callback is stale */
     if (window.COZ_VEDIC_READING_UNAVAILABLE || !loadReading()) {
       if (!window.COZ_VEDIC_DEBUG) window.COZ_VEDIC_DEBUG = "Generation finished but no reading was stored (COZ_VEDIC_READING=" + typeof window.COZ_VEDIC_READING + ")";
       history.replaceState({ id: "essential-nature" }, "", "#/essential-nature");
@@ -1130,14 +1174,24 @@ const SAMPLE_SIGN_IN_ART = "Leo";   // baked into vedic-dash.jpg and the clip's 
 
 function resolveAscendant() {
   const pick = v => { if (!v) return null; v = String(v).trim(); v = v.charAt(0).toUpperCase() + v.slice(1).toLowerCase(); return SIGNS.includes(v) ? v : null; };
-  return pick(params.get("asc")) || pick(window.EMERGE_ASCENDANT) || pick((() => { try { return localStorage.getItem("emergeAscendant"); } catch (e) { return null; } })()) || SAMPLE_SIGN_IN_ART;
+  /* R4.5: the Lagna comes from the current run's verified chart record. A sign in the
+     URL or stored separately is accepted only when it agrees; with no verified record
+     the sign is unknown (null): never Leo, never a stale sign. */
+  const c = verifiedChart();
+  const asc = c && Array.isArray(c.planets) ? c.planets.find(p => p && p.name === "Ascendant") : null;
+  const n = asc ? asc.signNumber : (c ? c.ascendantSignNumber : null);
+  const verified = Number.isInteger(n) && n >= 1 && n <= 12 ? SIGNS[n - 1] : null;
+  if (!verified) return null;
+  const hinted = pick(params.get("asc")) || pick(window.EMERGE_ASCENDANT);
+  if (hinted && hinted !== verified) { try { console.log("[VEDIC READING] ascendant hint " + hinted + " ignored; verified chart says " + verified); } catch (e) {} }
+  return verified;
 }
 
 function paintAscendant(stage, sign) {
-  const live = sign !== SAMPLE_SIGN_IN_ART;
-  stage.dataset.ascLive = live ? "1" : "0";
-  stage.querySelector(".asc-glyph").textContent = SIGN_GLYPH[sign] + "\uFE0E";
-  stage.querySelector(".asc-label").textContent = sign;
+  const live = !!sign && sign !== SAMPLE_SIGN_IN_ART;
+  stage.dataset.ascLive = (sign && sign !== SAMPLE_SIGN_IN_ART) ? "1" : (sign ? "0" : "1");   /* unknown: hide the baked Leo, show nothing */
+  stage.querySelector(".asc-glyph").textContent = live ? SIGN_GLYPH[sign] + "\uFE0E" : "";
+  stage.querySelector(".asc-label").textContent = sign || "";
 }
 
 /* Entrance: the whole art is shown first, then it eases in slightly so the type reads larger.
@@ -1155,7 +1209,7 @@ dashZoomIn();
 const ASC_SIGN = resolveAscendant();
 paintAscendant(document.getElementById("dashStage"), ASC_SIGN);
 paintAscendant(document.getElementById("revealStage"), ASC_SIGN);
-document.querySelector('[data-dash="ascendant"]').setAttribute("aria-label", `Your Ascendant, Lagna, ${ASC_SIGN}`);
+document.querySelector('[data-dash="ascendant"]').setAttribute("aria-label", ASC_SIGN ? `Your Ascendant, Lagna, ${ASC_SIGN}` : "Your Ascendant, Lagna");
 
 /* Reading readiness. The engine sets window.COZ_VEDIC_READING_STATUS = "preparing"
    while it works; anything else counts as ready. The reading is never regenerated
@@ -1231,16 +1285,25 @@ revealVideo.addEventListener("playing", () => {
      (vedic-reading-reveal-full.mp4). The page just plays it and lands when it ends. */
   // hard cap a little past the clip's 2.5s so a stalled clip never traps anyone
   revealTimers.push(setTimeout(() => finishReveal(false), 47000));   /* stall guard only: the clip runs 44.5s */
+  /* stall watchdog (Sep 21): if the clip stops advancing for 4s (buffering on
+     cellular), land on the reading instead of holding a black screen */
+  let lastT = -1, stuckSince = Date.now();
+  revealTimers.push(setInterval(() => {
+    if (!revealActive || revealDone) return;
+    const t = revealVideo.currentTime;
+    if (t !== lastT) { lastT = t; stuckSince = Date.now(); return; }
+    if (Date.now() - stuckSince > 4000) finishReveal(false);
+  }, 500));
 });
 
 function finishReveal(immediate) {
   if (!revealActive || revealDone) return;   // ignore clip events while the reveal is not running
   revealDone = true;
-  revealTimers.forEach(clearTimeout); revealTimers = [];
+  revealTimers.forEach(clearTimeout); revealTimers.forEach(clearInterval); revealTimers = [];
   const land = () => {
     const go = () => {
       location.hash = "#/essential-nature";          // its own history entry; renders via hashchange
-      revealEl.classList.remove("is-on", "is-closing", "asc-off");
+      revealEl.classList.remove("is-on", "is-closing", "asc-off", "is-through");   /* full reset so a second tap starts clean */
       try { revealVideo.pause(); } catch (e) {}
       lockScroll(false);
       revealActive = false;
@@ -1271,7 +1334,7 @@ function finishReveal(immediate) {
 function cancelReveal() {
   if (!revealActive || revealDone) return;
   revealDone = true;
-  revealTimers.forEach(clearTimeout); revealTimers = [];
+  revealTimers.forEach(clearTimeout); revealTimers.forEach(clearInterval); revealTimers = [];
   try { revealVideo.pause(); revealVideo.currentTime = 0; } catch (e) {}
   revealEl.classList.remove("is-on", "is-closing", "is-through", "asc-off");
   lockScroll(false);
@@ -1463,7 +1526,7 @@ const SIGNS = {
 };
 
   const MODE = "vedic";
-  const key = String(ASC_SIGN || "").toLowerCase();
+  const key = ASC_SIGN ? String(ASC_SIGN).toLowerCase() : "";
   const S = SIGNS[key] || null;
   const veil = document.getElementById("asqVeil"), hero = document.getElementById("asqHero"),
         sVid = document.getElementById("asqVid"), content = document.getElementById("asqContent");
@@ -1480,8 +1543,24 @@ const SIGNS = {
       host.innerHTML = '<section><h2>Sidereal Perspective</h2><div id="asqSecSidereal" class="reading-copy"></div></section><div class="divider"></div>' +
         '<section><h2>The Essence of You</h2><div id="asqSecEssence" class="reading-copy"></div></section><div class="divider"></div>' +
         '<section><h2>Your Dharmic Path</h2><div id="asqSecDharma" class="reading-copy"></div></section>';
+      if (!S){
+        document.getElementById("asqTitle").textContent = "NOT AVAILABLE";
+        host.innerHTML = '<section><div id="asqSecMissing" class="reading-copy"></div></section>' +
+          '<nav class="vedic-nav" aria-label="Ascendant navigation"><div class="vedic-nav-rule" aria-hidden="true">' + STAR_SVG + '</div>' +
+          '<div class="vedic-nav-links"><a href="#/dashboard" id="asqNavBack">' + ARROW_L + ' Back to Your Vedic Reading</a></div></nav>';
+        fill("asqSecMissing", ["Your Ascendant could not be verified for this chart. Run your chart again to see it here."]);
+        return;
+      }
       fill("asqSecSidereal", SHARED.sidereal);
-      if (S){ fill("asqSecEssence", S.essence); fill("asqSecDharma", S.dharma); }
+      fill("asqSecEssence", S.essence); fill("asqSecDharma", S.dharma);
+      /* item 3 (Sep 21): same pager as the reading pages. Back to the dashboard, Next to
+         the dashboard's Current Life Cycle door (its existing data-href). */
+      const lc = document.querySelector('.hot[data-dash="life-cycle"]');
+      const nextHref = lc && lc.dataset.href ? lc.dataset.href : null;
+      host.insertAdjacentHTML("beforeend",
+        '<nav class="vedic-nav" aria-label="Ascendant navigation"><div class="vedic-nav-rule" aria-hidden="true">' + STAR_SVG + '</div>' +
+        '<div class="vedic-nav-links"><a href="#/dashboard" id="asqNavBack">' + ARROW_L + ' Back to Your Vedic Reading</a>' +
+        (nextHref ? '<a class="vedic-nav-next" href="' + nextHref + '">Next: Your Current Life Cycle ' + ARROW_R + '</a>' : '') + '</div></nav>');
     } else {
       /* tropical: the sign emergence and title only; the Rising Sign copy for this
          page is not written yet (his lane), so no Lagna text is shown here */
@@ -1489,10 +1568,40 @@ const SIGNS = {
       document.getElementById("asqSub").textContent = "Your Conscious Expression";
     }
   }
+  /* Each opening gets a generation number and its own AbortController. Every timer,
+     animation frame, listener and play() promise checks that it still belongs to the
+     current opening, so an earlier opening can never settle or modify a later one. */
+  let gen = 0, ac = null;
+  const asqTimers = [], asqFrames = [];
+  const alive = g => g === gen && entered;
+  const later = (fn, ms) => { const g = gen; const t = setTimeout(() => { if (alive(g)) fn(); }, ms); asqTimers.push(t); return t; };
+  const frame = fn => { const g = gen; const id = requestAnimationFrame(() => { if (alive(g)) fn(); }); asqFrames.push(id); return id; };
+  const on = (el, ev, fn, opts) => { const g = gen; el.addEventListener(ev, e => { if (alive(g)) fn(e); }, Object.assign({}, opts || {}, { signal: ac.signal })); };
+  function exit(){
+    if (!entered) return;
+    entered = false; settled = false; gen++;
+    try { ac && ac.abort(); } catch(_){}
+    asqTimers.splice(0).forEach(clearTimeout);
+    asqFrames.splice(0).forEach(cancelAnimationFrame);
+    try { sVid.pause(); sVid.removeAttribute("src"); sVid.load(); } catch(_){}
+    document.body.classList.remove("asq-locked", "asq-done");
+    veil.classList.remove("on");
+    hero.classList.remove("bloom", "playing", "grown", "settling"); hero.style.height = "";
+    content.classList.remove("rising"); content.style.transform = "";
+    document.documentElement.style.removeProperty("--settled-h");
+    document.querySelectorAll(".coz-skip.asq").forEach(el => el.classList.remove("on"));
+  }
+  window.COZ_ASQ = { enter: enter, exit: exit };
   function enter(){
-    if (entered) return; entered = true;
+    if (entered) return; entered = true; settled = false; gen++; ac = new AbortController();
     try { window.parent !== window && window.parent.EMERGE_SOUND && window.parent.EMERGE_SOUND.loop("ambient"); } catch(_){}
     buildCopy();
+    document.body.dataset.view = "ascendant";
+    window.scrollTo(0, 0);
+    try { window.dispatchEvent(new CustomEvent("COZ_ASQ_ENTER")); } catch(_){}
+    if (!key){                                   /* no verified sign: no clip, straight to the message */
+      hero.classList.add("playing"); settle(); return;
+    }
     sVid.src = (MODE === "vedic" ? "sidereal-ascendant-" : "") + key + ".mp4";
     /* v1.2 correction: the tropical branch here was guessed as "tropical-ascendant-"
        before confirming what actually exists in the repo. It turns out the original
@@ -1502,30 +1611,28 @@ const SIGNS = {
        exclusively, the bare names are safely tropical-only, unchanged, no re-upload
        needed. */
     if (S && S.loop) sVid.loop = true; sVid.load();
-    document.body.dataset.view = "ascendant";
     document.body.classList.add("asq-locked");
-    window.scrollTo(0, 0);
     veil.classList.add("on");
-    setTimeout(() => { playSign(); setTimeout(() => veil.classList.remove("on"), 150); }, 300);   // black beat, then the swell
+    later(() => { playSign(); later(() => veil.classList.remove("on"), 150); }, 300);   // black beat, then the swell
   }
   function playSign(){
     hero.classList.add("bloom");
     void sVid.offsetWidth;                                    // commit scale .06 before growing
-    requestAnimationFrame(() => { hero.classList.add("playing"); hero.classList.add("grown"); });
+    frame(() => { hero.classList.add("playing"); hero.classList.add("grown"); });
     const arm = once(scheduleSettle);
-    sVid.addEventListener("loadedmetadata", arm);
+    on(sVid, "loadedmetadata", arm);
     if (sVid.readyState >= 1) arm();
-    sVid.addEventListener("error", () => settle());
-    sVid.play().catch(() => settle());
-    setTimeout(() => { if (!settled) settle(); }, 9000);
+    on(sVid, "error", () => settle());
+    const g = gen; sVid.play().catch(() => { if (alive(g)) settle(); });
+    later(() => { if (!settled) settle(); }, 9000);
   }
   function scheduleSettle(){
     const dur = (sVid.duration && isFinite(sVid.duration)) ? sVid.duration : 5;
-    if (S && S.loop){ setTimeout(settle, Math.max(1000, dur * 1000)); }
+    if (S && S.loop){ later(settle, Math.max(1000, dur * 1000)); }
     else {
-      sVid.addEventListener("ended", settle, { once:true });
-      sVid.addEventListener("timeupdate", function te(){ if (sVid.currentTime >= dur - 1.0){ sVid.removeEventListener("timeupdate", te); settle(); } });
-      setTimeout(() => { if (!settled) settle(); }, dur * 1000 + 1500);
+      on(sVid, "ended", settle, { once:true });
+      on(sVid, "timeupdate", function(){ if (sVid.currentTime >= dur - 1.0) settle(); });
+      later(() => { if (!settled) settle(); }, dur * 1000 + 1500);
     }
   }
   function settle(){
@@ -1540,19 +1647,19 @@ const SIGNS = {
       document.body.classList.add("asq-done"); document.body.classList.remove("asq-locked");
       hero.classList.remove("settling"); content.classList.remove("rising");
       hero.style.height = ""; content.style.transform = "";
-      try { window.dispatchEvent(new CustomEvent("EMERGE_ASCENDANT_SETTLED", { detail:{ sign:key } })); } catch(_){}
+      if (key) { try { window.dispatchEvent(new CustomEvent("EMERGE_ASCENDANT_SETTLED", { detail:{ sign:key } })); } catch(_){} }   /* a real emergence only */
     });
     if (reduced){ finish(); return; }
     content.style.transform = "translateY(" + window.innerHeight + "px)";
     content.classList.add("rising");
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    frame(() => frame(() => {
       hero.classList.add("settling"); hero.style.height = settledH + "px";
       content.style.transform = "translateY(" + settledH + "px)";
     }));
-    content.addEventListener("transitionend", finish, { once:true });
-    setTimeout(finish, 3000);
+    on(content, "transitionend", finish, { once:true });
+    later(finish, 3000);
   }
-  document.querySelector('.hot[data-dash="ascendant"]').addEventListener("click", enter);
+  document.querySelector('.hot[data-dash="ascendant"]').addEventListener("click", function(){ location.hash = "#/ascendant"; });   /* its own history entry */
   /* SKIP (Sep 1 ruling): from the second emergence on this device, a subtle Skip
      appears a moment into the swell and jumps to the settled reading */
   (function(){
@@ -1560,15 +1667,17 @@ const SIGNS = {
     try { seen = localStorage.getItem(KEY) === "1"; } catch(_){}
     var el = document.createElement("button"); el.type = "button"; el.className = "coz-skip asq"; el.textContent = "Skip"; el.setAttribute("aria-label", "Skip to the reading");
     document.body.appendChild(el);
-    window.addEventListener("EMERGE_ASCENDANT_SETTLED", function(){ try { localStorage.setItem(KEY, "1"); } catch(_){} el.classList.remove("on"); });
+    window.addEventListener("EMERGE_ASCENDANT_SETTLED", function(){ seen = true; try { localStorage.setItem(KEY, "1"); } catch(_){} el.classList.remove("on"); });
     el.addEventListener("click", function(){ el.classList.remove("on"); hero.classList.remove("bloom"); hero.classList.add("playing"); settle(); });
-    document.querySelector('.hot[data-dash="ascendant"]').addEventListener("click", function(){ if (seen) setTimeout(function(){ if (!settled) el.classList.add("on"); }, 1800); });
+    window.addEventListener("COZ_ASQ_ENTER", function(){ if (seen) later(function(){ if (!settled) el.classList.add("on"); }, 1800); });
   })();
-  document.getElementById("asqHome").addEventListener("click", function(e){
-    e.preventDefault();
-    location.hash = "#/dashboard";
-    location.reload();                                        // back to the dashboard; the frame's bed is untouched
+  document.getElementById("asqHome").addEventListener("click", function(e){ e.preventDefault(); location.hash = "#/dashboard"; });
+  document.addEventListener("click", function(e){
+    const back = e.target.closest && e.target.closest("#asqNavBack");
+    if (!back) return;
+    e.preventDefault(); location.hash = "#/dashboard";
   });
+  if (window.__asqPending){ window.__asqPending = false; enter(); }   /* page opened directly on #/ascendant */
 })();
 
 /* ---------- dashboard pinch zoom (Sep 1) ---------- */

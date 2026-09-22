@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE TROPICAL READING · T3.3 · one clip
+   COZALYZE · COMPLETE TROPICAL READING · T4.0 · skip on reopen
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -176,6 +176,7 @@ body {
 }
 .vedic-body p { margin: 0 0 1.35em; }
 .vedic-body p:last-child { margin-bottom: 0; }
+.vedic-body p.dev-label { font-size: 14px; font-style: italic; color: #8b8272; }
 
 /* ---------- bottom navigation ---------- */
 .vedic-nav { margin-top: 34px; }
@@ -357,6 +358,44 @@ body[data-view="reading"] .dash { display: none; }
 }
 body.scroll-locked { overflow: hidden; touch-action: none; }
 
+/* ---------- v20.1 shared reading footer (his ruling) ----------
+   One footer across the whole reading: the CozAlyze line plus Home, Saved and
+   Account. It reuses the #asqNav treatment already in this file rather than
+   introducing a new look. The dashboard keeps its own painted footer, so this
+   one stays hidden there, and it never prints. */
+#cozFoot {
+  position:fixed; left:0; right:0; bottom:0; z-index:40;
+  padding-bottom:env(safe-area-inset-bottom);
+  background:rgba(8,11,17,.86);
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border-top:1px solid rgba(201,161,94,.18);
+  display:none;
+}
+#cozFoot .coz-foot-tag {
+  text-align:center; font-family:'EB Garamond',serif; font-style:italic;
+  font-size:13px; letter-spacing:.04em; color:#8b8272;
+  padding:11px 20px 3px;
+}
+#cozFoot .coz-foot-links { display:flex; height:var(--asq-nav-h,64px); }
+#cozFoot a {
+  flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  gap:4px; text-decoration:none; color:#8b8272; font-size:10.5px; letter-spacing:.06em;
+  font-family:'EB Garamond',serif; -webkit-tap-highlight-color:transparent;
+}
+#cozFoot a svg {
+  width:21px; height:21px; stroke:currentColor; fill:none;
+  stroke-width:1.4; stroke-linecap:round; stroke-linejoin:round;
+}
+#cozFoot a:active { color:var(--asq-gold,#c9a15e); }
+#cozFoot a:focus-visible { outline:1px solid var(--asq-gold,#c9a15e); outline-offset:-4px; }
+/* shown on the reading and, once the ascendant has settled, on the ascendant */
+body[data-view="reading"] #cozFoot { display:block; }
+body[data-view="ascendant"].asq-done #cozFoot { display:block; }
+/* the footer owns the bottom of the screen, so the content clears it */
+body[data-view="reading"] .vedic-reading-page {
+  padding-bottom:calc(env(safe-area-inset-bottom) + var(--asq-nav-h,64px) + 60px);
+}
+
 /* ---------- build stamp (project standing rule) ---------- */
 .vedic-stamp {
   position: fixed;
@@ -422,6 +461,7 @@ body.asq-done #asqContent { position:relative; z-index:1; margin-top:var(--settl
   letter-spacing:.14em; text-transform:uppercase; margin-bottom:16px; }
 #asqContent .reading-copy p { font-size:22px; line-height:1.65; color:var(--asq-ivory); margin-bottom:18px; text-shadow:0 1px 2px rgba(0,0,0,.5); }
 #asqContent .reading-copy p:last-child { margin-bottom:0; }
+#asqContent .reading-copy p.dev-label { font-size:14px; font-style:italic; color:#8b8272; }
 #asqContent .divider { margin:40px auto 0; width:100%; height:12px; position:relative; }
 #asqContent .divider::before { content:""; position:absolute; left:0; right:0; top:5px; height:1px;
   background:linear-gradient(90deg,transparent,var(--asq-hairline) 20%,var(--asq-hairline) 80%,transparent); }
@@ -547,16 +587,18 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
     <div id="asqSections"></div>
   </div>
 </div>
-<nav id="asqNav" class="asq">
-  <a href="#" id="asqHome"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9h13v-9"/></svg>Home</a>
-  <a href="#" class="active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17M3.5 12h17M6 6l12 12M18 6 6 18"/></svg>My Chart</a>
-  <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2.2 5-4.8 2 2.2-5z"/></svg>Explore</a>
-  <a href="#"><svg viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z"/></svg>Saved</a>
-  <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
-</nav>
+<div id="cozFoot">
+  <div class="coz-foot-tag">CozAlyze helps you see it all</div>
+  <div class="coz-foot-links">
+    <a href="#" id="asqHome"><svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9h13v-9"/></svg>Home</a>
+    <a href="#" data-foot="saved"><svg viewBox="0 0 24 24"><path d="M7 4h10v16l-5-4-5 4z"/></svg>Saved</a>
+    <a href="#" data-foot="account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
+  </div>
+</div>
 
-<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T3.3 · one clip</div>
+<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T4.0 · skip on reopen</div>
 
+<script src="ascendant-library.js"></script>
 <script>
 /* ============================================================
    SECTION DATA (spec, verbatim)
@@ -733,23 +775,52 @@ function readingFromContract(obj) {
   }
   return obj;
 }
+const params = new URLSearchParams(location.search);
 function isCustomerReading(obj) { return !!obj && typeof obj === "object" && obj.fixture !== true && obj.sample !== true; }
 
+/* T3.8 identity (Sep 21): the current chart run (runId + birth fingerprint) from the
+   shared pairing library. Everything personal on this page derives from it. */
+function currentRun() { try { return (window.COZ_ASC && COZ_ASC.currentRun) ? COZ_ASC.currentRun() : null; } catch (e) { return null; } }
+function nonEmpty(x) { return typeof x === "string" && x.trim().length > 0; }
+function runMatches(rec, run) {
+  return !!(rec && rec.run && run && nonEmpty(rec.run.runId) && nonEmpty(rec.run.fingerprint) &&
+            rec.run.runId === run.runId && rec.run.fingerprint === run.fingerprint);
+}
+/* A reading must carry the identity of the run it was written for. Readings without
+   identity metadata are reported as unverified, never shown as this person's. */
+function verifiedReading(obj, run) {
+  if (!isCustomerReading(obj)) return null;
+  if (!obj.run) { try { console.log("[TROPICAL READING] stored reading has no run identity; treated as unavailable"); } catch (e) {} return null; }
+  return runMatches(obj, run) ? obj : null;
+}
+const PREVIEW_SAMPLE = params.get("preview") === "sample";   /* explicit, labeled development preview only */
+/* a reading is complete only when every section has at least one non-empty paragraph */
+function completeReading(map) {
+  if (!map || typeof map !== "object") return false;
+  return vedicReadingSections.every(sec => Array.isArray(map[sec.id]) && map[sec.id].length > 0 &&
+    map[sec.id].every(p => typeof p === "string" && p.trim().length > 0));
+}
+/* returns { map, source } with source "personal" or "sample", or null when nothing valid is available */
 function loadReading() {
-  if (isCustomerReading(window.COZ_TROPICAL_READING)) return readingFromContract(window.COZ_TROPICAL_READING);
+  const run = currentRun();
+  const live = verifiedReading(window.COZ_TROPICAL_READING, run);
+  if (live) { const m = readingFromContract(live); if (completeReading(m)) return { map: m, source: "personal" }; try { console.log("[TROPICAL READING] verified reading is incomplete; treated as unavailable"); } catch (e) {} }
   try {
     const stored = JSON.parse(localStorage.getItem("cozTropicalReading") || "null");
-    if (isCustomerReading(stored)) return readingFromContract(stored);
+    const ok = verifiedReading(stored, run);
+    if (ok) { const m = readingFromContract(ok); if (completeReading(m)) return { map: m, source: "personal" }; try { console.log("[TROPICAL READING] stored reading is incomplete; treated as unavailable"); } catch (e) {} }
   } catch (e) {}
-  return readingFromContract(COZ_TROPICAL_SAMPLE_READING);   // SAMPLE / FIXTURE, last resort only
+  if (PREVIEW_SAMPLE) return { map: readingFromContract(COZ_TROPICAL_SAMPLE_READING), source: "sample" };   /* labeled in renderSection */
+  return null;                                                                                               /* normal use: unavailable, never the sample */
 }
+const READING_UNAVAILABLE = "Your personalized Tropical reading is not available yet. It will appear here once it has been prepared for your chart.";
+const SAMPLE_LABEL = "Sample reading for demonstration only. This is not your chart.";
 
 /* ============================================================
    NAVIGATION TARGETS
    The dashboard lives in THIS document at #/dashboard, so going
    back never leaves the page.
    ============================================================ */
-const params = new URLSearchParams(location.search);
 const DASHBOARD_HREF = "#/dashboard";
 
 function goDashboard() {
@@ -776,8 +847,9 @@ function esc(s) {
 function sectionById(id) { return vedicReadingSections.find(s => s.id === id) || vedicReadingSections[0]; }
 
 function renderSection(section) {
-  const reading = loadReading();
-  const paragraphs = Array.isArray(reading[section.id]) ? reading[section.id] : [];
+  const loaded = loadReading();
+  const paragraphs = loaded ? loaded.map[section.id] : [READING_UNAVAILABLE];
+  const sampleLabel = (loaded && loaded.source === "sample") ? `<p class="dev-label">${esc(SAMPLE_LABEL)}</p>` : "";
   const sectionCounter = `${String(section.number).padStart(2, "0")} OF ${SECTION_TOTAL}`;
   const titleClass = section.title.length > 22 ? "vedic-title vedic-title--long" : "vedic-title";
   const next = section.nextLabel ? vedicReadingSections[section.number] : null;
@@ -796,7 +868,7 @@ function renderSection(section) {
     <h1 class="${titleClass}">${esc(section.title)}</h1>
     <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
     <section class="vedic-body">
-      ${paragraphs.map(p => `<p>${esc(p)}</p>`).join("")}
+      ${sampleLabel}${paragraphs.map(p => `<p>${esc(p)}</p>`).join("")}
     </section>
     <nav class="vedic-nav" aria-label="Reading navigation">
       <div class="vedic-nav-rule" aria-hidden="true">${STAR_SVG}</div>
@@ -833,9 +905,14 @@ function showDashboard() {
 
 function showFromHash() {
   const id = idFromHash();
+  if (window.COZ_ASQ && id !== "ascendant") window.COZ_ASQ.exit();     /* leaving the ascendant route: full cleanup */
   if (!id || id === "dashboard") {
     if (id !== "dashboard") history.replaceState({ id: "dashboard" }, "", "#/dashboard");
     showDashboard();
+    return;
+  }
+  if (id === "ascendant") {
+    if (window.COZ_ASQ) window.COZ_ASQ.enter(); else window.__asqPending = true;   /* module defined below */
     return;
   }
   const section = sectionById(id);
@@ -858,16 +935,24 @@ const RING_ICON = sign => `ring-${sign.toLowerCase()}.png`;   // his 12 ring ico
 
 function resolveAscendant() {
   const pick = v => { if (!v) return null; v = String(v).trim(); v = v.charAt(0).toUpperCase() + v.slice(1).toLowerCase(); return SIGNS.includes(v) ? v : null; };
-  // TROPICAL ascendant only. emergeAscendant holds the SIDEREAL sign (about 24° behind), so it is
-  // deliberately not read here; the tropical reveal stores emergeAscendantTropical.
-  return pick(params.get("asc")) || pick(window.EMERGE_ASCENDANT_TROPICAL) || pick((() => { try { return localStorage.getItem("emergeAscendantTropical"); } catch (e) { return null; } })()) || SAMPLE_SIGN_IN_ART;
+  /* T3.8: the Tropical Ascendant comes from the current run's verified chart record.
+     The URL / stored sign is accepted only when it agrees with that record. With no
+     verified record the sign is unknown (null): never Leo, never a stale sign. */
+  const run = currentRun();
+  let rec = null; try { rec = JSON.parse(localStorage.getItem("cozTropicalChartJSON") || "null"); } catch (e) {}
+  if (!runMatches(rec, run) || !rec.angles || !rec.angles.ascendant) return null;
+  const verified = pick(rec.angles.ascendant.sign);
+  if (!verified) return null;
+  const hinted = pick(params.get("asc")) || pick(window.EMERGE_ASCENDANT_TROPICAL);
+  if (hinted && hinted !== verified) { try { console.log("[TROPICAL READING] ascendant hint " + hinted + " ignored; verified chart says " + verified); } catch (e) {} }
+  return verified;
 }
 
 function paintAscendant(stage, sign) {
-  const live = sign !== SAMPLE_SIGN_IN_ART;
-  stage.dataset.ascLive = live ? "1" : "0";
+  const live = !!sign && sign !== SAMPLE_SIGN_IN_ART;
+  stage.dataset.ascLive = (sign && sign !== SAMPLE_SIGN_IN_ART) ? "1" : (sign ? "0" : "1");   /* unknown: hide the baked Leo, show nothing */
   stage.querySelector(".asc-glyph").innerHTML = live ? `<img src="${RING_ICON(sign)}" alt="">` : "";
-  stage.querySelector(".asc-label").textContent = sign;
+  stage.querySelector(".asc-label").textContent = sign || "";
 }
 
 /* Entrance: the whole art is shown first, then it eases in slightly so the type reads larger.
@@ -885,7 +970,7 @@ dashZoomIn();
 const ASC_SIGN = resolveAscendant();
 paintAscendant(document.getElementById("dashStage"), ASC_SIGN);
 paintAscendant(document.getElementById("revealStage"), ASC_SIGN);
-document.querySelector('[data-dash="ascendant"]').setAttribute("aria-label", `Your Ascendant, ${ASC_SIGN}`);
+document.querySelector('[data-dash="ascendant"]').setAttribute("aria-label", ASC_SIGN ? `Your Ascendant, ${ASC_SIGN}` : "Your Ascendant");
 
 /* Reading readiness. The engine sets window.COZ_TROPICAL_READING_STATUS = "preparing"
    while it works; anything else counts as ready. The reading is never regenerated
@@ -961,15 +1046,24 @@ revealVideo.addEventListener("playing", () => {
      (tropical-reading-reveal-full.mp4). The page just plays it and lands when it ends. */
   // hard cap a little past the clip's 2.5s so a stalled clip never traps anyone
   revealTimers.push(setTimeout(() => finishReveal(false), 47000));   /* stall guard only: the clip runs 44.5s */
+  /* stall watchdog (Sep 21): if the clip stops advancing for 4s (buffering on
+     cellular), land on the reading instead of holding a black screen */
+  let lastT = -1, stuckSince = Date.now();
+  revealTimers.push(setInterval(() => {
+    if (!revealActive || revealDone) return;
+    const t = revealVideo.currentTime;
+    if (t !== lastT) { lastT = t; stuckSince = Date.now(); return; }
+    if (Date.now() - stuckSince > 4000) finishReveal(false);
+  }, 500));
 });
 
 function finishReveal(immediate) {
   if (!revealActive || revealDone) return;   // ignore clip events while the reveal is not running
   revealDone = true;
-  revealTimers.forEach(clearTimeout); revealTimers = [];
+  revealTimers.forEach(clearTimeout); revealTimers.forEach(clearInterval); revealTimers = [];
   const land = () => {
     location.hash = "#/at-your-core";          // its own history entry; renders via hashchange
-    revealEl.classList.remove("is-on", "is-closing", "asc-off");
+    revealEl.classList.remove("is-on", "is-closing", "asc-off", "is-through");   /* full reset so a second tap starts clean */
     try { revealVideo.pause(); } catch (e) {}
     lockScroll(false);
     revealActive = false;
@@ -993,7 +1087,7 @@ function finishReveal(immediate) {
 function cancelReveal() {
   if (!revealActive || revealDone) return;
   revealDone = true;
-  revealTimers.forEach(clearTimeout); revealTimers = [];
+  revealTimers.forEach(clearTimeout); revealTimers.forEach(clearInterval); revealTimers = [];
   try { revealVideo.pause(); revealVideo.currentTime = 0; } catch (e) {}
   revealEl.classList.remove("is-on", "is-closing", "is-through", "asc-off");
   lockScroll(false);
@@ -1184,15 +1278,200 @@ const SIGNS = {
   }
 };
 
+/* ---------- TROPICAL RISING SIGN, DEVELOPMENT-ONLY (Sep 21 2026) ----------
+   Western astrology using the tropical zodiac. Three layers:
+     1. How You Meet the World: short fixed baseline per Rising Sign (this bank)
+     2. Your Chart Ruler: generated from the person's cozTropicalChartJSON
+        (ruler's sign, house, major aspects, bodies conjunct the Ascendant)
+     3. What to Notice: one reflection from the combined calculation
+   Ruler policy: the traditional ruler is the chart ruler; the modern ruler
+   is named alongside it for Scorpio, Aquarius and Pisces. Possibility
+   language only. Not approved until Western review. */
+const TROPICAL_BANK_STATUS = 'development-only (Western review pending)';
+const TROPICAL_SHARED = {
+  intro: [
+    "In Western astrology using the tropical zodiac, the Ascendant is the degree rising on the eastern horizon at the moment and place of birth. In this Placidus chart, it forms the cusp of the first house and determines the chart ruler.",
+    "The Rising Sign describes the style through which you approach new situations and the qualities other people may notice first. It is one part of the chart, not a complete personality description. Its expression becomes more specific when the chart ruler's sign, house and major aspects are considered."
+  ]
+};
+const TROPICAL_SIGNS = {
+  aries: { title: "ARIES RISING", traditionalRuler: "Mars", modernRuler: null,
+    meet: [
+      "With Aries Rising, you may initially come across as direct, energetic and quick to act. Others may notice that you start things readily and speak plainly. This Ascendant can emphasize independence, courage and a preference for moving rather than waiting.",
+      "One possible growth edge is follow-through: noticing when speed leaves something unfinished, or leaves other people behind."
+    ] },
+  taurus: { title: "TAURUS RISING", traditionalRuler: "Venus", modernRuler: null,
+    meet: [
+      "With Taurus Rising, you may initially come across as calm, grounded and unhurried. Others may notice a steady manner and an eye for comfort and quality. This Ascendant can emphasize patience, loyalty and a wish for things that last.",
+      "One possible growth edge is flexibility: telling the difference between being steady and being unwilling to change."
+    ] },
+  gemini: { title: "GEMINI RISING", traditionalRuler: "Mercury", modernRuler: null,
+    meet: [
+      "With Gemini Rising, you may initially come across as curious, quick and easy to talk to. Others may notice your questions and the way you connect one idea to another. This Ascendant can emphasize communication, variety and an active mind.",
+      "One possible growth edge is depth: staying with one subject or one task long enough to see it through."
+    ] },
+  cancer: { title: "CANCER RISING", traditionalRuler: "the Moon", modernRuler: null,
+    meet: [
+      "With Cancer Rising, you may initially come across as warm, attentive and somewhat reserved. Others may notice that you read a room by feel and pay attention to who needs support. This Ascendant can emphasize care, belonging and a need for emotional safety.",
+      "One possible growth edge is openness: staying present with people when you would rather withdraw."
+    ] },
+  leo: { title: "LEO RISING", traditionalRuler: "the Sun", modernRuler: null,
+    meet: [
+      "With Leo Rising, you may initially come across as warm, confident and noticeable. Others may notice a natural presence and a generous manner. This Ascendant can emphasize self-expression, loyalty and a wish to be appreciated for who you are.",
+      "One possible growth edge is ease: letting recognition come without needing it, and not taking every response personally."
+    ] },
+  virgo: { title: "VIRGO RISING", traditionalRuler: "Mercury", modernRuler: null,
+    meet: [
+      "With Virgo Rising, you may initially come across as observant, capable and modest. Others may notice that you catch details and prefer to be useful rather than impressive. This Ascendant can emphasize skill, care and a high personal standard.",
+      "One possible growth edge is gentleness: applying that standard to yourself and others with some room to spare."
+    ] },
+  libra: { title: "LIBRA RISING", traditionalRuler: "Venus", modernRuler: null,
+    meet: [
+      "With Libra Rising, you may initially come across as gracious, fair and easy to be around. Others may notice your tact and your interest in hearing both sides. This Ascendant can emphasize relationship, balance and an eye for what is pleasing.",
+      "One possible growth edge is directness: saying what you actually want, even when it disturbs the peace for a moment."
+    ] },
+  scorpio: { title: "SCORPIO RISING", traditionalRuler: "Mars", modernRuler: "Pluto",
+    meet: [
+      "With Scorpio Rising, you may initially come across as reserved, focused and hard to read. Others may notice that you observe closely and commit fully once you decide. This Ascendant can emphasize depth, privacy and a wish for what is real rather than surface.",
+      "One possible growth edge is trust: allowing trust to develop gradually while keeping boundaries that feel right for you."
+    ] },
+  sagittarius: { title: "SAGITTARIUS RISING", traditionalRuler: "Jupiter", modernRuler: null,
+    meet: [
+      "With Sagittarius Rising, you may initially come across as open, upbeat and candid. Others may notice your humor and your interest in the bigger picture. This Ascendant can emphasize exploration, honesty and a need for room to move.",
+      "One possible growth edge is commitment: matching your enthusiasm at the start with the same energy at the finish."
+    ] },
+  capricorn: { title: "CAPRICORN RISING", traditionalRuler: "Saturn", modernRuler: null,
+    meet: [
+      "With Capricorn Rising, you may initially come across as composed, capable and serious about what matters. Others may notice that you can be relied on and that you do not waste words. This Ascendant can emphasize responsibility, patience and long-term effort.",
+      "One possible growth edge is lightness: letting others carry some of the weight, and allowing rest before it is earned."
+    ] },
+  aquarius: { title: "AQUARIUS RISING", traditionalRuler: "Saturn", modernRuler: "Uranus",
+    meet: [
+      "With Aquarius Rising, you may initially come across as friendly, original and a little detached. Others may notice that you think for yourself and are at ease with many kinds of people. This Ascendant can emphasize independence, principle and interest in the wider group.",
+      "One possible growth edge is closeness: staying warm with individuals while you keep your wider view."
+    ] },
+  pisces: { title: "PISCES RISING", traditionalRuler: "Jupiter", modernRuler: "Neptune",
+    meet: [
+      "With Pisces Rising, you may initially come across as gentle, receptive and hard to pin down. Others may notice that you pick up the mood of a room and the feeling behind the words. This Ascendant can emphasize imagination, compassion and sensitivity to surroundings.",
+      "One possible growth edge is definition: keeping a clear sense of where you end and other people begin."
+    ] }
+};
+/* ---- layer 2 banks: the chart ruler's placement ---- */
+const RULER_SIGN = {
+  Aries: "through direct action and initiative", Taurus: "through steadiness, patience and practical values", Gemini: "through curiosity, conversation and exchange",
+  Cancer: "through care, memory and emotional connection", Leo: "through warmth, confidence and self-expression", Virgo: "through attention to detail and useful work",
+  Libra: "through relationship, fairness and a sense of balance", Scorpio: "through intensity, depth and focus", Sagittarius: "through exploration, belief and a wide view",
+  Capricorn: "through discipline, structure and long effort", Aquarius: "through independent thinking and a wider social view", Pisces: "through imagination, compassion and sensitivity"
+};
+const RULER_HOUSE = {
+  1: "your own body, manner and personal direction", 2: "money, possessions and what you value", 3: "communication, learning, siblings and your local world",
+  4: "home, family and private life", 5: "creativity, romance, children and play", 6: "daily work, routines and health habits",
+  7: "partnership and one-to-one relationships", 8: "shared resources, intimacy and deep change", 9: "travel, higher learning and belief",
+  10: "career, reputation and public life", 11: "friends, groups and future goals", 12: "rest, solitude and what happens behind the scenes"
+};
+const ASPECT_WORD = { conjunction: "joined with", opposition: "opposite", square: "in a square to", trine: "in a trine to", sextile: "in a sextile to" };
+const ASPECT_TONE = {
+  conjunction: "which can blend that planet's qualities directly into how you come across",
+  opposition: "which can bring its themes in through other people and ask for balance",
+  square: "which can add friction that pushes you to act or adjust",
+  trine: "which can give its themes an easy, natural flow",
+  sextile: "which can open opportunities that respond to effort"
+};
+const PLANET_THEME = {
+  Sun: "identity and vitality", Moon: "feeling and habit", Mercury: "thought and speech", Venus: "affection and values", Mars: "drive and assertion",
+  Jupiter: "growth and confidence", Saturn: "structure and caution", Uranus: "independence and change", Neptune: "imagination and sensitivity", Pluto: "intensity and transformation",
+  "North Node": "the direction of growth", "South Node": "familiar habits"
+};
+const NOTICE_HOUSE = {
+  1: "how you present yourself in new situations", 2: "how you handle money and what you decide is worth keeping", 3: "how you communicate and what you are curious about",
+  4: "how home and family shape your sense of security", 5: "what you create and what brings you joy", 6: "your daily routines and the work you do for others",
+  7: "what you look for in a partner and how you handle one-to-one relationships", 8: "how you deal with shared resources and deep change", 9: "what you believe and where you want to explore",
+  10: "your ambitions and how you are seen publicly", 11: "your friendships and the goals you share with others", 12: "your need for rest, privacy and reflection"
+};
+/* Natal contact policy for bodies on the Ascendant. Mirrors the conjunction orb
+   of the Tropical engine's natal ASPECT_DEFS (8 degrees, its default orb policy,
+   pending approval). Angles and nodes have no separate rule yet; until one is
+   approved, nodes are excluded from Ascendant contacts. Never the transit policy. */
+const TROPICAL_NATAL_POLICY = { version: 'tropical natal aspects, default orb policy (pending approval)', ascendantConjunctionOrb: 8, nodesOnAscendant: false };
+const TBODY_NAME = { sun:"Sun", moon:"Moon", mercury:"Mercury", venus:"Venus", mars:"Mars", jupiter:"Jupiter", saturn:"Saturn", uranus:"Uranus", neptune:"Neptune", pluto:"Pluto",
+  northNode:"North Node", southNode:"South Node", NNode:"North Node", SNode:"South Node" };
+function tName(k){ return TBODY_NAME[k] || (String(k).charAt(0).toUpperCase() + String(k).slice(1)); }
+function plain(n){ return String(n).replace(/^the /,''); }
+function art(n){ return (n === 'Sun' || n === 'Moon') ? 'the ' + n : n; }
+function ordT(n){ var s=['th','st','nd','rd'], v=n%100; return n+(s[(v-20)%10]||s[v]||s[0]); }
+/* Reads the person's Tropical chart record (never recalculated here) and returns
+   { ruler:[paras], notice:[paras], trace:[factors] } or null when the record is missing. */
+function tropicalRulerLayer(sign){
+  var T = TROPICAL_SIGNS[sign]; if (!T) return null;
+  /* identity: the record must belong to the current chart run (runId + birth
+     fingerprint via the shared pairing library), never matched by sign alone */
+  var run = (window.COZ_ASC && COZ_ASC.currentRun) ? COZ_ASC.currentRun() : null;
+  var t = null; try { t = JSON.parse(localStorage.getItem('cozTropicalChartJSON') || 'null'); } catch(e){}
+  if (!run || !t || !t.run || typeof t.run.runId !== 'string' || !t.run.runId || typeof t.run.fingerprint !== 'string' || !t.run.fingerprint ||
+      t.run.runId !== run.runId || t.run.fingerprint !== run.fingerprint || !t.run.engineVersion) return { unavailable: 'identity' };
+  if (!Array.isArray(t.bodies) || !t.angles || !t.angles.ascendant) return { unavailable: 'record' };
+  var ascSign = typeof t.angles.ascendant.sign === 'string' ? t.angles.ascendant.sign.toLowerCase() : '';
+  if (ascSign !== sign) return { unavailable: 'sign' };
+  var num = function(x){ return typeof x === 'number' && isFinite(x); };
+  var rulerName = plain(T.traditionalRuler);
+  var body = t.bodies.filter(function(b){ return b && tName(b.id) === rulerName; })[0];
+  if (!body || !body.position || typeof body.position.sign !== 'string' || !RULER_SIGN[body.position.sign]) return { unavailable: 'ruler' };
+  var house = Number.isInteger(body.house) && body.house >= 1 && body.house <= 12 ? body.house : null;
+  var trace = ['asc_' + sign, 'ruler_' + rulerName];
+  var ruler = [], notice = [];
+  var p1 = rulerName === 'Sun' || rulerName === 'Moon' ? 'The ' + rulerName : rulerName;
+  p1 += ' is the traditional ruler of your chart.';
+  if (T.modernRuler) p1 += ' Modern Western astrology also associates ' + T.title.split(' ')[0].charAt(0) + T.title.split(' ')[0].slice(1).toLowerCase() + ' with ' + T.modernRuler + '.';
+  p1 += ' In your chart, ' + art(rulerName) + ' is in ' + body.position.sign + (house ? ' in the ' + ordT(house) + ' house' : '') + '.';
+  ruler.push(p1);
+  var p2 = 'With your chart ruler in ' + body.position.sign + ', the qualities of your Rising Sign may be expressed ' + RULER_SIGN[body.position.sign] + '.';
+  trace.push('ruler_sign_' + body.position.sign);
+  if (house){ p2 += ' Its place in the ' + ordT(house) + ' house points to ' + RULER_HOUSE[house] + ' as an area where these themes may become noticeable.'; trace.push('ruler_house_' + house); }
+  if (typeof body.motion === 'string' && /retro/i.test(body.motion)) { p2 += ' ' + art(rulerName).charAt(0).toUpperCase() + art(rulerName).slice(1) + ' was retrograde at your birth, which some astrologers read as a more inward, reconsidering expression of these themes.'; trace.push('ruler_retrograde'); }
+  ruler.push(p2);
+  /* provisional selection: the three tightest major aspects to the ruler, listed
+     separately. Not an approved weighting and not a synthesis yet. */
+  var asp = (Array.isArray(t.aspects) ? t.aspects : []).filter(function(a){
+      if (!a || !ASPECT_WORD[a.type] || !num(a.orbDegrees) || a.orbDegrees < 0 || typeof a.orbDisplay !== 'string' || !a.orbDisplay.trim()) return false;
+      var A = tName(a.bodyA), B = tName(a.bodyB);
+      if (A !== rulerName && B !== rulerName) return false;
+      var other = A === rulerName ? B : A;
+      return !!PLANET_THEME[other] && other !== rulerName;
+    }).sort(function(a,b){ return a.orbDegrees - b.orbDegrees; }).slice(0,3);
+  if (asp.length){
+    var parts = asp.map(function(a){ var other = tName(tName(a.bodyA) === rulerName ? a.bodyB : a.bodyA); trace.push('aspect_' + a.type + '_' + other);
+      return art(rulerName) + ' is ' + ASPECT_WORD[a.type] + ' ' + art(other) + ' (orb ' + a.orbDisplay + '), ' + ASPECT_TONE[a.type] + ', bringing ' + PLANET_THEME[other] + ' into the picture'; });
+    var p3 = parts.map(function(s,i){ return (i ? s : s.charAt(0).toUpperCase() + s.slice(1)) + '.'; }).join(' ');
+    ruler.push(p3);
+  }
+  /* bodies conjunct the Ascendant (same 8 degree conjunction orb as the chart's own aspect policy) */
+  var ascLon = t.angles.ascendant.longitude, conj = [], orb = TROPICAL_NATAL_POLICY.ascendantConjunctionOrb;
+  if (num(ascLon)) t.bodies.forEach(function(b){
+    if (!b || !b.position || !num(b.position.longitude)) return;
+    var name = tName(b.id); if (!PLANET_THEME[name]) return;
+    if (!TROPICAL_NATAL_POLICY.nodesOnAscendant && /Node$/.test(name)) return;
+    var d = Math.abs(b.position.longitude - ascLon) % 360; if (d > 180) d = 360 - d;
+    if (d <= orb) conj.push({ name: name, d: d });
+  });
+  if (conj.length){ conj.sort(function(a,b){ return a.d - b.d; }); ruler.push((conj.length === 1 ? art(conj[0].name).charAt(0).toUpperCase() + art(conj[0].name).slice(1) + ' sits close to your Ascendant, so ' + PLANET_THEME[conj[0].name] + ' may be part of your first impression as well.'
+    : conj.map(function(c){ return art(c.name); }).join(' and ') + ' sit close to your Ascendant, so their themes may be part of your first impression as well.')); conj.forEach(function(c){ trace.push('conj_asc_' + c.name); }); }
+  /* layer 3 */
+  var n1 = 'You might notice ' + (house ? NOTICE_HOUSE[house] : 'how the style of your Rising Sign shows up in daily life') + '. This is one area where your Rising Sign and its ruler may both be at work.';
+  notice.push(n1);
+  notice.push(T.meet[1]);
+  notice.push('These themes describe possible patterns, not fixed outcomes.');
+  return { ruler: ruler, notice: notice, trace: trace, status: TROPICAL_BANK_STATUS, policy: TROPICAL_NATAL_POLICY.version };
+}
+
   const MODE = "tropical";
-  const key = String(ASC_SIGN || "").toLowerCase();
+  const key = ASC_SIGN ? String(ASC_SIGN).toLowerCase() : "";
   const S = SIGNS[key] || null;
   const veil = document.getElementById("asqVeil"), hero = document.getElementById("asqHero"),
         sVid = document.getElementById("asqVid"), content = document.getElementById("asqContent");
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let settled = false, entered = false;
   function once(fn){ let ran = false; return () => { if (!ran){ ran = true; fn(); } }; }
-  function fill(id, paragraphs){ const el = document.getElementById(id); el.innerHTML = ""; paragraphs.forEach(t => { const p = document.createElement("p"); p.textContent = t; el.appendChild(p); }); }
+  function fill(id, paragraphs){ const el = document.getElementById(id); el.innerHTML = ""; paragraphs.forEach(t => { const p = document.createElement("p"); p.textContent = t; if (/^Development version/.test(t)) p.className = "dev-label"; el.appendChild(p); }); }
   function buildCopy(){
     const host = document.getElementById("asqSections"); host.innerHTML = "";
     document.getElementById("asqTitle").textContent = S ? S.title : (key.charAt(0).toUpperCase() + key.slice(1) + " Rising").toUpperCase();
@@ -1205,41 +1484,104 @@ const SIGNS = {
       fill("asqSecSidereal", SHARED.sidereal);
       if (S){ fill("asqSecEssence", S.essence); fill("asqSecDharma", S.dharma); }
     } else {
-      /* tropical: the sign emergence and title only; the Rising Sign copy for this
-         page is not written yet (his lane), so no Lagna text is shown here */
+      /* tropical: three layers (development-only bank above): fixed baseline,
+         chart-ruler layer generated from the person's own Tropical chart record,
+         and one reflection. Never recalculated here. */
+      const T = TROPICAL_SIGNS[key] || null;
       document.getElementById("asqEyebrow").textContent = "Your Rising Sign";
       document.getElementById("asqSub").textContent = "Your Conscious Expression";
+      document.getElementById("asqTitle").textContent = T ? T.title : "NOT AVAILABLE";
+      if (!T){
+        host.innerHTML = '<section><div id="asqSecMissing" class="reading-copy"></div></section>' +
+          '<nav class="vedic-nav" aria-label="Ascendant navigation"><div class="vedic-nav-rule" aria-hidden="true">' + STAR_SVG + '</div>' +
+          '<div class="vedic-nav-links"><a href="#/dashboard" id="asqNavBack">' + ARROW_L + ' Back to Your Tropical Reading</a></div></nav>';
+        fill("asqSecMissing", ["Your Rising Sign could not be verified for this chart. Run your chart again to see it here."]);
+        return;
+      }
+      host.innerHTML = '<section><h2>Tropical Perspective</h2><div id="asqSecTropical" class="reading-copy"></div></section><div class="divider"></div>' +
+        '<section><h2>How You Meet the World</h2><div id="asqSecMeet" class="reading-copy"></div></section><div class="divider"></div>' +
+        '<section><h2>Your Chart Ruler</h2><div id="asqSecRuler" class="reading-copy"></div></section><div class="divider"></div>' +
+        '<section><h2>What to Notice</h2><div id="asqSecNotice" class="reading-copy"></div></section>' +
+        /* same pager as the reading pages; back only, no Next until Current Transits exists */
+        '<nav class="vedic-nav" aria-label="Ascendant navigation"><div class="vedic-nav-rule" aria-hidden="true">' + STAR_SVG + '</div>' +
+        '<div class="vedic-nav-links"><a href="#/dashboard" id="asqNavBack">' + ARROW_L + ' Back to Your Tropical Reading</a></div></nav>';
+      fill("asqSecTropical", TROPICAL_SHARED.intro);
+      if (T){
+        fill("asqSecMeet", [T.meet[0]]);
+        const L = tropicalRulerLayer(key);
+        const devLabel = 'Development version, pending Western review.';
+        if (L && !L.unavailable){
+          fill("asqSecRuler", L.ruler.concat([devLabel])); fill("asqSecNotice", L.notice);
+          try { console.log('[TROPICAL RISING] ' + L.status + ' | ' + L.policy + ' | factors: ' + L.trace.join(', ')); } catch(e){}
+        } else {
+          /* no verified record for this person: say so, never show another chart's placements */
+          const r = T.traditionalRuler === 'the Sun' || T.traditionalRuler === 'the Moon' ? 'The ' + T.traditionalRuler.slice(4) : T.traditionalRuler;
+          fill("asqSecRuler", [r + ' is the traditional ruler of your chart.' + (T.modernRuler ? ' Modern Western astrology also associates this sign with ' + T.modernRuler + '.' : ''),
+            'Its placement in your chart is not available right now. Run your chart again to see it here.', devLabel]);
+          fill("asqSecNotice", [T.meet[1], 'These themes describe possible patterns, not fixed outcomes.']);
+          try { console.log('[TROPICAL RISING] chart ruler layer unavailable: ' + (L ? L.unavailable : 'no sign')); } catch(e){}
+        }
+      }
     }
   }
+  /* Each opening gets a generation number and its own AbortController. Every timer,
+     animation frame, listener and play() promise checks that it still belongs to the
+     current opening, so an earlier opening can never settle or modify a later one. */
+  let gen = 0, ac = null;
+  const asqTimers = [], asqFrames = [];
+  const alive = g => g === gen && entered;
+  const later = (fn, ms) => { const g = gen; const t = setTimeout(() => { if (alive(g)) fn(); }, ms); asqTimers.push(t); return t; };
+  const frame = fn => { const g = gen; const id = requestAnimationFrame(() => { if (alive(g)) fn(); }); asqFrames.push(id); return id; };
+  const on = (el, ev, fn, opts) => { const g = gen; el.addEventListener(ev, e => { if (alive(g)) fn(e); }, Object.assign({}, opts || {}, { signal: ac.signal })); };
   function enter(){
-    if (entered) return; entered = true;
+    if (entered) return; entered = true; settled = false; gen++; ac = new AbortController();
     try { window.parent !== window && window.parent.EMERGE_SOUND && window.parent.EMERGE_SOUND.loop("ambient"); } catch(_){}
     buildCopy();
-    sVid.src = key + ".mp4"; if (S && S.loop) sVid.loop = true; sVid.load();
     document.body.dataset.view = "ascendant";
-    document.body.classList.add("asq-locked");
     window.scrollTo(0, 0);
+    try { window.dispatchEvent(new CustomEvent("COZ_ASQ_ENTER")); } catch(_){}
+    if (!key){                                   /* no verified sign: no clip, straight to the message */
+      hero.classList.add("playing"); settle(); return;
+    }
+    sVid.src = key + ".mp4"; if (S && S.loop) sVid.loop = true; sVid.load();
+    document.body.classList.add("asq-locked");
     veil.classList.add("on");
-    setTimeout(() => { playSign(); setTimeout(() => veil.classList.remove("on"), 150); }, 300);   // black beat, then the swell
+    later(() => { playSign(); later(() => veil.classList.remove("on"), 150); }, 300);   // black beat, then the swell
   }
+  /* exit: everything enter/playSign/settle set up is undone, so the door can be reopened */
+  function exit(){
+    if (!entered) return;
+    entered = false; settled = false; gen++;
+    try { ac && ac.abort(); } catch(_){}
+    asqTimers.splice(0).forEach(clearTimeout);
+    asqFrames.splice(0).forEach(cancelAnimationFrame);
+    try { sVid.pause(); sVid.removeAttribute("src"); sVid.load(); } catch(_){}
+    document.body.classList.remove("asq-locked", "asq-done");
+    veil.classList.remove("on");
+    hero.classList.remove("bloom", "playing", "grown", "settling"); hero.style.height = "";
+    content.classList.remove("rising"); content.style.transform = "";
+    document.documentElement.style.removeProperty("--settled-h");
+    document.querySelectorAll(".coz-skip.asq").forEach(el => el.classList.remove("on"));
+  }
+  window.COZ_ASQ = { enter: enter, exit: exit };
   function playSign(){
     hero.classList.add("bloom");
     void sVid.offsetWidth;                                    // commit scale .06 before growing
-    requestAnimationFrame(() => { hero.classList.add("playing"); hero.classList.add("grown"); });
+    frame(() => { hero.classList.add("playing"); hero.classList.add("grown"); });
     const arm = once(scheduleSettle);
-    sVid.addEventListener("loadedmetadata", arm);
+    on(sVid, "loadedmetadata", arm);
     if (sVid.readyState >= 1) arm();
-    sVid.addEventListener("error", () => settle());
-    sVid.play().catch(() => settle());
-    setTimeout(() => { if (!settled) settle(); }, 9000);
+    on(sVid, "error", () => settle());
+    const g = gen; sVid.play().catch(() => { if (alive(g)) settle(); });
+    later(() => { if (!settled) settle(); }, 9000);
   }
   function scheduleSettle(){
     const dur = (sVid.duration && isFinite(sVid.duration)) ? sVid.duration : 5;
-    if (S && S.loop){ setTimeout(settle, Math.max(1000, dur * 1000)); }
+    if (S && S.loop){ later(settle, Math.max(1000, dur * 1000)); }
     else {
-      sVid.addEventListener("ended", settle, { once:true });
-      sVid.addEventListener("timeupdate", function te(){ if (sVid.currentTime >= dur - 1.0){ sVid.removeEventListener("timeupdate", te); settle(); } });
-      setTimeout(() => { if (!settled) settle(); }, dur * 1000 + 1500);
+      on(sVid, "ended", settle, { once:true });
+      on(sVid, "timeupdate", function(){ if (sVid.currentTime >= dur - 1.0) settle(); });
+      later(() => { if (!settled) settle(); }, dur * 1000 + 1500);
     }
   }
   function settle(){
@@ -1254,19 +1596,19 @@ const SIGNS = {
       document.body.classList.add("asq-done"); document.body.classList.remove("asq-locked");
       hero.classList.remove("settling"); content.classList.remove("rising");
       hero.style.height = ""; content.style.transform = "";
-      try { window.dispatchEvent(new CustomEvent("EMERGE_ASCENDANT_SETTLED", { detail:{ sign:key } })); } catch(_){}
+      if (key) { try { window.dispatchEvent(new CustomEvent("EMERGE_ASCENDANT_SETTLED", { detail:{ sign:key } })); } catch(_){} }   /* a real emergence only */
     });
     if (reduced){ finish(); return; }
     content.style.transform = "translateY(" + window.innerHeight + "px)";
     content.classList.add("rising");
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    frame(() => frame(() => {
       hero.classList.add("settling"); hero.style.height = settledH + "px";
       content.style.transform = "translateY(" + settledH + "px)";
     }));
-    content.addEventListener("transitionend", finish, { once:true });
-    setTimeout(finish, 3000);
+    on(content, "transitionend", finish, { once:true });
+    later(finish, 3000);
   }
-  document.querySelector('.hot[data-dash="ascendant"]').addEventListener("click", enter);
+  document.querySelector('.hot[data-dash="ascendant"]').addEventListener("click", function(){ location.hash = "#/ascendant"; });   /* its own history entry */
   /* SKIP (Sep 1 ruling): from the second emergence on this device, a subtle Skip
      appears a moment into the swell and jumps to the settled reading */
   (function(){
@@ -1274,14 +1616,23 @@ const SIGNS = {
     try { seen = localStorage.getItem(KEY) === "1"; } catch(_){}
     var el = document.createElement("button"); el.type = "button"; el.className = "coz-skip asq"; el.textContent = "Skip"; el.setAttribute("aria-label", "Skip to the reading");
     document.body.appendChild(el);
-    window.addEventListener("EMERGE_ASCENDANT_SETTLED", function(){ try { localStorage.setItem(KEY, "1"); } catch(_){} el.classList.remove("on"); });
+    window.addEventListener("EMERGE_ASCENDANT_SETTLED", function(){ seen = true; try { localStorage.setItem(KEY, "1"); } catch(_){} el.classList.remove("on"); });
     el.addEventListener("click", function(){ el.classList.remove("on"); hero.classList.remove("bloom"); hero.classList.add("playing"); settle(); });
-    document.querySelector('.hot[data-dash="ascendant"]').addEventListener("click", function(){ if (seen) setTimeout(function(){ if (!settled) el.classList.add("on"); }, 1800); });
+    window.addEventListener("COZ_ASQ_ENTER", function(){ if (seen) later(function(){ if (!settled) el.classList.add("on"); }, 1800); });
   })();
-  document.getElementById("asqHome").addEventListener("click", function(e){
-    e.preventDefault();
-    location.hash = "#/dashboard";
-    location.reload();                                        // back to the dashboard; the frame's bed is untouched
+  document.getElementById("asqHome").addEventListener("click", function(e){ e.preventDefault(); location.hash = "#/dashboard"; });
+  document.addEventListener("click", function(e){
+    const back = e.target.closest && e.target.closest("#asqNavBack");
+    if (!back) return;
+    e.preventDefault(); location.hash = "#/dashboard";
+  });
+  if (window.__asqPending){ window.__asqPending = false; enter(); }   /* page opened directly on #/ascendant */
+  /* Saved and Account mirror the dashboard hotspots, same events, until those screens exist */
+  document.querySelectorAll('#cozFoot a[data-foot]').forEach(function(a){
+    a.addEventListener('click', function(ev){
+      ev.preventDefault();
+      try { window.dispatchEvent(new CustomEvent('COZ_TDASH_' + a.dataset.foot.toUpperCase())); } catch (e) {}
+    });
   });
 })();
 

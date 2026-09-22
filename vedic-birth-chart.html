@@ -160,7 +160,7 @@ button{font:inherit}
 @media (max-width:700px){
   .report-shell{padding:1rem .5rem 3rem}
   .report-toolbar{padding-inline:.4rem; justify-content:flex-end}
-  .report-toolbar > p{display:none}
+  .toolbar-left p{display:none}
   .report-inner{padding:2rem 1.5rem 1.5rem}
   .birth-identity{grid-template-columns:1fr; gap:1rem}
   .birth-identity dl{grid-template-columns:1fr .8fr 1.4fr}
@@ -242,6 +242,10 @@ button{font:inherit}
 <div class="report-shell">
   <div class="report-toolbar">
     <div class="toolbar-left">
+      <button type="button" class="print-button back-button" id="backBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+        Back to Reading
+      </button>
       <p>BIRTH-CHART PRINT PREVIEW</p>
     </div>
     <button type="button" class="print-button" id="printBtn">
@@ -260,7 +264,7 @@ button{font:inherit}
     <a href="#" data-foot="account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
   </div>
 </div>
-<div class="build-stamp">BIRTH CHART · BC2.2 · shared footer</div>
+<div class="build-stamp">BIRTH CHART · BC2.3 · back button</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -673,6 +677,7 @@ function renderEmptyState(){
   var mount = document.getElementById("reportMount");
   var banner = document.getElementById("sampleBanner");
   document.getElementById("printBtn").addEventListener("click",function(){window.print();});
+  document.getElementById("backBtn").addEventListener("click",function(){ location.href = /\bfrom=compare\b/.test(location.search) ? "compare-birth-charts.html" : "vedic-reading.html"; });
   /* v20.1: the top Back button is gone; the footer Home link returns to the reading */
 
   var qp = new URLSearchParams(location.search);
