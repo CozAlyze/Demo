@@ -1035,7 +1035,7 @@ var BIRTH = __ok ? {
 console.log('[EMERGE FLOW] 5. sidereal-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 document.getElementById('stamp').textContent =
-  'SIDEREAL v19.97 engine version · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'SIDEREAL v19.98 engine version · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -1197,6 +1197,9 @@ var NODE_REGRESSION = (function(){
   var qa = document.getElementById('qa');
   qa.innerHTML = L.join('\n') + '\n<span class="' + (ascOK ? 'pass' : 'fail') + '">Asc-on-horizon check: ' + (ascOK ? 'PASS' : 'FAIL') + '</span>';
   var tog = document.getElementById('qaToggle');
+  /* Sep 22: the QA panel is a developer view. Its button exists only when the address carries ?qa=1 */
+  if (!/[?&]qa=1\b/.test(location.search)) { tog.remove(); qa.remove(); tog = null; }
+  if (!tog) return;
   if (!ascOK) tog.classList.add('err');
   tog.addEventListener('click', function(){ qa.classList.toggle('open'); });
 } catch(e){ console.error('[EMERGE QA] panel failed, page continues', e); } })();

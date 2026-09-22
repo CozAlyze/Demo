@@ -890,7 +890,7 @@ console.log('[EMERGE FLOW] 5. tropical-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 console.log('[EMERGE FLOW] 6. calculation branch: TROPICAL — no ayanamsa (true tropical longitudes)');
 document.getElementById('stamp').textContent =
-  'TROPICAL v18.93 engine version · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'TROPICAL v18.94 engine version · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -1074,6 +1074,9 @@ BODIES.unshift({ key:'Rising', ab:'AC', label: SIGNS[ascSign] + ' Rising',
   var qa = document.getElementById('qa');
   qa.innerHTML = L.join('\n') + '\n<span class="' + (ascOK ? 'pass' : 'fail') + '">Asc-on-horizon check: ' + (ascOK ? 'PASS' : 'FAIL') + '</span>';
   var tog = document.getElementById('qaToggle');
+  /* Sep 22: the QA panel is a developer view. Its button exists only when the address carries ?qa=1 */
+  if (!/[?&]qa=1\b/.test(location.search)) { tog.remove(); qa.remove(); tog = null; }
+  if (!tog) return;
   if (!ascOK) tog.classList.add('err');
   tog.addEventListener('click', function(){ qa.classList.toggle('open'); });
 })();
