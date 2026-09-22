@@ -1,6 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+<script>
+/* Sep 22: pre-write mode is decided before any markup is parsed, so the dashboard art and
+   the reveal clip are never requested in the hidden copy that only writes Sections 3 to 6.
+   In normal use the same media loads at exactly the same point as before. */
+window.COZ_PREGEN = /[?&]pregen=1\b/.test(location.search);
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000f26">
@@ -10,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE VEDIC READING · R5.1 · early sections
+   COZALYZE · COMPLETE VEDIC READING · R5.2 · quiet pre-write
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -556,7 +562,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 <!-- ===== PAID DASHBOARD ===== -->
 <div class="dash" id="dash" aria-label="Your Vedic reading dashboard">
   <div class="stage" id="dashStage">
-    <img class="stage-art" src="vedic-dash.jpg?v=24" alt="" width="1068" height="1940">
+    <img class="stage-art" data-src="vedic-dash.jpg?v=24" alt="" width="1068" height="1940">
     <div class="asc-patch asc-patch-glyph" aria-hidden="true"></div>
     <div class="asc-patch asc-patch-text" aria-hidden="true"></div>
     <div class="asc-glyph" aria-hidden="true"></div>
@@ -575,8 +581,12 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 <!-- ===== REVEAL ===== -->
 <div class="reveal" id="reveal" role="dialog" aria-label="Opening your Vedic reading">
   <div class="stage" id="revealStage">
-    <img class="stage-art" src="vedic-dash.jpg?v=24" alt="" width="1068" height="1940">
-    <video id="revealVideo" src="vedic-reading-reveal-full.mp4?v=1080" muted playsinline preload="auto" aria-hidden="true"></video>
+    <img class="stage-art" data-src="vedic-dash.jpg?v=24" alt="" width="1068" height="1940">
+    <video id="revealVideo" data-src="vedic-reading-reveal-full.mp4?v=1080" muted playsinline preload="auto" aria-hidden="true"></video>
+    <script>
+    if (!window.COZ_PREGEN) document.querySelectorAll("[data-src]").forEach(function(e){ e.src = e.getAttribute("data-src"); });
+    else document.querySelectorAll("video").forEach(function(v){ v.preload = "none"; });
+    </script>
     <div class="asc-patch asc-patch-glyph" aria-hidden="true"></div>
     <div class="asc-patch asc-patch-text" aria-hidden="true"></div>
     <div class="asc-glyph" aria-hidden="true"></div>
@@ -621,7 +631,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.1 · early sections</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write</div>
 
 <script src="ascendant-library.js"></script>
 <script src="dev-review-engine.js?v=6"></script>
@@ -942,10 +952,13 @@ function fetchJSON(path) {
    chart result appears, so Sections 3 to 6 are written while the person is still reading
    the result and choosing a perspective. Nothing is shown and no clip or sound plays; the
    finished text lands in the same per-chart cache the dashboard reads. */
-var COZ_PREGEN = /[?&]pregen=1\b/.test(location.search);
+var COZ_PREGEN = !!window.COZ_PREGEN;
 if (COZ_PREGEN) {
   document.documentElement.style.display = "none";
   try { document.title = "Preparing"; } catch (e) {}
+  /* Sep 22: the pre-write must not compete for the connection. The reveal clip and the
+     dashboard art are never shown here, so they are dropped before the browser fetches
+     them; only the writing itself runs. */
 }
 var COZ_READING_READY = requestChartData().then(function (chart) {
   if (!chart || !chart.planets) { window.COZ_VEDIC_READING_UNAVAILABLE = true; window.COZ_VEDIC_DEBUG = "No chart in localStorage.cozChartJSON (got: " + JSON.stringify(chart).slice(0,80) + ")"; return; }
