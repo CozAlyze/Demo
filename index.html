@@ -2959,83 +2959,202 @@ document.querySelectorAll('.syscard').forEach(card => {
 
 } // end guard
 
-/* Sep 22 (item 5): Combined Reading pre-generation coordinator. Stands on its own so it
-   listens from page load, whichever route the Compare dashboard is reached by. */
+/* CR3.0 (Sep 22): GENERATION COORDINATOR. This page stays alive across every product page,
+   so it is the ONLY owner of background writing. Product pages ask it for work; they never
+   own a request that a page change could kill.
+   - One model job at a time for the whole app, in one queue:
+       vedic36 (Vedic Sections 3-6) > combined > ascTropical > ascVedic > ascCombined
+   - Compare priority: when the Compare dashboard or the Combined Reading page asks, the
+     Combined job moves to the front. It starts as soon as the job running now finishes.
+   - Ascendant jobs never start while Combined is running (the queue is serial), and if
+     Combined is being written by another live owner the queue waits for it.
+   - Per-job state per chart run in localStorage "cozGenJobs":
+       { runId: { updatedAt, jobs: { vedic36|combined|ascTropical|ascVedic|ascCombined:
+         { state: queued|running|part1_complete|complete|failed, owner, queuedAt, startedAt,
+           endedAt, beat, requests, stage, validationAttempt, checkpoint:{step1}, error } } } }
+   - A failed job is never latched: the next request queues it again.
+   - This coordinator has a unique owner id and beats every 5 s ("cozGenCoord"). Jobs left
+     running or queued by an owner whose beat stopped more than 20 s ago are marked failed
+     (interrupted) at start-up, so nothing waits on a ghost. */
 (function(){
-  /* Sep 22 (item 5): Combined Reading pre-generation. The Compare dashboard posts
-     COZ_COMBINED_PREGEN when it opens; this page, which stays alive across the
-     product pages, loads the generator scripts ON DEMAND (never for people who do
-     not enter Compare), runs one generation per chart run and stores it in the
-     shared cache that combined-reading.html reads. Nothing here touches the
-     reveal or the sound. */
-  var cozPregenRuns = {};
-  function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('failed ' + src)); }; document.head.appendChild(s); }); }
-  /* Sep 22: background writing never runs while a page is changing. It waits until the
-     product page has loaded (or 15 s at most), so the Compare dashboard opens as fast as
-     it always did. */
+  var OWNER = "idx-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
+  var JOBS = "cozGenJobs", COORD = "cozGenCoord", BEAT_MS = 5000, DEAD_MS = 20000, KEEP_RUNS = 6;
+  var ORDER = ["vedic36", "combined", "ascTropical", "ascVedic", "ascCombined"];
+  var ASC = { ascTropical: "tropical", ascVedic: "vedic", ascCombined: "combined" };
+  var queue = [], current = null;
+
+  function lsJSON(k, d){ try { var v = JSON.parse(localStorage.getItem(k) || "null"); return v == null ? d : v; } catch(e){ return d; } }
+  function lsSet(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  function readAll(){ return lsJSON(JOBS, {}); }
+  function writeAll(A){
+    var runs = Object.keys(A).sort(function(a, b){ return (A[b].updatedAt || 0) - (A[a].updatedAt || 0); });
+    runs.slice(KEEP_RUNS).forEach(function(r){ delete A[r]; });
+    lsSet(JOBS, A);
+  }
+  function get(runId, job){ var R = readAll()[runId]; return (R && R.jobs && R.jobs[job]) || null; }
+  function patch(runId, job, f){
+    var A = readAll(), R = A[runId] || (A[runId] = { jobs: {} }); R.jobs = R.jobs || {};
+    var j = R.jobs[job] || (R.jobs[job] = {});
+    for (var k in f) j[k] = f[k];
+    R.updatedAt = Date.now(); writeAll(A); return j;
+  }
+  function beatCoord(){
+    var C = lsJSON(COORD, {}), now = Date.now();
+    Object.keys(C).forEach(function(o){ if (now - C[o] > DEAD_MS) delete C[o]; });
+    C[OWNER] = now; lsSet(COORD, C);
+  }
+  function ownerLive(o){ if (o === OWNER) return true; var C = lsJSON(COORD, {}); return !!(o && C[o] && Date.now() - C[o] < DEAD_MS); }
+
+  /* start-up: invalidate work left by a coordinator that is gone */
+  (function(){
+    beatCoord();
+    var A = readAll(), now = Date.now(), changed = false;
+    Object.keys(A).forEach(function(run){
+      var J = (A[run] && A[run].jobs) || {};
+      Object.keys(J).forEach(function(k){
+        var j = J[k];
+        if ((j.state === "queued" || j.state === "running" || j.state === "part1_complete") && !ownerLive(j.owner)) {
+          j.state = "failed"; j.endedAt = now; j.error = { kind: "interrupted", message: "DEV: the page that was writing this closed before it finished" }; changed = true;
+        }
+      });
+    });
+    if (changed) writeAll(A);
+    var m = lsJSON("cozCombinedGenInFlight", null);
+    if (m && (!m.beat || now - m.beat > DEAD_MS)) try { localStorage.removeItem("cozCombinedGenInFlight"); } catch(e){}
+  })();
+  setInterval(function(){
+    beatCoord();
+    if (current) patch(current.runId, current.job, { beat: Date.now() });
+  }, BEAT_MS);
+
+  function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('could not load ' + src)); }; document.head.appendChild(s); }); }
+  function loadGen(){
+    var chain = Promise.resolve();
+    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=6'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
+    return chain;
+  }
+  /* background writing never starts while a page is changing (or 15 s at most) */
   function cozWhenIdle(){
     return new Promise(function(res){ var t0 = Date.now(); (function poll(){ if (!window.__cozNavBusy || Date.now() - t0 > 15000) return res(); setTimeout(poll, 250); })(); });
   }
-  function cozPregenCombined(){
-    var chain = cozWhenIdle();
-    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=5'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
-    return chain.then(function(){ return window.COZ_ASC.ensurePair(); }).then(function(res){
-      if (!res || !res.ok) { console.log('[COZ PREGEN] pair refused:', res && res.reason); return; }
-      if (cozPregenRuns[res.pair.runId]) return; cozPregenRuns[res.pair.runId] = true;
-      /* Sep 22: ONE call at a time. Four large calls at once on a single key invite
-         rate-limit refusals, which left the Combined Reading stuck on "preparing".
-         The Combined Reading is written first because it is the first door people open,
-         then the three Ascendant readings, each after the one before it. */
-      var chain = window.COZ_COMPARE_EVIDENCE.buildManifest(res).then(function(m){
-        if (window.COZ_COMBINED_GEN.peek(res.pair, m) || window.COZ_COMBINED_GEN.inFlight(res.pair, m)) { console.log('[COZ PREGEN] combined already cached or in flight'); return; }
-        return window.COZ_COMBINED_GEN.getCombined(res, m);
-      }).then(function(rec){ if (rec) console.log('[COZ PREGEN] combined reading ready', rec.fromCache ? '(cache)' : '(generated)'); },
-              function(e){ console.log('[COZ PREGEN] combined skipped:', e && e.message); });
-      ['tropical', 'vedic', 'combined'].forEach(function(sys){
-        chain = chain.then(function(){
-          return window.COZ_ASC.getReading(sys, res).then(function(r){ console.log('[COZ PREGEN] ascendant ' + sys + ' ready', r && r.fromCache ? '(cache)' : '(generated)'); },
-                                                          function(e){ console.log('[COZ PREGEN] ascendant ' + sys + ' skipped:', e && e.message); });
-        });
-      });
-      return chain;
-    }).catch(function(e){ console.log('[COZ PREGEN] skipped:', e && e.message); });
+  function pairFor(runId){
+    return loadGen().then(function(){ return window.COZ_ASC.ensurePair(); }).then(function(res){
+      if (!res || !res.ok) { var e = new Error("DEV: chart pair not ready (" + ((res && res.reason) || "unknown") + ")"); e.kind = "pair_refused"; throw e; }
+      if (runId && res.pair.runId !== runId) { var e2 = new Error("DEV: this chart run has been replaced by a newer one"); e2.kind = "stale_run"; throw e2; }
+      return res;
+    });
   }
-  /* Sep 22: the Vedic Sections 3 to 6 are written as soon as the chart result appears,
-     in a hidden copy of the reading page (?pregen=1) that shows nothing and plays nothing.
-     The result lands in the per-chart cache the Vedic dashboard reads, so the reading is
-     usually ready by the time the reveal ends. One per chart run. */
-  var cozVedicPregenDone = {};
-  function cozPregenVedic(){
-    var run = null; try { run = JSON.parse(localStorage.getItem('emergeBirthData') || 'null'); } catch (e) {}
-    var id = run && run.runId; if (!id || cozVedicPregenDone[id]) return; cozVedicPregenDone[id] = true;
+
+  function enqueue(runId, job, priority){
+    if (!runId) return;
+    if (current && current.runId === runId && current.job === job) return;           /* running here now */
+    var s = get(runId, job);
+    /* Combined is always re-checked (its job returns at once from the cache), so a cleared
+       cache can never leave the reading page waiting; the others stay done once done */
+    if (s && s.state === "complete" && job !== "combined") return;
+    if (s && (s.state === "running" || s.state === "part1_complete") && s.owner !== OWNER && ownerLive(s.owner)) return;  /* another live coordinator has it */
+    var at = -1; queue.forEach(function(q, i){ if (q.runId === runId && q.job === job) at = i; });
+    if (at >= 0) {
+      if (priority && at > 0) { queue.splice(at, 1); queue.unshift({ runId: runId, job: job }); console.log('[COZ GEN] ' + job + ' moved to the front'); }
+      return;
+    }
+    if (priority) queue.unshift({ runId: runId, job: job }); else queue.push({ runId: runId, job: job });
+    patch(runId, job, { state: "queued", owner: OWNER, queuedAt: Date.now(), startedAt: null, endedAt: null, error: null });
+    console.log('[COZ GEN] queued ' + job + (priority ? ' (priority)' : '') + ' · queue: ' + queue.map(function(q){ return q.job; }).join(', '));
+    pump();
+  }
+
+  function pump(){
+    if (current || !queue.length) return;
+    current = queue.shift();
+    var c = current;
     cozWhenIdle().then(function(){
-    var fr = document.createElement('iframe');
-    fr.setAttribute('aria-hidden', 'true'); fr.title = 'preparing';
-    fr.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;top:0';
-    fr.src = 'vedic-reading.html?pregen=1';
-    var done = false, drop = function(){ if (done) return; done = true; try { fr.remove(); } catch (e) {} };
-    window.addEventListener('message', function onDone(ev){
-      var m = ev && ev.data;
-      if (!m || m.coz !== 'COZ_VEDIC_PREGEN_DONE') return;
-      window.removeEventListener('message', onDone);
-      console.log('[COZ PREGEN] vedic sections 3-6 ' + (m.ok ? 'ready' : 'skipped'));
-      drop();
-      /* Sep 22 (his ruling): the Compare readings are written from the chart result too,
-         whether or not Compare is chosen. Started after the Vedic pre-write so only one
-         call runs at a time. */
-      cozPregenCombined();
-    });
-    setTimeout(function(){ drop(); cozPregenCombined(); }, 240000);   /* failsafe: Compare still starts */
-    document.body.appendChild(fr);
-    console.log('[COZ PREGEN] vedic sections 3-6 started at the chart result');
+      patch(c.runId, c.job, { state: "running", owner: OWNER, startedAt: Date.now(), beat: Date.now(), requests: 0 });
+      console.log('[COZ GEN] started ' + c.job);
+      return runJob(c);
+    }).then(function(info){
+      patch(c.runId, c.job, Object.assign({ state: "complete", endedAt: Date.now(), error: null }, info || {}));
+      console.log('[COZ GEN] complete ' + c.job + (info && info.fromCache ? ' (already cached)' : ''));
+    }, function(e){
+      patch(c.runId, c.job, { state: "failed", endedAt: Date.now(), error: { kind: (e && e.kind) || "error", status: (e && e.status) || 0, message: (e && e.message) || "DEV: failed" } });
+      console.log('[COZ GEN] failed ' + c.job + ': ' + (e && e.message));
+    }).then(function(){ current = null; pump(); });
+  }
+
+  function runJob(c){
+    if (c.job === "vedic36") return runVedic36();
+    if (c.job === "combined") return runCombined(c.runId);
+    return pairFor(c.runId).then(function(res){
+      return window.COZ_ASC.getReading(ASC[c.job], res).then(function(r){ return { fromCache: !!(r && r.fromCache) }; });
     });
   }
+  function runCombined(runId){
+    var G, res, m;
+    return pairFor(runId).then(function(r){ res = r; G = window.COZ_COMBINED_GEN; return window.COZ_COMPARE_EVIDENCE.buildManifest(res); })
+      .then(function(man){
+        m = man;
+        if (G.peek(res.pair, m)) return { fromCache: true };
+        var go = function(){
+          return G.getCombined(res, m, { owner: OWNER, onStatus: function(ph){
+            patch(runId, "combined", { state: ph.state === "part1_complete" ? "part1_complete" : (ph.state === "running" ? "running" : get(runId, "combined").state),
+              requests: ph.totalRequests, stage: ph.stage, validationAttempt: ph.validationAttempt, checkpoint: { step1: !!ph.step1Saved }, beat: Date.now() });
+          } }).then(function(rec){ return { fromCache: !!rec.fromCache, requests: rec.requestsSent || 0 }; });
+        };
+        /* written by another live owner (another tab): wait for it, never start a second */
+        if (G.inFlight(res.pair, m) && G.markerOwner(res.pair, m) !== OWNER)
+          return G.waitForLive(res.pair, m).then(function(hit){ return hit ? { fromCache: true } : go(); });
+        return go();
+      });
+  }
+  /* Vedic Sections 3 to 6, written in a hidden copy of the reading page that this page owns */
+  function runVedic36(){
+    return new Promise(function(resolve, reject){
+      var fr = document.createElement('iframe');
+      fr.setAttribute('aria-hidden', 'true'); fr.title = 'preparing';
+      fr.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;top:0';
+      fr.src = 'vedic-reading.html?pregen=1';
+      var done = false;
+      function finish(ok, why){
+        if (done) return; done = true;
+        window.removeEventListener('message', onDone); clearTimeout(t);
+        try { fr.remove(); } catch (e) {}
+        if (ok) resolve({}); else { var e = new Error(why); e.kind = why.indexOf('240') >= 0 ? 'timeout' : 'error'; reject(e); }
+      }
+      function onDone(ev){ var d = ev && ev.data; if (d && d.coz === 'COZ_VEDIC_PREGEN_DONE') finish(!!d.ok, 'DEV: Vedic Sections 3-6 did not finish'); }
+      window.addEventListener('message', onDone);
+      var t = setTimeout(function(){ finish(false, 'DEV: Vedic Sections 3-6 took longer than 240 s'); }, 240000);
+      document.body.appendChild(fr);
+    });
+  }
+
+  function currentRunId(){ var run = lsJSON('emergeBirthData', null); return run && run.runId; }
+  /* the chart result: queue the whole set, Vedic first (his Sep 22 ruling) */
+  function onChartResult(){
+    var id = currentRunId(); if (!id) return;
+    ORDER.forEach(function(j){ enqueue(id, j, false); });
+  }
+  /* Compare opened, or the Combined Reading page asked: Combined goes next */
+  function onCompare(runIdHint){
+    return (runIdHint ? Promise.resolve(runIdHint) : pairFor(null).then(function(r){ return r.pair.runId; }))
+      .then(function(id){
+        enqueue(id, "combined", true);
+        ["ascTropical", "ascVedic", "ascCombined"].forEach(function(j){ enqueue(id, j, false); });
+      }, function(e){ console.log('[COZ GEN] compare request waiting:', e && e.message); });
+  }
+
+  window.COZ_GEN_COORD = {
+    owner: OWNER,
+    /* product pages call this (same origin); it never throws */
+    request: function(job, o){ o = o || {}; if (job === "combined") return onCompare(o.runId); enqueue(o.runId || currentRunId(), job, !!o.priority); return Promise.resolve(); },
+    snapshot: function(){ return { owner: OWNER, current: current, queue: queue.slice() }; }
+  };
   window.addEventListener('message', function(ev){
     var d = ev && ev.data;
-    if (d && d.coz === 'COZ_COMBINED_PREGEN') cozPregenCombined();
-    if (d && d.coz === 'COZ_VEDIC_PREGEN') cozPregenVedic();
+    if (d && d.coz === 'COZ_COMBINED_PREGEN') onCompare(null);
+    if (d && d.coz === 'COZ_VEDIC_PREGEN') onChartResult();
   });
 })();
+
 
 /* zoom lock (Sep 1): iOS lets a two-finger pinch zoom the whole page even with
    user-scalable=no, and that zoom survives a reload, which is what threw the globe
