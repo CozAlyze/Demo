@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE VEDIC READING · R4.7 · ascendant pager
+   COZALYZE · COMPLETE VEDIC READING · R4.8 · review label
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -621,7 +621,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R4.7 · ascendant pager</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R4.8 · review label</div>
 
 <script src="ascendant-library.js"></script>
 <script src="dev-review-engine.js?v=6"></script>
@@ -650,7 +650,7 @@ const SECTION_TOTAL = String(vedicReadingSections.length).padStart(2, "0");
    plain calculated-fact placeholder for Sections 3-6 unless the
    chart's identity exactly matches one of the two hand-reviewed
    reference charts. Every reading from this build is a
-   development-review draft, pending Nina's review -- never a
+   development-review draft, pending practitioner review -- never a
    production-verified reading.
    ============================================================ */
 /* R4.5 identity (Sep 21): the current chart run (runId + birth fingerprint) from the
@@ -874,7 +874,7 @@ function generateSections3to6(chart, reading12, firstName) {
   }
 }
 
-/* Option C (Nina review build): Sections 1-2 are assembled from matched claim
+/* Option C (practitioner review build): Sections 1-2 are assembled from matched claim
    records and are NOT capped or trimmed; their measured band is 215-360 words.
    Sections 3-6 are generated and held to 245-290. Every count is recorded. */
 var COZ_BANDS = {

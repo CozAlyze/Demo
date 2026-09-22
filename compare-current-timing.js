@@ -1,5 +1,5 @@
 /* ============================================================
-   COZALYZE · COMPARE · CURRENT TIMING · CT3.0 · shared engine
+   COZALYZE · COMPARE · CURRENT TIMING · CT3.1 · shared engine
    Used by compare-current-timing.html and compare-current-timing-reading.html.
 
    DATA. Both charts come ONLY from the validated chart-run pair
@@ -21,7 +21,7 @@
    (announcementWindowDays is 0: no advance announcement).
 
    PROSE (CT3.0). Layered banks below: Vedic Mahadasha core, Antardasha
-   modifier, period-lord interaction, house meanings (REVIEW-PENDING, Nina);
+   modifier, period-lord interaction, house meanings (REVIEW-PENDING, practitioner review);
    separate Tropical transit meanings by planet, aspect, natal point and
    status (DEVELOPMENT-ONLY, Western review); shared tags for Where They
    Meet (an overlap needs a shared tag, never a loose resemblance).
@@ -32,7 +32,7 @@
 (function (global) {
   'use strict';
 
-  var ENGINE = 'compare-current-timing 3.0';
+  var ENGINE = 'compare-current-timing 3.1';
   var FAIL = 'We couldn\u2019t load your timing for this chart. Please return and run your chart again.';
 
   /* ============================================================
@@ -147,15 +147,15 @@
   /* ============================================================
      CT3.0 LAYERS. Kept separate in data so the composer only joins
      pieces the calculated chart supports (Jason + review, Sep 21 2026).
-     STATUS: Vedic layers are REVIEW-PENDING (Nina). Tropical layers are
+     STATUS: Vedic layers are REVIEW-PENDING (practitioner review). Tropical layers are
      DEVELOPMENT-ONLY (separate Western review). Drishti calculation is
      tested; its interpretation sentence is draft.
      ============================================================ */
   var BANK_STATUS = {
-    vedic: 'review-pending (Nina)',
+    vedic: 'review-pending (practitioner review)',
     tropical: 'development-only (Western review)',
     drishtiCalc: 'tested (whole-sign, classical rules)',
-    drishtiText: 'draft (Nina)'
+    drishtiText: 'draft (practitioner review)'
   };
 
   /* ---------- shared Vedic calculation: graha drishti ----------
