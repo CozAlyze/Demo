@@ -28,11 +28,11 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
 .sys{font-family:var(--sans);font-weight:400;font-size:calc(22 * var(--k));letter-spacing:.22em;margin-right:-.22em;margin-top:calc(26 * var(--k));white-space:nowrap}
 .theme{font-family:var(--sans);font-weight:400;font-size:calc(21 * var(--k));line-height:1.62;letter-spacing:.3em;margin-right:-.3em;margin-top:calc(30 * var(--k))}
 .short{width:calc(108 * var(--k));height:1px;margin:calc(44 * var(--k)) auto 0;background:var(--gold-soft);opacity:.8}
-.status{font-family:var(--sans);font-weight:300;font-size:max(13px,calc(26 * var(--k)));line-height:1.5;color:var(--cream);margin:calc(40 * var(--k)) calc(120 * var(--k)) 0}
+.status{font-family:var(--sans);font-weight:300;font-size:max(16px,calc(26 * var(--k)));line-height:1.5;color:var(--cream);margin:calc(40 * var(--k)) calc(120 * var(--k)) 0}
 .sec{padding:0 calc(110 * var(--k))}
 .num{font-family:var(--head);font-weight:400;font-size:calc(24 * var(--k));color:var(--gold-soft);margin-top:calc(38 * var(--k));line-height:1}
 .sec h2{font-family:var(--head);font-weight:500;font-size:calc(38 * var(--k));letter-spacing:.02em;line-height:1.1;color:var(--cream);margin-top:calc(22 * var(--k));white-space:nowrap}
-.prev{font-family:var(--sans);font-weight:300;font-size:calc(27 * var(--k));line-height:1.48;letter-spacing:.015em;color:var(--cream);margin:calc(24 * var(--k)) auto 0;max-width:calc(680 * var(--k))}
+.prev{font-family:var(--sans);font-weight:300;font-size:max(17px,calc(27 * var(--k)));line-height:1.48;letter-spacing:.015em;color:var(--cream);margin:calc(24 * var(--k)) auto 0;max-width:calc(680 * var(--k))}
 .rfa{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;display:inline-flex;align-items:center;gap:.5em;
   margin-top:calc(20 * var(--k));padding:8px 6px;font-family:var(--sans);font-weight:500;font-size:max(11px,calc(21 * var(--k)));
   letter-spacing:.2em;color:var(--gold);-webkit-tap-highlight-color:transparent}
@@ -42,14 +42,14 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
 .acc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s ease}
 .acc.open{grid-template-rows:1fr}
 .acc-in{overflow:hidden}
-.body{text-align:left;padding:calc(18 * var(--k)) 0 0;margin:0 calc(-60 * var(--k))}
-.body p{font-family:var(--sans);font-weight:300;font-size:max(15px,calc(30 * var(--k)));line-height:1.6;color:var(--cream)}
+.body{text-align:left;padding:calc(30 * var(--k)) calc(34 * var(--k)) calc(34 * var(--k));margin:calc(18 * var(--k)) calc(-60 * var(--k)) 0;background:rgba(3,7,18,.72);border-radius:10px}
+.body p{font-family:var(--sans);font-weight:300;font-size:max(19px,calc(30 * var(--k)));line-height:1.6;color:var(--cream)}
 .body p+p{margin-top:.95em}
 .body .dev{font-style:italic;color:var(--gold);text-align:center}
 .div{height:calc(28 * var(--k));margin:calc(38 * var(--k)) calc(172 * var(--k)) 0;display:flex;align-items:center}
 .div::before,.div::after{content:"";flex:1;height:1px;background:var(--gold-soft);opacity:.85}
 .div svg{width:calc(24 * var(--k));height:calc(24 * var(--k));margin:0 calc(6 * var(--k));color:var(--gold);flex:none}
-.note{font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--cream);opacity:.85;margin:calc(56 * var(--k)) calc(90 * var(--k)) 0}
+.note{font-family:var(--body);font-style:italic;font-size:clamp(17px,4.6vw,19px);color:var(--cream);opacity:.85;margin:calc(56 * var(--k)) calc(90 * var(--k)) 0}
 .pager{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:calc(46 * var(--k)) calc(90 * var(--k)) 0}
 .pager a{font-family:var(--head);font-weight:500;font-size:max(11.5px,calc(22 * var(--k)));letter-spacing:.18em;color:var(--gold);text-decoration:none;padding:10px 4px;-webkit-tap-highlight-color:transparent}
 .pager a:focus-visible{outline:1px solid var(--gold);outline-offset:4px}
@@ -118,7 +118,7 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
   </nav>
  </div>
 </main>
-<div class="stamp">COMBINED READING · CR2.4 · early generation</div>
+<div class="stamp">COMBINED READING · CR2.5 · larger text</div>
 
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=3"></script>

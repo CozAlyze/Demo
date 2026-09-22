@@ -9,7 +9,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400;500&family=EB+Garamond:ital@1&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="compare-timing-reading-top.jpg?v=1">
 <style>
-/* COZALYZE · COMPARE · CURRENT TIMING · CT3.0 · full reading
+/* COZALYZE · COMPARE · CURRENT TIMING · CT3.2 · larger text
    CT3.0: expanded readings (layered banks in compare-current-timing.js);
    a paragraph starting "## " renders as a transit subheading, reusing the
    accordion title's own Cinzel gold at body scale.
@@ -49,17 +49,17 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
 .acc-btn:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
 .acc-btn .txt{flex:1;min-width:0}
 .acc-btn .t{display:block;font-family:var(--head);font-weight:500;font-size:max(16px,calc(38 * var(--k)));letter-spacing:.06em;line-height:1.15;color:var(--gold);overflow-wrap:anywhere}
-.acc-btn .sub{display:block;font-family:var(--sans);font-weight:300;font-size:max(13px,calc(25 * var(--k)));line-height:1.4;letter-spacing:.015em;color:var(--cream);margin-top:calc(8 * var(--k))}
+.acc-btn .sub{display:block;font-family:var(--sans);font-weight:300;font-size:max(15px,calc(25 * var(--k)));line-height:1.4;letter-spacing:.015em;color:var(--cream);margin-top:calc(8 * var(--k))}
 .acc-btn svg{width:max(18px,calc(34 * var(--k)));height:max(18px,calc(34 * var(--k)));flex:none;color:var(--gold);transition:transform .45s ease}
 .acc-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
 .acc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s ease}
 .acc.open{grid-template-rows:1fr}
 .acc-in{overflow:hidden;visibility:hidden;transition:visibility 0s .45s}
 .acc.open .acc-in{visibility:visible;transition:visibility 0s 0s}
-.body{text-align:left;padding:calc(18 * var(--k)) 0 calc(6 * var(--k))}
-.body p{font-family:var(--sans);font-weight:300;font-size:max(15px,calc(30 * var(--k)));line-height:1.6;color:var(--cream);overflow-wrap:anywhere}
+.body{text-align:left;padding:calc(30 * var(--k)) calc(34 * var(--k)) calc(34 * var(--k));margin:calc(18 * var(--k)) 0 calc(6 * var(--k));background:rgba(3,7,18,.72);border-radius:10px}
+.body p{font-family:var(--sans);font-weight:300;font-size:max(19px,calc(30 * var(--k)));line-height:1.6;color:var(--cream);overflow-wrap:anywhere}
 .body p+p{margin-top:.95em}
-.body h3{font-family:var(--head);font-weight:500;font-size:max(13.5px,calc(26 * var(--k)));letter-spacing:.06em;line-height:1.3;color:var(--gold);margin:1.5em 0 .45em}
+.body h3{font-family:var(--head);font-weight:500;font-size:max(16px,calc(26 * var(--k)));letter-spacing:.06em;line-height:1.3;color:var(--gold);margin:1.5em 0 .45em}
 .body h3:first-child{margin-top:.2em}
 .method{margin-top:calc(46 * var(--k))}
 .mlink{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;min-height:44px;padding:0 12px;
@@ -129,7 +129,7 @@ dialog.mdl::backdrop{background:rgba(0,2,8,.78)}
     <div id="mdlBody"></div>
   </div>
 </dialog>
-<div class="stamp">CURRENT TIMING · CT3.0 · full reading</div>
+<div class="stamp">CURRENT TIMING · CT3.2 · larger text</div>
 
 <script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
 <script src="coz-graha.js"></script>
