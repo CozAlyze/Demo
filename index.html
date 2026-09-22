@@ -2992,9 +2992,34 @@ document.querySelectorAll('.syscard').forEach(card => {
       return chain;
     }).catch(function(e){ console.log('[COZ PREGEN] skipped:', e && e.message); });
   }
+  /* Sep 22: the Vedic Sections 3 to 6 are written as soon as the chart result appears,
+     in a hidden copy of the reading page (?pregen=1) that shows nothing and plays nothing.
+     The result lands in the per-chart cache the Vedic dashboard reads, so the reading is
+     usually ready by the time the reveal ends. One per chart run. */
+  var cozVedicPregenDone = {};
+  function cozPregenVedic(){
+    var run = null; try { run = JSON.parse(localStorage.getItem('emergeBirthData') || 'null'); } catch (e) {}
+    var id = run && run.runId; if (!id || cozVedicPregenDone[id]) return; cozVedicPregenDone[id] = true;
+    var fr = document.createElement('iframe');
+    fr.setAttribute('aria-hidden', 'true'); fr.title = 'preparing';
+    fr.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;top:0';
+    fr.src = 'vedic-reading.html?pregen=1';
+    var done = false, drop = function(){ if (done) return; done = true; try { fr.remove(); } catch (e) {} };
+    window.addEventListener('message', function onDone(ev){
+      var m = ev && ev.data;
+      if (!m || m.coz !== 'COZ_VEDIC_PREGEN_DONE') return;
+      window.removeEventListener('message', onDone);
+      console.log('[COZ PREGEN] vedic sections 3-6 ' + (m.ok ? 'ready' : 'skipped'));
+      drop();
+    });
+    setTimeout(drop, 240000);
+    document.body.appendChild(fr);
+    console.log('[COZ PREGEN] vedic sections 3-6 started at the chart result');
+  }
   window.addEventListener('message', function(ev){
     var d = ev && ev.data;
     if (d && d.coz === 'COZ_COMBINED_PREGEN') cozPregenCombined();
+    if (d && d.coz === 'COZ_VEDIC_PREGEN') cozPregenVedic();
   });
 })();
 

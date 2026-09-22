@@ -1035,7 +1035,7 @@ var BIRTH = __ok ? {
 console.log('[EMERGE FLOW] 5. sidereal-reveal — system in storage:',
             SAVED && SAVED.system, '| data:', __ok ? 'user birth data' : 'QA fallback');
 document.getElementById('stamp').textContent =
-  'SIDEREAL v19.98 engine version · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
+  'SIDEREAL v19.99 engine version · LAHIRI · d1 · data:' + ((SAVED && SAVED.system) || 'none');
 
 var DEG = Math.PI/180, RAD = 180/Math.PI;
 
@@ -3475,6 +3475,9 @@ function sdHeroWire(){
 function openCompleteChartResult(){
   if (resultOpened) return;
   resultOpened = true;
+  /* Sep 22: ask the living page to start writing the Vedic Sections 3 to 6 now, while the
+     person is reading their chart result and choosing a perspective */
+  try { if (window.parent !== window) window.parent.postMessage({ coz: 'COZ_VEDIC_PREGEN' }, '*'); } catch (e) {}
   try { EMERGE_SOUND.stopLoop('drawbed', 2.5); EMERGE_SOUND.loop('hum'); } catch(_){}
   revealBtn.setAttribute('disabled', 'true');
   if (!resultBuilt){
@@ -3870,6 +3873,9 @@ function stageCardShell(){
 function finishRevealTransition(fadeMs){
   if (resultOpened) return;
   resultOpened = true;
+  /* Sep 22: ask the living page to start writing the Vedic Sections 3 to 6 now, while the
+     person is reading their chart result and choosing a perspective */
+  try { if (window.parent !== window) window.parent.postMessage({ coz: 'COZ_VEDIC_PREGEN' }, '*'); } catch (e) {}
   try { EMERGE_SOUND.stopLoop('drawbed', 2.5); EMERGE_SOUND.loop('hum'); } catch(_){}
   bodyEl.classList.add('result-leaving');
   window.setTimeout(function(){

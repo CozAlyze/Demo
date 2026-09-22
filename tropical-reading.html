@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE TROPICAL READING · T4.3 · ascendant next
+   COZALYZE · COMPLETE TROPICAL READING · T4.4 · transits label
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -596,7 +596,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T4.3 · ascendant next</div>
+<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T4.4 · transits label</div>
 
 <script src="ascendant-library.js"></script>
 <script>
@@ -1491,10 +1491,12 @@ function tropicalRulerLayer(sign){
   function once(fn){ let ran = false; return () => { if (!ran){ ran = true; fn(); } }; }
   function fill(id, paragraphs){ const el = document.getElementById(id); el.innerHTML = ""; paragraphs.forEach(t => { const p = document.createElement("p"); p.textContent = t; if (/^Development version/.test(t)) p.className = "dev-label"; el.appendChild(p); }); }
   function asqNextLink(){
+    /* the Tropical chain is Ascendant then Current Transits. That page is not built yet,
+       so the label stands and the link returns to the dashboard until the door has a
+       destination; nothing else needs changing when it is built. */
     const tr = document.querySelector('.hot[data-dash="transits"]');
-    const bc = document.querySelector('.hot[data-dash="birth-chart"]');
-    const go = tr && tr.dataset.href ? [tr.dataset.href, "Next: Your Current Transits"] : (bc && bc.dataset.href ? [bc.dataset.href, "Next: Your Birth Chart"] : null);
-    return go ? '<a class="vedic-nav-next" href="' + go[0] + '">' + go[1] + ' ' + ARROW_R + '</a>' : '';
+    const href = tr && tr.dataset.href ? tr.dataset.href : "#/dashboard";
+    return '<a class="vedic-nav-next" href="' + href + '">Next: Your Current Transits ' + ARROW_R + '</a>';
   }
   function buildCopy(){
     const host = document.getElementById("asqSections"); host.innerHTML = "";

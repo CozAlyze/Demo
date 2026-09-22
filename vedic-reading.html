@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE VEDIC READING · R5.0 · flight full frame
+   COZALYZE · COMPLETE VEDIC READING · R5.1 · early sections
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -621,7 +621,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.0 · flight full frame</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.1 · early sections</div>
 
 <script src="ascendant-library.js"></script>
 <script src="dev-review-engine.js?v=6"></script>
@@ -789,6 +789,24 @@ function generateSections3to6(chart, reading12, firstName) {
     if (cached) { try { console.log("[VEDIC READING] cached draft rejected: inputs or version differ"); } catch (e) {} }
   } catch (_) {}
 
+  /* Sep 22: the same writing may already be running in the hidden pre-write started at
+     the chart result. Wait for its cached result rather than paying for a second call. */
+  var FLIGHT = "cozVedicGenInFlight", FLIGHT_MS = 240000;
+  function flightActive(){ try { var m = JSON.parse(localStorage.getItem(FLIGHT) || "null"); return !!(m && m.key === cacheKey && Date.now() - m.at < FLIGHT_MS); } catch (e) { return false; } }
+  function markFlight(on){ try { console.log("[VEDIC READING] marker " + (on ? "set" : "cleared") + " " + (COZ_PREGEN ? "(pre-write)" : "(dashboard)")); if (on) localStorage.setItem(FLIGHT, JSON.stringify({ key: cacheKey, at: Date.now() })); else localStorage.removeItem(FLIGHT); } catch (e) {} }
+  function cachedNow(){ try { var c = JSON.parse(localStorage.getItem(cacheKey) || "null"); return c && c.sections ? c : null; } catch (e) { return null; } }
+  if (flightActive()) {
+    try { console.log("[VEDIC READING] sections 3-6 are already being written; waiting for that result"); } catch (e) {}
+    window.COZ_GEN_WAITING = true;
+    return new Promise(function (resolve) {
+      (function poll(){
+        var c = cachedNow(); if (c) { c.trace.fromCache = true; window.COZ_GEN_WAITING = false; return resolve(c); }
+        if (!flightActive()) { window.COZ_GEN_WAITING = false; return resolve(null); }
+        setTimeout(poll, 1200);
+      })();
+    }).then(function (c) { return c || generateSections3to6(chart, reading12, firstName); });
+  }
+
   var userMsg = [
     "Chart (sidereal, Lahiri, whole sign):",
     facts,
@@ -805,7 +823,9 @@ function generateSections3to6(chart, reading12, firstName) {
   ].join("\n");
 
   window.COZ_GEN_IN_FLIGHT = true;
-  return cozGenerateOnce(key, model, userMsg, false);
+  markFlight(true);
+  return cozGenerateOnce(key, model, userMsg, false).then(function (r) { markFlight(false); return r; },
+                                                          function (e) { markFlight(false); throw e; });
 
   function cozGenerateOnce(key, model, userMsg, retrying) {
   var body = { model: model, max_tokens: 4000, system: COZ_GEN_SYSTEM, messages: [{ role: "user", content: userMsg }] };
@@ -918,6 +938,15 @@ function fetchJSON(path) {
   });
 }
 
+/* Sep 22 pre-write mode: index.html opens this page hidden with ?pregen=1 as soon as the
+   chart result appears, so Sections 3 to 6 are written while the person is still reading
+   the result and choosing a perspective. Nothing is shown and no clip or sound plays; the
+   finished text lands in the same per-chart cache the dashboard reads. */
+var COZ_PREGEN = /[?&]pregen=1\b/.test(location.search);
+if (COZ_PREGEN) {
+  document.documentElement.style.display = "none";
+  try { document.title = "Preparing"; } catch (e) {}
+}
 var COZ_READING_READY = requestChartData().then(function (chart) {
   if (!chart || !chart.planets) { window.COZ_VEDIC_READING_UNAVAILABLE = true; window.COZ_VEDIC_DEBUG = "No chart in localStorage.cozChartJSON (got: " + JSON.stringify(chart).slice(0,80) + ")"; return; }
   var SECTION1_FILES = [
@@ -1363,8 +1392,14 @@ revealVideo.addEventListener("error", () => finishReveal(false));
 
 /* Section links are plain hash links: every section is its own history entry,
    so the phone's back gesture steps through them, and back past Page 01 lands on the dashboard. */
-window.addEventListener("hashchange", showFromHash);
-showFromHash();
+if (COZ_PREGEN) {
+  /* pre-write only: no dashboard, no clip, no sound. Report when the writing is done. */
+  COZ_READING_READY.then(function(){ try { parent.postMessage({ coz: "COZ_VEDIC_PREGEN_DONE", ok: true }, "*"); } catch (e) {} },
+                         function(){ try { parent.postMessage({ coz: "COZ_VEDIC_PREGEN_DONE", ok: false }, "*"); } catch (e) {} });
+} else {
+  window.addEventListener("hashchange", showFromHash);
+  showFromHash();
+}
 
 /* ============================================================
    ASCENDANT EMERGENCE (V2.5 sequence carried into this page).
