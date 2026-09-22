@@ -10,7 +10,7 @@
    Western claim-system version ("none"), so it can never be reused as a production result
    and is invalidated when any of those change. */
 (function(){
-  var PROMPT_VERSION = "cmp-prompt 0.3-dev two-step";
+  var PROMPT_VERSION = "cmp-prompt 0.4-dev two-step";
   var WESTERN_CLAIM_SYSTEM = "none";                     // bump when the Tropical claim system exists
   /* agreed Combined Reading size (Sep 22): about 150 / 200 / 120 words, ~470 total */
   var RANGES = { sharedThemes: [120, 190, 2, 3], differentEmphases: [160, 250, 2, 4], integratedView: [95, 155, 1, 2] };
@@ -114,7 +114,10 @@
       if (!sct || !Array.isArray(sct.paragraphs)) { hard.push(k + ": missing"); return; }
       sct.paragraphs = sct.paragraphs.map(tidy).filter(Boolean);
       var w = words(sct.paragraphs); sct.wordCountMeasured = w;
-      if (w < r[0] || w > r[1]) (w < r[0] - 25 || w > r[1] + 25 ? hard : soft).push(k + ": " + w + " words (" + r[0] + "-" + r[1] + ")");
+      /* v5.1 (Sep 22): length is never fatal. A section outside its range is asked for again
+         on the first pass and accepted on the second, because a reading a little long is
+         better than no reading. Only a runaway section (more than double) is rejected. */
+      if (w < r[0] || w > r[1]) ((w > r[1] * 2) ? hard : soft).push(k + ": " + w + " words (" + r[0] + "-" + r[1] + ")");
       if (sct.paragraphs.length < r[2] || sct.paragraphs.length > r[3]) hard.push(k + ": " + sct.paragraphs.length + " paragraphs");
       var text = sct.paragraphs.join(" ");
       banned.forEach(function(b){ var m = text.match(b[0]); if (m) hard.push(k + ": " + b[1] + " \"" + m[0] + "\""); });
@@ -287,7 +290,7 @@
         /* v4 (Sep 22): only HARD failures (forbidden terms, missing or untraceable evidence,
            wrong paragraph count) earn a second full pass. Soft notes, such as a word count
            a little outside its range, are accepted and recorded; they were doubling the wait. */
-        var retryable = v.hard;
+        var retryable = attempt === 1 ? v.hard.concat(v.soft) : v.hard;
         try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify({ key: key, attempt: attempt, done: !retryable.length || attempt === 2, at: Date.now() })); } catch(e){}
         if (retryable.length && attempt === 1)
           return call(msg.split("\n\nYour previous attempt failed")[0] + "\n\nYour previous attempt failed these checks: " + retryable.join("; ") + ". Fix every one and return the JSON again.", 2, retryable.join("; "), stage, base)
