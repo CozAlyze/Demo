@@ -1,4 +1,4 @@
-/* COZALYZE · COMBINED READING GENERATOR · CG0.2 · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
+/* COZALYZE · COMBINED READING GENERATOR · CG0.3 (v6 · CR3.0 job control) · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
    INPUT: the validated chart-run pair + the Compare evidence manifest (compare-evidence.js).
      Vedic   = only claims that pass the CE1.2 eligibility gate (developmentEligible records,
                no BLOCKED/GAP/PROHIBITED status, sourced, claimConditions satisfied).
@@ -151,44 +151,8 @@
     return "cozCombinedReadingDEV:" + [pair.runId, pair.fingerprint, pair.engineVersions.tropical, pair.engineVersions.vedic,
       PROMPT_VERSION, man.selectionVersion, man.taxonomyVersion, "westernClaims=" + WESTERN_CLAIM_SYSTEM].join("|");
   }
-  function phase(o){ try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify(o)); } catch (e) {} }
   function logCall(e){ try { var L = JSON.parse(localStorage.getItem("cozCombinedGenLog") || "[]"); L.push(e); localStorage.setItem("cozCombinedGenLog", JSON.stringify(L.slice(-40))); } catch(x){} }
 
-  /* Sep 22 (item 5): cache-only lookup, and an in-flight marker so a generation started
-     in index.html (the living page) is not duplicated by the reading page. */
-  /* v5: the write is two sequential calls, so the shared in-flight window covers both and
-     is refreshed whenever a stage or retry begins */
-  var INFLIGHT = "cozCombinedGenInFlight", INFLIGHT_MAX_MS = 420000;
-  function peek(pair, man){
-    try { var c = JSON.parse(localStorage.getItem(cacheKey(pair, man)) || "null"); if (c && c.sharedThemes){ c.fromCache = true; return c; } } catch(e){}
-    return null;
-  }
-  function inFlight(pair, man){
-    try { var m = JSON.parse(localStorage.getItem(INFLIGHT) || "null"); return !!(m && m.key === cacheKey(pair, man) && (Date.now() - m.at) < INFLIGHT_MAX_MS); } catch(e){ return false; }
-  }
-  function markInFlight(key, on){ try { if (on) localStorage.setItem(INFLIGHT, JSON.stringify({ key: key, at: Date.now() })); else localStorage.removeItem(INFLIGHT); } catch(e){} }
-  /* Safari reports a dropped connection as TypeError "Load failed"; retry those twice */
-  /* v4: a 429 (too many requests) or 529 (overloaded) is waited out and retried,
-     honouring retry-after when the API sends one */
-  function retryAfterMs(r, attempt){
-    var h = r.headers && r.headers.get && r.headers.get("retry-after");
-    var s = h ? parseFloat(h) : NaN;
-    return isFinite(s) ? Math.min(s * 1000, 30000) : Math.min(4000 * attempt, 20000);
-  }
-  function fetchRetry(url, opts, tries, attempt){
-    attempt = attempt || 1;
-    return fetch(url, opts).then(function(r){
-      if ((r.status === 429 || r.status === 529) && tries > 0)
-        return new Promise(function(res){ setTimeout(res, retryAfterMs(r, attempt)); }).then(function(){ return fetchRetry(url, opts, tries - 1, attempt + 1); });
-      return r;
-    }).catch(function(e){
-      if (tries > 0 && e && e.name !== "AbortError" && (e.name === "TypeError" || /load failed|network/i.test(e.message || ""))) {
-        return new Promise(function(res){ setTimeout(res, 2500); }).then(function(){ return fetchRetry(url, opts, tries - 1); });
-      }
-      throw e;
-    });
-  }
-  var inPage = null, inPageKey = null;
   /* v5 (Sep 22): TWO STEPS. Step 1 writes sharedThemes and differentEmphases. Step 2 writes
      integratedView and is handed the exact evidence ids step 1 used, because the writer kept
      citing fresh Vedic claims there and failing the "no new evidence" rule on every pass. */
@@ -252,63 +216,154 @@
       "{\"integratedView\": {\"paragraphs\": [...], \"wordCount\": n, \"evidence\": [{\"id\": \"I1\", \"theme\": themeKey, \"paragraphs\": [numbers], \"use\": \"integrated\", \"tropicalFactors\": [...], \"vedicClaimIds\": [...], \"buildsOn\": [...], \"why\": \"...\"}]}}"
     ].join("\n");
   }
-  function getCombined(pairCtx, man){
+  /* v6 · CR3.0 (Sep 22): JOB CONTROL.
+     - Every real POST is counted the moment it is sent. One Combined job may send at most
+       MAX_REQUESTS (4). Transport retries (429, 529, 5xx, dropped connection) spend from the
+       same four; there is no second allowance underneath.
+     - Any other 4xx (400 credit, 401, 403, 413, bad request) stops at once. The same prompt
+       is never resent after one of those.
+     - Step 1 (Shared Themes + Different Emphases) is saved the moment it passes validation
+       and is never paid for again for this chart run; step 2 resumes from it.
+     - The in-flight marker carries the owner's unique id and a heartbeat every 5 s. A marker
+       whose heartbeat is older than 20 s belongs to a page that is gone and is ignored.
+       The owner clears it on success and on terminal failure.
+     - Validation retry rule is unchanged from v5.1 (one retry per step), but the retry now
+       spends from the same four-request budget. */
+  var MAX_REQUESTS = 4, BEAT_MS = 5000, DEAD_MS = 20000, CALL_MS = 150000;
+  var INFLIGHT = "cozCombinedGenInFlight", PHASE = "cozCombinedGenPhase";
+  function readMarker(){ try { return JSON.parse(localStorage.getItem(INFLIGHT) || "null"); } catch(e){ return null; } }
+  function peek(pair, man){
+    try { var c = JSON.parse(localStorage.getItem(cacheKey(pair, man)) || "null"); if (c && c.sharedThemes){ c.fromCache = true; return c; } } catch(e){}
+    return null;
+  }
+  function liveMarker(key){ var m = readMarker(); return m && m.key === key && (Date.now() - (m.beat || 0)) < DEAD_MS ? m : null; }
+  function inFlight(pair, man){ return !!liveMarker(cacheKey(pair, man)); }
+  function markerOwner(pair, man){ var m = liveMarker(cacheKey(pair, man)); return m ? m.owner : null; }
+  function step1Key(key){ return "cozCombinedStep1DEV:" + key.slice(key.indexOf(":") + 1); }
+  function readStep1(key){ try { var c = JSON.parse(localStorage.getItem(step1Key(key)) || "null"); return c && c.out && c.out.sharedThemes ? c : null; } catch(e){ return null; } }
+  function peekStep1(pair, man){ return readStep1(cacheKey(pair, man)); }
+  function readPhase(pair, man){ try { var p = JSON.parse(localStorage.getItem(PHASE) || "null"); return p && p.key === cacheKey(pair, man) ? p : null; } catch(e){ return null; } }
+  /* waits while ANOTHER live owner is writing this reading; resolves the record, or null
+     the moment that owner's heartbeat stops */
+  function waitForLive(pair, man){
+    return new Promise(function(resolve){
+      (function poll(){
+        var hit = peek(pair, man); if (hit) return resolve(hit);
+        if (!inFlight(pair, man)) return resolve(null);
+        setTimeout(poll, 1500);
+      })();
+    });
+  }
+  function terminal(kind, status, message){ var e = new Error(message); e.terminal = true; e.kind = kind; e.status = status || 0; return e; }
+  function wait(ms){ return new Promise(function(res){ setTimeout(res, ms); }); }
+  function retryAfterMs(r, n){
+    var h = r.headers && r.headers.get && r.headers.get("retry-after");
+    var s = h ? parseFloat(h) : NaN;
+    return isFinite(s) ? Math.min(s * 1000, 30000) : Math.min(4000 * n, 20000);
+  }
+
+  var inPage = null, inPageKey = null;
+  function getCombined(pairCtx, man, opts){
+    opts = opts || {};
     var key = cacheKey(pairCtx.pair, man);
     var hit = peek(pairCtx.pair, man); if (hit) return Promise.resolve(hit);
     if (inPage && inPageKey === key) return inPage;      /* same chart run only */
     inPage = null; inPageKey = null;
+    var owner = opts.owner || ("page-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8));
+    var other = liveMarker(key);
+    if (other && other.owner !== owner) return Promise.reject(terminal("busy", 0, "DEV: another page is already writing this reading"));
     var apiKey = null, model = DEFAULT_MODEL;
     try { apiKey = localStorage.getItem("cozTestApiKey"); model = localStorage.getItem("cozTestModel") || model; } catch(e){}
-    if (!apiKey) return Promise.reject(new Error("DEV: no test API key on this device. Open test-index.html and enter the Demo test key."));
+    if (!apiKey) return Promise.reject(terminal("no_key", 0, "DEV: no test API key on this device. Open test-index.html and enter the Demo test key."));
     var sup = supplied(man);
-    if (!Object.keys(sup.comparable).some(function(k){ return sup.comparable[k]; })) return Promise.reject(new Error("DEV: no theme has eligible evidence on both sides for this chart"));
+    if (!Object.keys(sup.comparable).some(function(k){ return sup.comparable[k]; })) return Promise.reject(terminal("no_evidence", 0, "DEV: no theme has eligible evidence on both sides for this chart"));
     var user = userMessage(man, pairCtx.pair, sup);
     var STEP1 = user + "\n\nSTEP 1 of 2. Write ONLY sharedThemes and differentEmphases now, in the shape given above. Leave integratedView out entirely; it is written in a second step.";
-    function call(msg, attempt, retryReason, stage, base){
-      logCall({ key: key, attempt: attempt, retryReason: retryReason || null, at: new Date().toISOString() });
-      markInFlight(key, true);                       /* refresh the window at every stage and retry */
-      try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify({ key: key, stage: stage, attempt: attempt, startedAt: Date.now() })); } catch(e){}
-      /* v4: a call that has not answered in 150 s is abandoned (it was able to hang forever) */
-      var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
-      var tm = ctl ? setTimeout(function(){ ctl.abort(); }, 150000) : null;
-      return fetchRetry("https://api.anthropic.com/v1/messages", {
-        method: "POST", signal: ctl ? ctl.signal : undefined,
-        headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
-        body: JSON.stringify({ model: model, max_tokens: 7000, system: SYSTEM, messages: [{ role: "user", content: msg }] })
-      }, 3).then(function(r){ return r.text().then(function(t){ clearTimeout(tm); if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); },
-                 function(e){ clearTimeout(tm); if (e && e.name === "AbortError") throw new Error("DEV: the combined reading took longer than 150 seconds (attempt " + attempt + ")"); throw e; })
-      .then(function(data){
+
+    var job = { sent: 0, stage: 1, validationAttempt: 1, transportAttempt: 0, startedAt: Date.now(), step1Saved: false };
+    function status(state, extra){
+      var o = { key: key, owner: owner, state: state, stage: job.stage, validationAttempt: job.validationAttempt,
+                transportAttempt: job.transportAttempt, totalRequests: job.sent, maxRequests: MAX_REQUESTS,
+                step1Saved: job.step1Saved, startedAt: job.startedAt, at: Date.now() };
+      if (extra) for (var k in extra) o[k] = extra[k];
+      try { localStorage.setItem(PHASE, JSON.stringify(o)); } catch(e){}
+      if (opts.onStatus) try { opts.onStatus(o); } catch(e){}
+    }
+    function beat(){ try { localStorage.setItem(INFLIGHT, JSON.stringify({ key: key, owner: owner, beat: Date.now() })); } catch(e){} }
+    function clearMarker(){ var m = readMarker(); if (m && m.key === key && m.owner === owner) try { localStorage.removeItem(INFLIGHT); } catch(e){} }
+
+    /* one POST, counted when sent; transport retries spend from the same budget */
+    function post(msg){
+      job.transportAttempt = 0;
+      function attempt(){
+        if (job.sent >= MAX_REQUESTS) return Promise.reject(terminal("budget", 0, "DEV: stopped after " + job.sent + " of " + MAX_REQUESTS + " requests"));
+        job.sent++; job.transportAttempt++;
+        logCall({ key: key, owner: owner, request: job.sent, stage: job.stage, validationAttempt: job.validationAttempt, transportAttempt: job.transportAttempt, at: new Date().toISOString() });
+        status("running");
+        var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
+        var tm = ctl ? setTimeout(function(){ ctl.abort(); }, CALL_MS) : null;
+        return fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST", signal: ctl ? ctl.signal : undefined,
+          headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
+          body: JSON.stringify({ model: model, max_tokens: 7000, system: SYSTEM, messages: [{ role: "user", content: msg }] })
+        }).then(function(r){
+          return r.text().then(function(t){
+            clearTimeout(tm);
+            if (r.ok) return JSON.parse(t);
+            var retryable = r.status === 429 || r.status >= 500;          /* 429, 500, 529 and other 5xx */
+            if (retryable && job.sent < MAX_REQUESTS) return wait(retryAfterMs(r, job.transportAttempt)).then(attempt);
+            throw terminal(retryable ? "http_budget" : "http", r.status, "DEV: API " + r.status + ": " + t.slice(0, 200));
+          });
+        }, function(e){
+          clearTimeout(tm);
+          if (e && e.name === "AbortError") throw terminal("timeout", 0, "DEV: no answer within 150 seconds (request " + job.sent + " of " + MAX_REQUESTS + ")");
+          var net = e && (e.name === "TypeError" || /load failed|network/i.test(e.message || ""));
+          if (net && job.sent < MAX_REQUESTS) return wait(2500).then(attempt);
+          throw terminal(net ? "network" : "error", 0, net ? "The connection dropped while your reading was being prepared." : ((e && e.message) || "DEV: request failed"));
+        });
+      }
+      return attempt();
+    }
+    /* one written step; at most one validation retry per step */
+    function write(stage, msg, base, n){
+      job.stage = stage; job.validationAttempt = n;
+      return post(msg).then(function(data){
         var text = (data.content || []).filter(function(b){ return b.type === "text"; }).map(function(b){ return b.text; }).join("\n");
         var clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
         var out = null; try { out = JSON.parse(clean.slice(clean.indexOf("{"), clean.lastIndexOf("}") + 1)); } catch(e){}
-        /* step 1 is judged on its own two sections; step 2 is judged as the finished
-           reading, with the sections step 1 already wrote merged back in */
         if (stage === 1 && out) out = { sharedThemes: out.sharedThemes, differentEmphases: out.differentEmphases };
         if (stage === 2 && out) out = { sharedThemes: base.sharedThemes, differentEmphases: base.differentEmphases, integratedView: out.integratedView };
         var v = validate(out, sup, pairCtx.pair);
         if (stage === 1) v.hard = v.hard.filter(function(p){ return p.indexOf("integratedView") !== 0; });
-        /* v4 (Sep 22): only HARD failures (forbidden terms, missing or untraceable evidence,
-           wrong paragraph count) earn a second full pass. Soft notes, such as a word count
-           a little outside its range, are accepted and recorded; they were doubling the wait. */
-        var retryable = attempt === 1 ? v.hard.concat(v.soft) : v.hard;
-        try { localStorage.setItem("cozCombinedGenPhase", JSON.stringify({ key: key, attempt: attempt, done: !retryable.length || attempt === 2, at: Date.now() })); } catch(e){}
-        if (retryable.length && attempt === 1)
-          return call(msg.split("\n\nYour previous attempt failed")[0] + "\n\nYour previous attempt failed these checks: " + retryable.join("; ") + ". Fix every one and return the JSON again.", 2, retryable.join("; "), stage, base)
-            .then(function(r2){ r2.firstAttemptProblems = retryable; return r2; });
+        /* unchanged from v5.1: the first pass is asked again for hard failures AND for a
+           section outside its word range; the second pass accepts length notes */
+        var redo = n === 1 ? v.hard.concat(v.soft) : [];
+        if (redo.length)
+          return write(stage, msg.split("\n\nYour previous attempt failed")[0] + "\n\nYour previous attempt failed these checks: " + redo.join("; ") + ". Fix every one and return the JSON again.", base, 2)
+            .then(function(r2){ r2.firstAttemptProblems = redo; return r2; });
         if (v.hard.length) {
-          var err = new Error("DEV: the writer's draft failed these checks twice: " + v.hard.slice(0, 4).join("; "));
-          err.validation = v; err.attempts = attempt;
-          try { localStorage.setItem("cozCombinedGenLastFail", JSON.stringify({ at: new Date().toISOString(), hard: v.hard, soft: v.soft })); } catch (e) {}
-          throw err;
+          try { localStorage.setItem("cozCombinedGenLastFail", JSON.stringify({ at: new Date().toISOString(), stage: stage, hard: v.hard, soft: v.soft })); } catch (e) {}
+          var err = terminal("validation", 0, "DEV: step " + stage + " failed these checks twice: " + v.hard.slice(0, 4).join("; "));
+          err.validation = v; throw err;
         }
-        return { out: out, attempts: attempt, validation: v, raw: text, stage: stage };
+        return { out: out, attempts: n, validation: v, raw: text, firstAttemptProblems: [] };
       });
     }
-    markInFlight(key, true);
-    inPage = call(STEP1, 1, null, 1).then(function(r1){
-      /* step 2: the Integrated View, with the allow-list from step 1 */
-      return call(stage2Message(user, r1.out, man, pairCtx.pair, sup), 1, null, 2, r1.out).then(function(r2){
-        return { out: r2.out, attempts: r1.attempts + r2.attempts, validation: r2.validation, raw: r1.raw + "\n---\n" + r2.raw };
+
+    beat(); var hb = setInterval(beat, BEAT_MS);
+    var cp = readStep1(key);
+    if (cp) job.step1Saved = true;
+    status(cp ? "part1_complete" : "running");
+    var s1 = cp ? Promise.resolve({ out: cp.out, attempts: cp.attempts, raw: cp.raw, firstAttemptProblems: cp.firstAttemptProblems || [], fromCheckpoint: true })
+                : write(1, STEP1, null, 1).then(function(r1){
+                    try { localStorage.setItem(step1Key(key), JSON.stringify({ out: r1.out, attempts: r1.attempts, raw: r1.raw, firstAttemptProblems: r1.firstAttemptProblems, at: new Date().toISOString(), owner: owner })); } catch(e){}
+                    job.step1Saved = true; status("part1_complete");
+                    return r1;
+                  });
+    inPage = s1.then(function(r1){
+      return write(2, stage2Message(user, r1.out, man, pairCtx.pair, sup), r1.out, 1).then(function(r2){
+        return { out: r2.out, attempts: r1.attempts + r2.attempts, validation: r2.validation, raw: r1.raw + "\n---\n" + r2.raw,
+                 firstAttemptProblems: (r1.firstAttemptProblems || []).concat(r2.firstAttemptProblems || []), step1FromCheckpoint: !!r1.fromCheckpoint };
       });
     }).then(function(r){
       var used = {};
@@ -320,18 +375,23 @@
         developmentOnly: true, productionEligible: false, approved: false,
         tropicalEvidenceStatus: "unreviewed_model_interpretation",
         vedicEvidenceStatus: used,
-        generatedAt: new Date().toISOString(), attempts: r.attempts, firstAttemptProblems: r.firstAttemptProblems || [],
+        generatedAt: new Date().toISOString(), attempts: r.attempts, requestsSent: job.sent, step1FromCheckpoint: r.step1FromCheckpoint,
+        firstAttemptProblems: r.firstAttemptProblems || [],
         trace: { model: model, validation: r.validation, comparableThemes: sup.comparable, systemPrompt: SYSTEM, userMessage: user, rawResponse: r.raw }
       };
-      try { localStorage.setItem(key, JSON.stringify(rec)); } catch(e){}
-      markInFlight(key, false);
+      try { localStorage.setItem(key, JSON.stringify(rec)); localStorage.removeItem(step1Key(key)); } catch(e){}
       return rec;
     });
     inPageKey = key;
-    inPage.then(function(){ inPage = null; inPageKey = null; },
-                function(){ inPage = null; inPageKey = null; markInFlight(key, false); });
+    inPage.then(function(){ clearInterval(hb); clearMarker(); status("complete"); inPage = null; inPageKey = null; },
+                function(e){ clearInterval(hb); clearMarker();
+                             status("failed", { error: { kind: (e && e.kind) || "error", status: (e && e.status) || 0, message: (e && e.message) || "DEV: failed" } });
+                             inPage = null; inPageKey = null; });
     return inPage;
   }
 
-  window.COZ_COMBINED_GEN = { PROMPT_VERSION: PROMPT_VERSION, getCombined: getCombined, peek: peek, inFlight: inFlight, _system: SYSTEM, _validate: validate, _supplied: supplied, _userMessage: userMessage , _stage2: stage2Message};
+  window.COZ_COMBINED_GEN = { PROMPT_VERSION: PROMPT_VERSION, MAX_REQUESTS: MAX_REQUESTS, getCombined: getCombined, peek: peek, peekStep1: peekStep1,
+    inFlight: inFlight, markerOwner: markerOwner, waitForLive: waitForLive, readPhase: readPhase, keyFor: cacheKey,
+    _system: SYSTEM, _validate: validate, _supplied: supplied, _userMessage: userMessage, _stage2: stage2Message };
+
 })();
