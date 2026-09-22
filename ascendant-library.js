@@ -1,4 +1,4 @@
-/* COZALYZE · ASCENDANT LIBRARY · L2.2 · chart-run pairing (+ engine versions) + Ascendant-only generation
+/* COZALYZE · ASCENDANT LIBRARY · L2.3 · (Sep 22: cross-page in-flight marker + network retry, so a reading started early by index.html is waited for, never duplicated) · chart-run pairing (+ engine versions) + Ascendant-only generation
    L2.2: third reading "combined" (How They Work Together), built from both evidence sets;
    missing charts are exported in parallel; every API call has a 90 second timeout.
    DEMO / DEVELOPMENT ONLY. Shared by your-ascendants.html and ascendant-reading.html.
@@ -293,16 +293,44 @@
     try { var L = lsJSON("cozAscGenLog") || []; L.push(entry); localStorage.setItem("cozAscGenLog", JSON.stringify(L.slice(-40))); } catch(e){}
   }
 
+  /* L2.3: a generation running in another page (index.html starts all three when the
+     Compare dashboard opens) leaves a marker; this page waits for its cached result
+     instead of paying for a second call. Stale markers expire. */
+  var INFLIGHT_MS = CALL_TIMEOUT_MS * 2 + 15000;
+  function flightKey(key){ return "cozAscInFlight:" + key; }
+  function markFlight(key, on){ try { if (on) localStorage.setItem(flightKey(key), String(Date.now())); else localStorage.removeItem(flightKey(key)); } catch(e){} }
+  function flightActive(key){ try { var t = +localStorage.getItem(flightKey(key)); return !!t && (Date.now() - t) < INFLIGHT_MS; } catch(e){ return false; } }
+  function waitForOther(sys, ctx, key){
+    return new Promise(function(resolve){
+      (function poll(){
+        var hit = getCached(sys, ctx); if (hit){ hit.fromCache = true; return resolve(hit); }
+        if (!flightActive(key)) return resolve(null);
+        setTimeout(poll, 1200);
+      })();
+    });
+  }
+  function fetchRetry(url, opts, tries){
+    return fetch(url, opts).catch(function(e){
+      var net = e && e.name !== "AbortError" && (e.name === "TypeError" || /load failed|network/i.test(e.message || ""));
+      if (tries > 0 && net) return new Promise(function(r){ setTimeout(r, 2500); }).then(function(){ return fetchRetry(url, opts, tries - 1); });
+      throw e;
+    });
+  }
   var inPage = {};
   function getReading(sys, ctx){
     var key = cacheKey(sys, ctx);
     var hit = getCached(sys, ctx);
     if (hit){ hit.fromCache = true; return Promise.resolve(hit); }
     if (inPage[key]) return inPage[key];
+    if (flightActive(key)) {
+      inPage[key] = waitForOther(sys, ctx, key).then(function(r){ delete inPage[key]; return r || getReading(sys, ctx); });
+      return inPage[key];
+    }
     var apiKey = null, model = DEFAULT_MODEL;
     try { apiKey = localStorage.getItem("cozTestApiKey"); model = localStorage.getItem("cozTestModel") || model; } catch(e){}
     if (!apiKey) return Promise.reject(new Error("DEV: no test API key on this device. Open test-index.html and enter the Demo test key."));
 
+    markFlight(key, true);
     var evP = sys === "tropical" ? Promise.resolve(tropicalEvidence(ctx.charts.tropical))
       : sys === "vedic" ? vedicEvidence(ctx.charts.vedic)
       : vedicEvidence(ctx.charts.vedic).then(function(v){
@@ -318,12 +346,12 @@
         logCall({ key: key, system: sys, attempt: attempt, at: new Date().toISOString() });
         var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
         var tm = ctl ? setTimeout(function(){ ctl.abort(); }, CALL_TIMEOUT_MS) : null;
-        return fetch("https://api.anthropic.com/v1/messages", {
+        return fetchRetry("https://api.anthropic.com/v1/messages", {
           method: "POST", signal: ctl ? ctl.signal : undefined,
           headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01",
                      "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
           body: JSON.stringify({ model: model, max_tokens: 1800, system: system, messages: [{ role: "user", content: msg }] })
-        }).then(function(r){ return r.text().then(function(t){ clearTimeout(tm); if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); },
+        }, 2).then(function(r){ return r.text().then(function(t){ clearTimeout(tm); if (!r.ok) throw new Error("DEV: API " + r.status + ": " + t.slice(0, 200)); return JSON.parse(t); }); },
           function(err){ clearTimeout(tm); if (err && err.name === "AbortError") throw new Error("DEV: " + sys + " reading timed out after " + (CALL_TIMEOUT_MS / 1000) + " seconds (attempt " + attempt + ")"); throw err; })
         .then(function(data){
           var text = (data.content || []).filter(function(b){ return b.type === "text"; }).map(function(b){ return b.text; }).join("\n");
@@ -355,10 +383,11 @@
                     : "Tropical spec + tropical engine chart data (first wiring, unreviewed)",
                   attempts: r.attempts, trace: r.trace };
       try { localStorage.setItem(key, JSON.stringify(rec)); } catch(e){}
+      markFlight(key, false);
       window.COZ_ASC_TRACE = window.COZ_ASC_TRACE || {}; window.COZ_ASC_TRACE[sys] = rec.trace;
       return rec;
     });
-    inPage[key].catch(function(){ delete inPage[key]; });
+    inPage[key].catch(function(){ delete inPage[key]; markFlight(key, false); });
     return inPage[key];
   }
 
