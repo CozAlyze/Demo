@@ -42,7 +42,7 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
 .acc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s ease}
 .acc.open{grid-template-rows:1fr}
 .acc-in{overflow:hidden}
-.body{text-align:left;padding:calc(30 * var(--k)) calc(34 * var(--k)) calc(34 * var(--k));margin:calc(18 * var(--k)) calc(-60 * var(--k)) 0;background:rgba(3,7,18,.72);border-radius:10px}
+.body{text-align:left;padding:calc(30 * var(--k)) calc(34 * var(--k)) calc(34 * var(--k));margin:calc(18 * var(--k)) 0 0;background:rgba(3,7,18,.72);border-radius:10px}   /* CR2.9: the panel stays inside its column, so no text is clipped */
 .body p{font-family:var(--sans);font-weight:300;font-size:max(19px,calc(30 * var(--k)));line-height:1.6;color:var(--cream)}
 .body p+p{margin-top:.95em}
 .body .dev{font-style:italic;color:var(--gold);text-align:center}
@@ -118,7 +118,7 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
   </nav>
  </div>
 </main>
-<div class="stamp">COMBINED READING · CR2.8 · two-step wait</div>
+<div class="stamp">COMBINED READING · CR2.9 · panel inside column</div>
 
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=3"></script>

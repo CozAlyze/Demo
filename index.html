@@ -2950,7 +2950,9 @@ document.querySelectorAll('.syscard').forEach(card => {
         });
       } catch(_){}
       fr.style.opacity = '0';
-      window.setTimeout(function(){ fr.src = d.href; }, 260);
+      window.__cozNavBusy = true;                              /* background writing yields to a page change */
+      fr.addEventListener('load', function done(){ fr.removeEventListener('load', done); window.__cozNavBusy = false; });
+      window.setTimeout(function(){ window.__cozNavBusy = true; fr.src = d.href; }, 260);
     });
   });
 });
@@ -2968,8 +2970,14 @@ document.querySelectorAll('.syscard').forEach(card => {
      reveal or the sound. */
   var cozPregenRuns = {};
   function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('failed ' + src)); }; document.head.appendChild(s); }); }
+  /* Sep 22: background writing never runs while a page is changing. It waits until the
+     product page has loaded (or 15 s at most), so the Compare dashboard opens as fast as
+     it always did. */
+  function cozWhenIdle(){
+    return new Promise(function(res){ var t0 = Date.now(); (function poll(){ if (!window.__cozNavBusy || Date.now() - t0 > 15000) return res(); setTimeout(poll, 250); })(); });
+  }
   function cozPregenCombined(){
-    var chain = Promise.resolve();
+    var chain = cozWhenIdle();
     ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=5'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
     return chain.then(function(){ return window.COZ_ASC.ensurePair(); }).then(function(res){
       if (!res || !res.ok) { console.log('[COZ PREGEN] pair refused:', res && res.reason); return; }
@@ -3000,6 +3008,7 @@ document.querySelectorAll('.syscard').forEach(card => {
   function cozPregenVedic(){
     var run = null; try { run = JSON.parse(localStorage.getItem('emergeBirthData') || 'null'); } catch (e) {}
     var id = run && run.runId; if (!id || cozVedicPregenDone[id]) return; cozVedicPregenDone[id] = true;
+    cozWhenIdle().then(function(){
     var fr = document.createElement('iframe');
     fr.setAttribute('aria-hidden', 'true'); fr.title = 'preparing';
     fr.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;top:0';
@@ -3019,6 +3028,7 @@ document.querySelectorAll('.syscard').forEach(card => {
     setTimeout(function(){ drop(); cozPregenCombined(); }, 240000);   /* failsafe: Compare still starts */
     document.body.appendChild(fr);
     console.log('[COZ PREGEN] vedic sections 3-6 started at the chart result');
+    });
   }
   window.addEventListener('message', function(ev){
     var d = ev && ev.data;
