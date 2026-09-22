@@ -118,12 +118,12 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
   </nav>
  </div>
 </main>
-<div class="stamp">COMBINED READING · CR2.9 · panel inside column</div>
+<div class="stamp">COMBINED READING · CR3.0 · job control</div>
 
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=3"></script>
 <script src="compare-evidence.js?v=3"></script>
-<script src="compare-generator.js?v=5"></script>
+<script src="compare-generator.js?v=6"></script>
 <script>
 (function(){
   var FAIL = "We couldn\u2019t load both charts for this reading. Please return and run your chart again.";
@@ -204,43 +204,58 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
         b.innerHTML = sct.paragraphs.map(function(t){ return "<p>" + esc(t) + "</p>"; }).join("");
       });
     }
-    function waitForOtherJob(m){
-      return new Promise(function(resolve){
-        var t0 = Date.now();
+    /* CR3.0 (Sep 22): this page is a VIEWER. Inside the living page it never sends a model
+       request itself; it asks the coordinator in index.html (which a page change cannot
+       kill) and shows the job's real state. Opened on its own (no coordinator), it writes
+       the reading itself under the same budget and heartbeat rules. */
+    var t0 = Date.now(), tick = null, watchTimer = null;
+    function mmss(ms){ var s = Math.max(0, Math.floor(ms / 1000)); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); }
+    function coordinator(){ try { if (window.parent !== window && window.parent.COZ_GEN_COORD) return window.parent.COZ_GEN_COORD; } catch(e){} return null; }
+    function jobState(){ try { var A = JSON.parse(localStorage.getItem("cozGenJobs") || "{}"); var R = A[res.pair.runId]; return (R && R.jobs && R.jobs.combined) || null; } catch(e){ return null; } }
+    function setWait(text){ bodies.forEach(function(b){ var p = b.querySelector(".wait"); if (p) p.textContent = text; }); }
+    function showWaiting(m){
+      var js = jobState(), ph = G.readPhase(res.pair, m);
+      if (js && js.state === "queued") { setWait("Preparing your reading\u2026 waiting for the reading before it to finish \u00b7 " + mmss(Date.now() - (js.queuedAt || t0))); return; }
+      if (ph && (ph.state === "running" || ph.state === "part1_complete"))
+        setWait("Preparing your reading\u2026 " + mmss(Date.now() - ph.startedAt) + " \u00b7 step " + ph.stage + " of 2 \u00b7 attempt " + ph.validationAttempt + " \u00b7 request " + ph.totalRequests + " of " + ph.maxRequests);
+      else setWait("Preparing your reading\u2026 " + mmss(Date.now() - t0));
+    }
+    /* follow the coordinator's job until the reading lands or the job ends in failure */
+    function watch(m, askedAt){
+      return new Promise(function(resolve, reject){
         (function poll(){
           var hit = G.peek(res.pair, m); if (hit) return resolve(hit);
-          if (!G.inFlight(res.pair, m) || Date.now() - t0 > 420000) return resolve(null);   /* covers the two-step write */
-          setTimeout(poll, 1500);
+          var js = jobState();
+          if (js && js.state === "failed" && (js.endedAt || 0) >= askedAt) {
+            var e = new Error((js.error && js.error.message) || "DEV: reading unavailable"); e.kind = js.error && js.error.kind; return reject(e);
+          }
+          if (!js && Date.now() - askedAt > 20000) return reject(new Error("DEV: the coordinator did not pick up the job"));
+          watchTimer = setTimeout(poll, 1000);
         })();
       });
     }
-    /* CR2.6: elapsed time while the reading is written, so a long wait can be reported
-       with real numbers (development build) */
-    var t0 = Date.now(), tick = null;
-    function mmss(ms){ var s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2); }
-    function showWaiting(){
-      var ph = null; try { ph = JSON.parse(localStorage.getItem("cozCombinedGenPhase") || "null"); } catch(e){}
-      var since = ph && ph.startedAt ? ph.startedAt : t0;
-      var pass = ph && ph.attempt === 2 ? " \u00b7 second pass" : "";
-      bodies.forEach(function(b){ var p = b.querySelector(".wait"); if (p) p.textContent = "Preparing your reading\u2026 " + mmss(Date.now() - since) + pass; });
-    }
     function run(){
       bodies.forEach(function(b){ b.innerHTML = '<p class="dev wait">Preparing your reading\u2026</p>'; });
-      clearInterval(tick); tick = setInterval(showWaiting, 1000);
+      clearInterval(tick); clearTimeout(watchTimer); t0 = Date.now();
       return E.buildManifest(res).then(function(m){
         window.COZ_COMBINED_MANIFEST = m;
         var hit = G.peek(res.pair, m); if (hit) return hit;
-        if (G.inFlight(res.pair, m)) return waitForOtherJob(m).then(function(r){ return r || G.getCombined(res, m); });
+        tick = setInterval(function(){ showWaiting(m); }, 1000); showWaiting(m);
+        var c = coordinator();
+        if (c) { var askedAt = Date.now(); c.request("combined", { runId: res.pair.runId, priority: true }); return watch(m, askedAt); }
+        /* standalone (opened outside the living page) */
+        if (G.inFlight(res.pair, m)) return G.waitForLive(res.pair, m).then(function(r){ return r || G.getCombined(res, m); });
         return G.getCombined(res, m);
       }).then(function(rec){ clearInterval(tick); show(rec); }).catch(function(e){
-        clearInterval(tick);
+        clearInterval(tick); clearTimeout(watchTimer);
         console.log("[COZ COMBINED]", e && e.message);
-        var msg = (e && /load failed|network/i.test(e.message || "")) ? "The connection dropped while your reading was being prepared." : ((e && e.message) || "DEV: reading unavailable");
-        msg += " (" + mmss(Date.now() - t0) + " total)";
+        var msg = ((e && e.message) || "DEV: reading unavailable") + " (" + mmss(Date.now() - t0) + " total)";
         bodies.forEach(function(b, i){ b.innerHTML = '<p class="dev">' + esc(msg) + '</p>' + (i === 0 ? '<p class="dev"><a href="#" class="retry">Try again</a></p>' : ''); });
         var r = document.querySelector(".body .retry"); if (r) r.addEventListener("click", function(ev){ ev.preventDefault(); run(); });
       });
     }
+    /* leaving the page only stops this page's watching; the job keeps running in index.html */
+    window.addEventListener("pagehide", function(){ clearInterval(tick); clearTimeout(watchTimer); });
     run();
     buttons.forEach(function(b){ b.hidden = false; });
   });
