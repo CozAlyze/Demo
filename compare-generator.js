@@ -1,4 +1,4 @@
-/* COZALYZE · COMBINED READING GENERATOR · CG0.4 (v7 · CR3.1) · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
+/* COZALYZE · COMBINED READING GENERATOR · CG0.5 (v8 · CR3.2) · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
    INPUT: the validated chart-run pair + the Compare evidence manifest (compare-evidence.js).
      Vedic   = only claims that pass the CE1.2 eligibility gate (developmentEligible records,
                no BLOCKED/GAP/PROHIBITED status, sourced, claimConditions satisfied).
@@ -16,7 +16,7 @@
      phone stays valid. STEP2_VERSION is part of the FINAL reading's key only: changing the
      step 2 rules retires every finished reading written under the old rules, and nothing
      else. Bump STEP1_VERSION only when the step 1 prompt or its output shape changes. */
-  var STEP1_VERSION = "cmp-prompt 0.4-dev two-step";
+  var STEP1_VERSION = "cmp-step1 cr3.2-reminder";   /* CR3.2: step 1 prompt now ends with the no-outcome reminder */
   var STEP2_VERSION = "cmp-step2 cr3.1-repair";
   var PROMPT_VERSION = STEP1_VERSION + " + " + STEP2_VERSION;
   var WESTERN_CLAIM_SYSTEM = "none";                     // bump when the Tropical claim system exists
@@ -57,6 +57,9 @@
     "Use only the exact factor ids and claim ids supplied. Every major claim appears in its section's evidence list. The evidence lists are internal and never shown to the customer."
   ].join("\n");
 
+  /* CR3.2: the note OUR prompt appends to a ruler factor. A returned factor ending in exactly
+     this text has it stripped and is rewritten to the canonical id before any check. */
+  var RULER_NOTE = " (ruler convention undecided, use lightly)";
   var THEME_LABEL = { identity_orientation: "identity and orientation", emotional_mental_patterns: "emotional and mental patterns",
     relationships_exchange: "relationships and exchange", work_life_direction: "work and life direction",
     values_foundation: "values and foundation", growth_release_balance: "growth, release and balance" };
@@ -79,7 +82,7 @@
       var T = man.items.filter(function(i){ return i.system === "tropical" && i.themeKey === k && sup.tropical[i.factorId] === k; });
       var V = man.items.filter(function(i){ return i.system === "vedic" && i.themeKey === k && i.compareEligible; });
       L.push("THEME " + k + " (" + THEME_LABEL[k] + ")" + (sup.comparable[k] ? "" : "  [NOT COMPARABLE: evidence on one side only, write nothing comparative about it]"));
-      L.push("  Western factors: " + (T.length ? T.map(function(i){ return i.factorId + (/ruler/.test(i.factorId) ? " (ruler convention undecided, use lightly)" : ""); }).join("; ") : "none"));
+      L.push("  Western factors: " + (T.length ? T.map(function(i){ return i.factorId + (/ruler/.test(i.factorId) ? RULER_NOTE : ""); }).join("; ") : "none"));
       if (V.length){
         L.push("  Vedic claims:");
         var seen = {};
@@ -138,7 +141,13 @@
       } });
       if (!Array.isArray(sct.evidence) || !sct.evidence.length) { hard.push(k + ": no evidence trace"); return; }
       sct.evidence.forEach(function(e){
-        var tf = e.tropicalFactors || [], vc = e.vedicClaimIds || [];
+        /* CR3.2: exact, not a prefix match. Only our own appended note is removed, the result
+           must still be an exact supplied id, and the canonical id replaces the annotated one
+           so the saved step 1 and step 2 only ever carry real ids. */
+        e.tropicalFactors = (e.tropicalFactors || []).map(function(f){
+          return (typeof f === "string" && f.length > RULER_NOTE.length && f.slice(-RULER_NOTE.length) === RULER_NOTE) ? f.slice(0, -RULER_NOTE.length) : f;
+        });
+        var tf = e.tropicalFactors, vc = e.vedicClaimIds || [];
         tf.forEach(function(f){ if (!sup.tropical[f]) hard.push(k + " " + e.id + ": unknown Western factor " + f); });
         vc.forEach(function(c){ if (!sup.vedic[c]) hard.push(k + " " + e.id + ": Vedic claim not eligible or not supplied " + c); });
         if (k !== "integratedView"){
@@ -181,6 +190,8 @@
     other.forEach(function(h){ lines.push((lines.length + 1) + ". " + h); });
     return lines.join("\n");
   }
+  var STEP1_REMINDER = "\n\nRULE REMINDER FOR sharedThemes AND differentEmphases. " + RULE_TEXT["outcome or identity-essence inference"] +
+    " Words and phrases that are refused: works out, holds up, pays off, succeeds, turns out well, the real you, who you really are, meant to, will happen, you will. Describe how each emphasis operates, never a result.";
   var STEP2_REMINDER = "\n\nRULE REMINDER FOR integratedView. " + RULE_TEXT["outcome or identity-essence inference"] +
     " Words and phrases that are refused: works out, holds up, pays off, succeeds, turns out well, the real you, who you really are, meant to, will happen, you will. Describe how the two emphases can operate together, never a result.";
 
@@ -321,7 +332,7 @@
     var sup = supplied(man);
     if (!Object.keys(sup.comparable).some(function(k){ return sup.comparable[k]; })) return Promise.reject(terminal("no_evidence", 0, "DEV: no theme has eligible evidence on both sides for this chart"));
     var user = userMessage(man, pairCtx.pair, sup);
-    var STEP1 = user + "\n\nSTEP 1 of 2. Write ONLY sharedThemes and differentEmphases now, in the shape given above. Leave integratedView out entirely; it is written in a second step.";
+    var STEP1 = user + "\n\nSTEP 1 of 2. Write ONLY sharedThemes and differentEmphases now, in the shape given above. Leave integratedView out entirely; it is written in a second step." + STEP1_REMINDER;
 
     var job = { sent: 0, stage: 1, validationAttempt: 1, transportAttempt: 0, startedAt: Date.now(), step1Saved: false, retryReason: null };
     function status(state, extra){
