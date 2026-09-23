@@ -1,4 +1,10 @@
-/* COZ SAVED · CS1.1 (Sep 23 2026)
+/* COZ SAVED · CS1.2 (Sep 23 2026) · library hook
+   CS1.2: a page may register a payload provider (CozSaved.registerPayload) whose result is
+   stored on the record as rec.library[name] at save time; pieces a provider does not return
+   are kept from the previous save. Vedic pages open the Saved Library landing page
+   (vedic-birth-chart.html?saved=1&id=...) after saving instead of the list. get(id) and
+   currentRecord() read one record without restoring anything. restore() of a Vedic chart
+   record returns the Saved Library landing page. No new store.
    One Saved Charts store for every page (localStorage "cozSavedCharts").
 
    - The center bookmark in the bottom nav is the save control on every page that shows it
@@ -28,6 +34,8 @@
   var COMPARE_PAGES = ["compare-reading", "combined-reading", "your-ascendants", "ascendant-reading",
                        "compare-current-timing", "compare-current-timing-reading", "compare-birth-charts"];
   var TROPICAL_PAGES = ["tropical-reading"];
+  var VEDIC_LIBRARY_PAGES = ["vedic-reading", "vedic-birth-chart", "current-life-cycle", "current-season", "key-time-windows", "what-comes-next"];
+  var PROVIDERS = {};
 
   function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
   function lsJSON(k){ try { return JSON.parse(localStorage.getItem(k) || "null"); } catch (e) { return null; } }
@@ -101,10 +109,38 @@
     rec.snapshot = snapshotFor(bd.runId);
     rec.readings = readingsFor(kind, rec.systems, rec.snapshot, bd.runId);
     rec.complete = Object.keys(rec.readings).every(function (k) { return rec.readings[k]; });
+    /* CS1.2: provider payloads, merged piece by piece over the previous save */
+    rec.library = rec.library || {};
+    Object.keys(PROVIDERS).forEach(function (name) {
+      var out = null; try { out = PROVIDERS[name](rec); } catch (e) { out = null; }
+      if (!out || typeof out !== "object") return;
+      var prev = rec.library[name] || {};
+      Object.keys(out).forEach(function (k) { if (out[k] != null) prev[k] = out[k]; });
+      rec.library[name] = prev;
+    });
+    /* CS1.2: a Vedic chart is complete when the captured six-section reading is complete,
+       not merely because a Sections 3-6 draft exists */
+    if (kind === "chart" && rec.systems.vedic) {
+      var cap = rec.library.vedic && rec.library.vedic.reading;
+      rec.readings.vedicReading = !!(cap && cap.sections && Array.isArray(cap.order) && cap.order.length &&
+        cap.order.every(function (sec) { return Array.isArray(cap.sections[sec.id]) && cap.sections[sec.id].length > 0; }));
+      rec.complete = rec.readings.vedicReading;
+    }
     try { writeStore(s); } catch (e) { return { ok: false, reason: "storage_full" }; }
     return { ok: true, record: rec };
   }
 
+  function registerPayload(name, fn){ if (name && typeof fn === "function") PROVIDERS[name] = fn; }
+  function get(id){ try { var s = readStore(), rec = null; s.records.forEach(function (r) { if (r.id === id) rec = r; }); return rec; } catch (e) { return null; } }
+  /* the record for the run now on this device: the restored one, else the current run's own record */
+  function currentRecord(){
+    try {
+      var s = readStore(), rid = lsGet(RESTORED), bd = lsJSON("emergeBirthData"), want = rid || (bd && bd.runId), rec = null;
+      if (!want) return null;
+      s.records.forEach(function (r) { if (!rec && r.runId === want && r.kind === "chart") rec = r; });
+      return rec;
+    } catch (e) { return null; }
+  }
   function list(){ return new Promise(function (res, rej) { try { res(readStore().records.slice()); } catch (e) { rej(e); } }); }
   function remove(id){
     return new Promise(function (res, rej) {
@@ -125,10 +161,12 @@
     FIXED.forEach(function (k) { if (Object.prototype.hasOwnProperty.call(snap, k)) localStorage.setItem(k, snap[k]); else localStorage.removeItem(k); });
     Object.keys(snap).forEach(function (k) { if (FIXED.indexOf(k) < 0) localStorage.setItem(k, snap[k]); });
     localStorage.setItem(RESTORED, rec.runId);
+    /* CS1.2: a Vedic chart record opens its Saved Library landing page (card and Vedic pill alike) */
+    var library = "vedic-birth-chart.html?saved=1&id=" + encodeURIComponent(rec.id);
     if (target === "tropical") return "tropical-reading.html";
-    if (target === "vedic") return "vedic-reading.html";
+    if (target === "vedic") return library;
     if (rec.kind === "compare") return "compare-reading.html";
-    return rec.systems && rec.systems.vedic ? "vedic-reading.html" : "tropical-reading.html";
+    return rec.systems && rec.systems.vedic ? library : "tropical-reading.html";
   }
 
   /* HARD RULE: a reopened saved chart never calls the model */
@@ -156,12 +194,14 @@
     var p = pageName();
     if (!t || p === "saved-charts" || p === "index") return;
     ev.preventDefault(); ev.stopImmediatePropagation();
+    if (/\bsaved=1\b/.test(location.search)) { location.href = "saved-charts.html"; return; }   /* a Saved Library page: nothing new to save */
     var r = saveCurrent(kindForPage(p), systemForPage(p));
     if (!r.ok && r.reason === "slots_full") alert("Your Compare package includes one saved comparison. Remove the one on your Saved Charts page to save this one.");
     else if (!r.ok && r.reason === "storage_full") alert("There isn't enough space on this device to save this chart.");
     else if (!r.ok && r.reason === "store_error") alert("Your saved charts couldn't be read on this device.");
-    location.href = "saved-charts.html";
+    if (r.ok && VEDIC_LIBRARY_PAGES.indexOf(p) >= 0) location.href = "vedic-birth-chart.html?saved=1&id=" + encodeURIComponent(r.record.id);
+    else location.href = "saved-charts.html";
   }, true);
 
-  window.CozSaved = { list: list, remove: remove, restore: restore, saveCurrent: saveCurrent, isRestoredRun: isRestoredRun, _snapshotFor: snapshotFor, STORE: STORE };
+  window.CozSaved = { list: list, remove: remove, restore: restore, saveCurrent: saveCurrent, isRestoredRun: isRestoredRun, registerPayload: registerPayload, get: get, currentRecord: currentRecord, _snapshotFor: snapshotFor, STORE: STORE };
 })();
