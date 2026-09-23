@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saved Reading · CozAlyze</title>
+<!--
+  COZALYZE · SAVED VEDIC DOCUMENT · SD1.2 (Sep 23 2026)
+  One renderer for the three clean Vedic saved-document views:
+    saved-vedic-document.html?view=reading&id=<record>      Your Vedic Reading (six sections)
+    saved-vedic-document.html?view=lagna&id=<record>        Your Ascendant – Lagna
+    saved-vedic-document.html?view=life-cycle&id=<record>   Your Current Life Cycle
+  Data: the selected cozSavedCharts record's library (rec.library.vedic), captured at save
+  time by saved-vedic-library.js. Document renderer only: no animation, no model request,
+  no regeneration, no reinterpretation. Print / Save PDF expands every section.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="saved-document.css?v=1">
+<script src="coz-saved.js?v=2"></script>
+<script src="saved-vedic-library.js?v=1"></script>
+</head>
+<body>
+<div class="doc-shell">
+  <div class="doc-toolbar">
+    <a class="doc-button" id="backBtn" href="saved-charts.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      Back to Birth Chart
+    </a>
+    <div class="doc-actions">
+    <button type="button" class="doc-button" id="expandBtn">Expand All</button>
+    <button type="button" class="doc-button" id="printBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-3M7 14h10v7H7z"/></svg>
+      Print / Save PDF
+    </button>
+    </div>
+  </div>
+  <div id="mount"></div>
+  <p class="doc-savednote" id="savedNote"></p>
+</div>
+<script>
+"use strict";
+(function(){
+  var SIGN_NAMES = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var DISCLOSURE = "This AI-generated astrological content is provided for reflection and entertainment only. It is not scientific, medical, legal, financial, or professional advice.";
+  var TITLES = { "reading": "Your Vedic Reading", "lagna": "Your Ascendant \u2013 Lagna", "life-cycle": "Your Current Life Cycle" };
+
+  function el(tag,cls,text){ var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  /* strings beginning with "## " are subheads (Section 5 Rahu / Ketu), as in vedic-reading.html */
+  function paras(host, list){ (list || []).forEach(function(t){ t = t == null ? "" : String(t); if (!t.trim()) return; host.appendChild(t.indexOf("## ") === 0 ? el("h3",null,t.slice(3)) : el("p",null,t)); }); return host; }
+  function pad2(n){ return (n<10?"0":"")+n; }
+  function longDate(iso){ if (!iso) return ""; var d = new Date(iso); if (isNaN(d)) return String(iso); return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate() + ", " + d.getUTCFullYear(); }
+  function section(number, title, open){
+    var d = el("details","doc-section"); if (open) d.open = true;
+    var sm = el("summary"); var h2 = el("h2");
+    if (number != null){ var num = el("span","num",number + "."); h2.appendChild(num); }
+    h2.appendChild(document.createTextNode(title));
+    sm.appendChild(h2); sm.appendChild(el("span","chev","\u203A")); d.appendChild(sm);
+    return d;
+  }
+  function empty(msg){
+    var c = el("div","doc-empty");
+    c.appendChild(el("h2",null,"This saved reading could not be opened"));
+    var p = el("p",null,msg + " "); var a = el("a",null,"Open Saved Charts"); a.href = "saved-charts.html"; p.appendChild(a); c.appendChild(p);
+    return c;
+  }
+
+  var qp = new URLSearchParams(location.search);
+  var view = qp.get("view") || "reading";
+  var mount = document.getElementById("mount");
+  document.getElementById("printBtn").addEventListener("click", function(){ window.print(); });
+  window.addEventListener("beforeprint", function(){ document.querySelectorAll("details.doc-section").forEach(function(d){ d.dataset.wasOpen = d.open ? "1" : "0"; d.open = true; }); });
+  document.getElementById("expandBtn").addEventListener("click", function(){
+    var all = document.querySelectorAll("details.doc-section"), open = Array.prototype.every.call(all, function(d){ return d.open; });
+    all.forEach(function(d){ d.open = !open; });
+    this.textContent = open ? "Expand All" : "Collapse All";
+  });
+  window.addEventListener("afterprint", function(){ document.querySelectorAll("details.doc-section").forEach(function(d){ if (d.dataset.wasOpen === "0") d.open = false; }); });
+
+  var lib = window.CozSavedVedic ? window.CozSavedVedic.load() : null;
+  if (!lib){ mount.appendChild(empty("It may have been removed from this device.")); return; }
+  document.getElementById("backBtn").href = "vedic-birth-chart.html?saved=1&id=" + encodeURIComponent(lib.id);
+  document.title = (TITLES[view] || "Saved Reading") + " \u00B7 CozAlyze";
+
+  var paper = el("article","doc-paper"), inner = el("div","doc-inner");
+  paper.appendChild(inner);
+  inner.appendChild(el("p","doc-kicker", TITLES[view] || "Saved Reading"));
+  inner.appendChild(el("h1",null, lib.name || "Your Chart"));
+  var b = lib.birth || {}, bits = [b.date, b.time, b.location].filter(Boolean);
+  if (bits.length) inner.appendChild(el("p","doc-birthline", bits.join("  \u2022  ")));
+
+  var L = lib.library || {}, ok = true;
+
+  if (view === "reading"){
+    var R = L.reading;
+    if (!R || !R.sections){ ok = false; mount.appendChild(empty("The Vedic Reading hadn't finished when this chart was saved.")); }
+    else (R.order || []).forEach(function(s, i){
+      var d = section(s.number, s.title, i === 0);
+      d.appendChild(paras(el("div","doc-copy"), R.sections[s.id]));
+      inner.appendChild(d);
+    });
+  }
+  else if (view === "lagna"){
+    var G = L.lagna;
+    if (!G || !G.sign){ ok = false; mount.appendChild(empty("The Ascendant reading wasn't saved with this chart.")); }
+    else {
+      var asc = lib.chart && Array.isArray(lib.chart.planets) ? lib.chart.planets.filter(function(p){ return p && p.name === "Ascendant"; })[0] : null;
+      var head = el("div");
+      head.appendChild(el("p","doc-label","Vedic Ascendant"));
+      head.appendChild(el("p","doc-big", G.sign + (asc ? " " + pad2(asc.degrees) + "\u00B0" + pad2(asc.minutes) + "\u2032" : "")));
+      inner.appendChild(head);
+      var s1 = section(null,"Sidereal Perspective",true); s1.appendChild(paras(el("div","doc-copy"), G.shared)); inner.appendChild(s1);
+      var s2 = section(null,"The Essence of You",false); s2.appendChild(paras(el("div","doc-copy"), G.essence)); inner.appendChild(s2);
+      var s3 = section(null,"Your Dharmic Path",false); s3.appendChild(paras(el("div","doc-copy"), G.dharma)); inner.appendChild(s3);
+    }
+  }
+  else if (view === "life-cycle"){
+    var C = L.lifeCycle && L.lifeCycle.data;
+    if (!C || !C.mahadasha){ ok = false; mount.appendChild(empty("The Current Life Cycle wasn't saved with this chart.")); }
+    else {
+      var md = C.mahadasha, ad = C.antardasha;
+      var s1 = section(null,"The Larger Chapter",true);
+      s1.appendChild(el("p","doc-big", md.lord + " Mahadasha"));
+      s1.appendChild(el("p","doc-when", longDate(md.startTimestamp) + " \u2013 " + longDate(md.endTimestamp)));
+      inner.appendChild(s1);
+      if (ad){
+        var s2 = section(null,"Current Antardasha",false);
+        s2.appendChild(el("p","doc-big", md.lord + " \u2013 " + ad.lord));
+        s2.appendChild(el("p","doc-when", longDate(ad.startTimestamp) + " \u2013 " + longDate(ad.endTimestamp)));
+        inner.appendChild(s2);
+      }
+      var seq = Array.isArray(C.antardashaSequence) ? C.antardashaSequence : [];
+      if (seq.length){
+        var s3 = section(null,"Periods Within This Chapter",false);
+        var t = el("table","doc-table"), th = el("thead"), tr = el("tr");
+        ["Period","Begins","Ends"].forEach(function(x){ tr.appendChild(el("th",null,x)); }); th.appendChild(tr); t.appendChild(th);
+        var tb = el("tbody");
+        seq.forEach(function(seg){
+          var r = el("tr", ad && seg.startTimestamp === ad.startTimestamp ? "now" : null);
+          r.appendChild(el("td",null, md.lord + " \u2013 " + seg.lord));
+          r.appendChild(el("td",null, longDate(seg.startTimestamp)));
+          r.appendChild(el("td",null, longDate(seg.endTimestamp)));
+          tb.appendChild(r);
+        });
+        t.appendChild(tb); s3.appendChild(t); inner.appendChild(s3);
+      }
+    }
+  }
+  else { ok = false; mount.appendChild(empty("Unknown view.")); }
+
+  if (!ok) return;
+  var foot = el("footer","doc-footer");
+  foot.appendChild(el("p",null,DISCLOSURE));
+  if (lib.chart && lib.chart.reportId) foot.appendChild(el("p",null,"Generated by CozAlyze \u00B7 " + lib.chart.reportId));
+  inner.appendChild(foot);
+  mount.appendChild(paper);
+  var savedAt = lib.rec.updatedAt || lib.rec.savedAt;
+  document.getElementById("savedNote").textContent = "These are your saved results. No animation. No rewrite." + (savedAt ? " \u00B7 Saved " + longDate(savedAt) : "");
+})();
+</script>
+</body>
+</html>
