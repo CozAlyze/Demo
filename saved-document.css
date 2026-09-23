@@ -1,0 +1,80 @@
+/* SAVED DOCUMENT · SD1.0 (Sep 23 2026)
+   Shared stylesheet for the clean saved-document pages. Same tokens as vedic-birth-chart.html
+   (cream paper, navy ink, champagne-gold rules). Screen: collapsible sections. Print: paper only,
+   every section expanded (the page opens them before printing). */
+:root{
+  --background:#061326; --foreground:#f7f1e7;
+  --coz-paper:#f7f1e7; --coz-ink:#07162b; --coz-ink-soft:#314456;
+  --coz-gold:#b88a55; --coz-rule:#d6c4a7;
+  --font-sans:Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif:Georgia, "Times New Roman", serif;
+}
+*{box-sizing:border-box}
+html{background:var(--background)}
+body{
+  min-width:320px; margin:0; color:var(--foreground); font-family:var(--font-sans);
+  background:radial-gradient(circle at 50% 10%, rgb(37 74 111 / .5), transparent 38rem), linear-gradient(180deg,#061326 0%,#020914 100%);
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+button{font:inherit}
+.doc-shell{width:100%; min-height:100vh; padding:2rem 1rem 4rem}
+.doc-actions{display:flex; gap:.5rem}
+.doc-toolbar{display:flex; align-items:center; justify-content:space-between; gap:1rem; width:min(100%,56rem); margin:0 auto 1rem}
+.doc-button{
+  display:inline-flex; align-items:center; gap:.5rem; min-height:2.75rem; padding:.45rem 1rem; cursor:pointer;
+  border:1px solid rgb(217 184 129 / .6); border-radius:.4rem; background:rgb(4 17 34 / .84); color:#f7f1e7; font-size:.88rem; text-decoration:none;
+}
+.doc-button:hover{background:#122b48; color:#fffaf2}
+.doc-button:focus-visible{outline:2px solid var(--coz-gold); outline-offset:2px}
+.doc-button svg{width:1rem; height:1rem}
+.doc-paper{
+  position:relative; width:min(100%,56rem); margin:0 auto; overflow:hidden; border:1px solid var(--coz-rule);
+  background:linear-gradient(rgb(184 138 85 / .035) 1px, transparent 1px), var(--coz-paper); background-size:100% 1.55rem;
+  box-shadow:0 2rem 5rem rgb(0 0 0 / .38); color:var(--coz-ink);
+}
+.doc-paper::before{position:absolute; inset:.75rem; border:1px solid rgb(184 138 85 / .48); content:""; pointer-events:none}
+.doc-inner{position:relative; padding:2.5rem 3rem 2rem}
+.doc-kicker{margin:0; color:var(--coz-gold); font-family:var(--font-serif); font-size:.85rem; letter-spacing:.18em; text-transform:uppercase}
+.doc-inner h1{margin:.45rem 0 0; font-family:var(--font-serif); font-size:clamp(1.7rem,4.5vw,2.6rem); font-weight:400; letter-spacing:-.02em; line-height:1.1}
+.doc-birthline{margin:.6rem 0 0; padding-bottom:1.1rem; border-bottom:1px solid var(--coz-rule); color:var(--coz-ink-soft); font-size:.85rem}
+.doc-birthline b{color:var(--coz-ink); font-weight:500}
+.doc-rule{width:100%; height:1px; margin:1.5rem 0; background:linear-gradient(90deg,transparent,var(--coz-gold),transparent)}
+.doc-section{margin-top:1.4rem; border-bottom:1px solid var(--coz-rule); padding-bottom:1rem}
+.doc-section summary{list-style:none; cursor:pointer; display:flex; align-items:baseline; justify-content:space-between; gap:1rem}
+.doc-section summary::-webkit-details-marker{display:none}
+.doc-section summary h2{margin:0; font-family:var(--font-serif); font-size:1.25rem; font-weight:400}
+.doc-section summary h2 .num{color:var(--coz-gold); margin-right:.5rem}
+.doc-section summary .chev{color:var(--coz-gold); font-size:1.1rem; transition:transform .15s}
+.doc-section[open] summary .chev{transform:rotate(90deg)}
+.doc-section h3{margin:1rem 0 .3rem; font-family:var(--font-serif); font-size:1.15rem; font-weight:400}
+.doc-copy{margin-top:.6rem}
+.doc-copy p{margin:0 0 .85rem; font-size:.93rem; line-height:1.6}
+.doc-label{margin:1.1rem 0 .3rem; color:var(--coz-gold); font-size:.72rem; letter-spacing:.1em; text-transform:uppercase}
+.doc-when{margin:0 0 .5rem; color:var(--coz-ink-soft); font-size:.85rem}
+.doc-big{margin:.2rem 0 0; font-family:var(--font-serif); font-size:1.5rem; font-weight:400}
+.doc-table{width:100%; border-collapse:collapse; margin-top:.6rem; font-size:.88rem}
+.doc-table th{color:var(--coz-gold); font-size:.7rem; letter-spacing:.1em; text-transform:uppercase; text-align:left; font-weight:500; padding:.45rem .3rem; border-bottom:1px solid var(--coz-rule)}
+.doc-table td{padding:.5rem .3rem; border-bottom:1px solid rgb(214 196 167 / .6)}
+.doc-table tr.now td{font-weight:500}
+.doc-footer{margin-top:2rem; padding-top:1rem; border-top:1px solid var(--coz-rule); color:var(--coz-ink-soft); font-size:.7rem; line-height:1.5}
+.doc-footer p{margin:0 0 .4rem}
+.doc-savednote{margin-top:.6rem; text-align:center; color:#d8c4a4; font-size:.72rem; letter-spacing:.08em}
+.doc-empty{width:min(100%,34rem); margin:4rem auto; padding:2rem 1.6rem; text-align:center; border:1px solid rgb(217 184 129 / .5); background:rgb(4 17 34 / .7); color:#e9ddc8; font-size:.95rem; line-height:1.6}
+.doc-empty h2{margin:0 0 .6rem; font-family:var(--font-serif); font-weight:400; font-size:1.35rem; color:#f7f1e7}
+.doc-empty a{color:#e8d5b4}
+@media (max-width:640px){
+  .doc-shell{padding:1rem .6rem 3rem}
+  .doc-inner{padding:1.6rem 1.1rem 1.4rem}
+  .doc-button{padding:.4rem .7rem; font-size:.8rem}
+}
+@media print{
+  @page{margin:.55in}
+  html,body{background:#fff}
+  .doc-shell{padding:0}
+  .doc-toolbar,.doc-savednote{display:none !important}
+  .doc-paper{width:100%; border:none; box-shadow:none; background:#fff; color:#000}
+  .doc-paper::before{display:none}
+  .doc-inner{padding:0}
+  .doc-section{break-inside:avoid}
+  .doc-section summary .chev{display:none}
+}
