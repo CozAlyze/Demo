@@ -2959,7 +2959,8 @@ document.querySelectorAll('.syscard').forEach(card => {
 
 } // end guard
 
-/* CR3.0 (Sep 22): GENERATION COORDINATOR. This page stays alive across every product page,
+/* CR3.1 (Sep 22): the queue follows the purchase: Compare writes Combined first.
+   CR3.0 (Sep 22): GENERATION COORDINATOR. This page stays alive across every product page,
    so it is the ONLY owner of background writing. Product pages ask it for work; they never
    own a request that a page change could kill.
    - One model job at a time for the whole app, in one queue:
@@ -2979,7 +2980,16 @@ document.querySelectorAll('.syscard').forEach(card => {
 (function(){
   var OWNER = "idx-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 8);
   var JOBS = "cozGenJobs", COORD = "cozGenCoord", BEAT_MS = 5000, DEAD_MS = 20000, KEEP_RUNS = 6;
-  var ORDER = ["vedic36", "combined", "ascTropical", "ascVedic", "ascCombined"];
+  /* CR3.1 (his ruling): the order follows what was bought. Combined does not depend on the
+     Vedic Sections 3-6 writer, so a Compare buyer never waits behind it. */
+  /* No purchase choice = no writing (his ruling). There is no timed fallback.
+     TROPICAL: the Tropical product has no model writer yet, so nothing is queued for it. */
+  var ORDERS = {
+    COMPARE:  ["combined", "ascTropical", "ascVedic", "ascCombined", "vedic36"],
+    VEDIC:    ["vedic36"],          /* his ruling: a Vedic purchase writes Vedic content only */
+    TROPICAL: []
+  };
+  var held = null;   /* the chart run waiting for its purchase choice */
   var ASC = { ascTropical: "tropical", ascVedic: "vedic", ascCombined: "combined" };
   var queue = [], current = null;
 
@@ -3030,15 +3040,24 @@ document.querySelectorAll('.syscard').forEach(card => {
   function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('could not load ' + src)); }; document.head.appendChild(s); }); }
   function loadGen(){
     var chain = Promise.resolve();
-    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=6'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
+    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=7'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
     return chain;
   }
   /* background writing never starts while a page is changing (or 15 s at most) */
   function cozWhenIdle(){
     return new Promise(function(res){ var t0 = Date.now(); (function poll(){ if (!window.__cozNavBusy || Date.now() - t0 > 15000) return res(); setTimeout(poll, 250); })(); });
   }
+  /* CR3.1: when Combined now starts straight after the purchase, both saved charts may be a
+     moment away; the pair is re-checked every 3 s for up to 30 s before the job fails */
   function pairFor(runId){
-    return loadGen().then(function(){ return window.COZ_ASC.ensurePair(); }).then(function(res){
+    var t0 = Date.now();
+    function tryPair(){
+      return window.COZ_ASC.ensurePair().then(function(res){
+        if ((!res || !res.ok) && Date.now() - t0 < 30000) return new Promise(function(r){ setTimeout(r, 3000); }).then(tryPair);
+        return res;
+      });
+    }
+    return loadGen().then(tryPair).then(function(res){
       if (!res || !res.ok) { var e = new Error("DEV: chart pair not ready (" + ((res && res.reason) || "unknown") + ")"); e.kind = "pair_refused"; throw e; }
       if (runId && res.pair.runId !== runId) { var e2 = new Error("DEV: this chart run has been replaced by a newer one"); e2.kind = "stale_run"; throw e2; }
       return res;
@@ -3082,7 +3101,7 @@ document.querySelectorAll('.syscard').forEach(card => {
   }
 
   function runJob(c){
-    if (c.job === "vedic36") return runVedic36();
+    if (c.job === "vedic36") return runVedic36(c.runId);
     if (c.job === "combined") return runCombined(c.runId);
     return pairFor(c.runId).then(function(res){
       return window.COZ_ASC.getReading(ASC[c.job], res).then(function(r){ return { fromCache: !!(r && r.fromCache) }; });
@@ -3107,7 +3126,10 @@ document.querySelectorAll('.syscard').forEach(card => {
       });
   }
   /* Vedic Sections 3 to 6, written in a hidden copy of the reading page that this page owns */
-  function runVedic36(){
+  function runVedic36(runId){
+    /* CR3.1: the hidden page writes for whatever chart is current, so an old queued job
+       must never start once a newer chart has replaced its run */
+    if (currentRunId() !== runId) { var st = new Error("DEV: this chart run has been replaced by a newer one"); st.kind = "stale_run"; return Promise.reject(st); }
     return new Promise(function(resolve, reject){
       var fr = document.createElement('iframe');
       fr.setAttribute('aria-hidden', 'true'); fr.title = 'preparing';
@@ -3128,10 +3150,27 @@ document.querySelectorAll('.syscard').forEach(card => {
   }
 
   function currentRunId(){ var run = lsJSON('emergeBirthData', null); return run && run.runId; }
-  /* the chart result: queue the whole set, Vedic first (his Sep 22 ruling) */
+  /* the chart result: nothing is written until the purchase is known, so the first job is
+     always the one this person bought. If the choice message never arrives, nothing is spent;
+     the product pages still ask for their own work (the Compare dashboard and the Combined
+     Reading page both request Combined directly). */
   function onChartResult(){
     var id = currentRunId(); if (!id) return;
-    ORDER.forEach(function(j){ enqueue(id, j, false); });
+    if (held && held.runId === id) return;
+    var s = get(id, "combined") || get(id, "vedic36");
+    if (s && s.state !== "failed") return;                      /* this run is already queued */
+    held = { runId: id };
+    console.log('[COZ GEN] chart result · waiting for the purchase choice');
+  }
+  function release(product){
+    var h = held;
+    if (!h) { if (product === "COMPARE") onCompare(null); return; }   /* no held run (for example the Tropical path): Compare still goes first */
+    held = null;
+    var order = ORDERS[product];
+    if (!order) { console.log('[COZ GEN] unknown purchase ' + product + ' · nothing queued'); return; }
+    console.log('[COZ GEN] purchase ' + product + ' · order: ' + (order.join(', ') || 'nothing to write'));
+    order.forEach(function(j){ enqueue(h.runId, j, false); });
+    var A = readAll(), R = A[h.runId] || (A[h.runId] = { jobs: {} }); R.product = product; R.updatedAt = Date.now(); writeAll(A);
   }
   /* Compare opened, or the Combined Reading page asked: Combined goes next */
   function onCompare(runIdHint){
@@ -3152,6 +3191,8 @@ document.querySelectorAll('.syscard').forEach(card => {
     var d = ev && ev.data;
     if (d && d.coz === 'COZ_COMBINED_PREGEN') onCompare(null);
     if (d && d.coz === 'COZ_VEDIC_PREGEN') onChartResult();
+    /* the purchase choice (GOTO_COMPARE, GOTO_VEDIC, GOTO_TROPICAL) releases the held run */
+    if (d && typeof d.coz === 'string' && d.coz.indexOf('GOTO_') === 0) release(d.coz.slice(5));
   });
 })();
 
