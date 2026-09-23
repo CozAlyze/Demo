@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saved Charts · CozAlyze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@400;500&family=Montserrat:wght@300;400&display=swap" rel="stylesheet">
+<script src="coz-saved.js?v=1"></script>
+<style>
+/* SAVED CHARTS · S1.1 (Sep 23). Built from his blank bake IMG_0588 (1185 x 2576), cut into
+   sc-top (rows 0-746), sc-card-chart (747-1079), sc-card-compare (1080-1412, his filled
+   card bookmark placed over the outline one, per the "every card is filled" ruling) and
+   sc-bottom (1413-2576, the nav bookmark filled with the card bookmark gold as the active
+   state). A card strip repeats for each saved record, so the page grows. All words are
+   live text laid out from his mockup. */
+:root{ --cream:#EEE7D8; --gold:#F2C898; --line:#C9A27C; --navy:#02040c;
+  --head:"Bodoni Moda",Georgia,serif; --sans:"Montserrat","Helvetica Neue",Arial,sans-serif; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--navy);color:var(--cream);-webkit-text-size-adjust:100%;overflow-x:hidden}
+body{padding-bottom:env(safe-area-inset-bottom)}
+.page{position:relative;width:100%;max-width:640px;margin:0 auto;container-type:inline-size}
+.page,.page *{--K:calc(100cqw / 1185)}
+.art{display:block;width:100%;height:auto;pointer-events:none;user-select:none;-webkit-user-select:none}
+.top,.card,.bottom{position:relative}
+.head{position:absolute;left:0;right:0;top:calc(418 * var(--K));text-align:center}
+h1{font-family:var(--head);font-weight:500;font-size:max(30px,calc(98 * var(--K)));line-height:1.05;color:var(--cream);letter-spacing:.005em}
+.lead{font-family:var(--sans);font-weight:300;font-size:max(14px,calc(40 * var(--K)));line-height:1.35;margin-top:calc(22 * var(--K));padding:0 calc(60 * var(--K))}
+.div{display:flex;align-items:center;height:calc(30 * var(--K));margin:calc(30 * var(--K)) calc(231 * var(--K)) 0}
+.div::before,.div::after{content:"";flex:1;height:1px;background:var(--line)}
+.div svg{width:calc(28 * var(--K));height:calc(28 * var(--K));margin:0 calc(12 * var(--K));color:var(--gold);flex:none}
+/* card text, positioned on the card inside its strip (card border rows 23-308) */
+.card .open{position:absolute;left:calc(75 * var(--K));top:calc(23 * var(--K));width:calc(1040 * var(--K));height:calc(286 * var(--K));
+  display:block;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.card .txt{position:absolute;left:calc(430 * var(--K));top:calc(56 * var(--K));width:calc(550 * var(--K));pointer-events:none;text-align:left}
+.card .name{font-family:var(--head);font-weight:500;font-size:max(20px,calc(58 * var(--K)));line-height:1.1;color:var(--cream);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .meta{font-family:var(--sans);font-weight:300;font-size:max(13px,calc(33 * var(--K)));line-height:1.3;color:var(--cream);margin-top:calc(16 * var(--K));
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card .pills{position:absolute;left:calc(430 * var(--K));top:calc(210 * var(--K));display:flex;gap:calc(22 * var(--K))}
+.pill{font-family:var(--sans);font-weight:300;font-size:max(12px,calc(30 * var(--K)));line-height:1;color:var(--cream);background:none;cursor:pointer;
+  border:1.5px solid var(--line);border-radius:999px;height:calc(59 * var(--K));min-height:26px;padding:0 calc(36 * var(--K));
+  display:inline-flex;align-items:center;-webkit-tap-highlight-color:transparent}
+.card .mark{position:absolute;left:calc(985 * var(--K));top:calc(45 * var(--K));width:calc(100 * var(--K));height:calc(100 * var(--K));
+  min-width:44px;min-height:44px;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.state{background:url("sc-mid.png?v=1") center top/100% 1px repeat-y;min-height:calc(333 * var(--K));display:flex;align-items:center;justify-content:center;
+  text-align:center;padding:calc(40 * var(--K)) calc(120 * var(--K));font-family:var(--sans);font-weight:300;font-size:max(15px,calc(36 * var(--K)));line-height:1.5}
+.bottom .create{position:absolute;left:calc(313 * var(--K));top:calc(146 * var(--K));width:calc(560 * var(--K));height:calc(104 * var(--K));min-height:44px;
+  background:none;border:0;cursor:pointer;text-align:left;padding-left:calc(142 * var(--K));white-space:nowrap;
+  font-family:var(--head);font-weight:500;font-size:max(14px,calc(40 * var(--K)));color:var(--cream);-webkit-tap-highlight-color:transparent}
+.bottom .nav a{position:absolute;top:calc(1055 * var(--K));height:calc(86 * var(--K));min-height:44px;display:block;-webkit-tap-highlight-color:transparent}
+.bottom .nav .home{left:calc(127 * var(--K));width:calc(250 * var(--K))}
+.bottom .nav .saved{left:calc(467 * var(--K));width:calc(250 * var(--K))}
+.bottom .nav .acct{left:calc(807 * var(--K));width:calc(250 * var(--K))}
+.open:focus-visible,.pill:focus-visible,.mark:focus-visible,.create:focus-visible,.nav a:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+.stamp{position:absolute;right:6px;bottom:4px;font-family:var(--sans);font-size:9px;letter-spacing:.08em;color:rgba(214,185,140,.45);pointer-events:none}
+</style>
+</head>
+<body>
+<main class="page">
+  <div class="top">
+    <img class="art" src="sc-top.jpg?v=1" alt="">
+    <div class="head">
+      <h1>Saved Charts</h1>
+      <p class="lead">Return to the charts and readings you’ve saved.</p>
+      <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
+    </div>
+  </div>
+  <div id="records" aria-live="polite"><div class="state">Loading your saved charts…</div></div>
+  <div class="bottom">
+    <img class="art" src="sc-bottom.jpg?v=1" alt="">
+    <button class="create" type="button" id="create">Create a New Chart</button>
+    <nav class="nav" aria-label="Main">
+      <a class="home" href="index.html" aria-label="Home"></a>
+      <a class="saved" href="saved-charts.html" aria-label="Saved Charts" aria-current="page"></a>
+      <a class="acct" href="#" aria-label="Account"></a>
+    </nav>
+    <div class="stamp">SAVED CHARTS · S1.1</div>
+  </div>
+</main>
+<script>
+(function(){
+  var box = document.getElementById("records");
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var DEMO = /[?&]demo=1\b/.test(location.search);
+  function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+  function longDate(iso){ var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || ""); return m ? MONTHS[+m[2] - 1] + " " + (+m[3]) + ", " + m[1] : ""; }
+  function card(r){
+    var chart = r.kind !== "compare";
+    var name = r.name || (chart ? "Your Chart" : "Saved Comparison");
+    /* a record saved before all its readings finished says so (his ruling) */
+    var meta = chart ? [longDate(r.birthDate), "Your Chart"].filter(Boolean).join(" \u2022 ") : "Saved Comparison";
+    if (r.complete === false) meta += " \u2022 Incomplete";
+    var pills = chart
+      ? (r.systems && r.systems.vedic ? '<button class="pill" type="button" data-go="vedic">Vedic</button>' : '') +
+        (r.systems && r.systems.tropical ? '<button class="pill" type="button" data-go="tropical">Tropical</button>' : '')
+      : '<button class="pill" type="button" data-go="compare">Compare</button>';
+    return '<div class="card" data-id="' + esc(r.id) + '" data-name="' + esc(name) + '">' +
+      '<img class="art" src="' + (chart ? 'sc-card-chart.jpg?v=1' : 'sc-card-compare.jpg?v=1') + '" alt="">' +
+      '<button class="open" type="button" aria-label="Open ' + esc(name) + '"></button>' +
+      '<div class="txt"><p class="name">' + esc(name) + '</p><p class="meta">' + esc(meta) + '</p></div>' +
+      '<div class="pills">' + pills + '</div>' +
+      '<button class="mark" type="button" aria-label="Remove ' + esc(name) + ' from Saved Charts"></button>' +
+    '</div>';
+  }
+  function state(text){ box.innerHTML = '<div class="state">' + esc(text) + '</div>'; }
+  function render(){
+    if (DEMO) {   /* his mockup examples; nothing is read from or written to storage */
+      box.innerHTML = card({ id: "demo-1", kind: "chart", name: "Jason Dougherty", birthDate: "1977-08-20", systems: { vedic: true, tropical: true } }) +
+                      card({ id: "demo-2", kind: "compare", name: "Matthew" });
+      return;
+    }
+    if (!window.CozSaved) return state("Your saved charts couldn't be read on this device.");
+    CozSaved.list().then(function(recs){
+      if (!recs.length) return state("You haven't saved a chart yet. Tap the bookmark at the bottom of any reading to save it here.");
+      box.innerHTML = recs.map(card).join("");
+    }, function(){ state("Your saved charts couldn't be read on this device."); });
+  }
+  box.addEventListener("click", function(ev){
+    var c = ev.target.closest(".card"); if (!c) return;
+    var id = c.getAttribute("data-id");
+    if (ev.target.closest(".mark")) {
+      if (DEMO) return;
+      if (!confirm("Remove " + c.getAttribute("data-name") + " from Saved Charts?")) return;
+      CozSaved.remove(id).then(render, function(){ alert("This saved chart couldn't be removed."); });
+      return;
+    }
+    if (DEMO) return;
+    var pill = ev.target.closest(".pill"), go = pill && pill.getAttribute("data-go");
+    try { location.href = CozSaved.restore(id, go === "vedic" || go === "tropical" ? go : null); }
+    catch (e) { alert("This saved chart couldn't be opened."); }
+  });
+  /* Home and Create a New Chart leave the living page for index.html (his ruling) */
+  function toIndex(ev){ if (ev) ev.preventDefault(); try { window.top.location.href = "index.html"; } catch (e) { location.href = "index.html"; } }
+  document.querySelector(".nav .home").addEventListener("click", toIndex);
+  document.getElementById("create").addEventListener("click", toIndex);
+  document.querySelector(".nav .acct").addEventListener("click", function(ev){ ev.preventDefault(); });   /* Account page not built yet */
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-/* COZALYZE · COMBINED READING GENERATOR · CG0.5 (v8 · CR3.2) · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
+/* COZALYZE · COMBINED READING GENERATOR · CG0.6 (v9 · CR3.3) · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
    INPUT: the validated chart-run pair + the Compare evidence manifest (compare-evidence.js).
      Vedic   = only claims that pass the CE1.2 eligibility gate (developmentEligible records,
                no BLOCKED/GAP/PROHIBITED status, sourced, claimConditions satisfied).
@@ -16,7 +16,7 @@
      phone stays valid. STEP2_VERSION is part of the FINAL reading's key only: changing the
      step 2 rules retires every finished reading written under the old rules, and nothing
      else. Bump STEP1_VERSION only when the step 1 prompt or its output shape changes. */
-  var STEP1_VERSION = "cmp-step1 cr3.2-reminder";   /* CR3.2: step 1 prompt now ends with the no-outcome reminder */
+  var STEP1_VERSION = "cmp-step1 cr3.3-one-theme";   /* CR3.3: step 1 reminder also fixes the one-theme-key rule */
   var STEP2_VERSION = "cmp-step2 cr3.1-repair";
   var PROMPT_VERSION = STEP1_VERSION + " + " + STEP2_VERSION;
   var WESTERN_CLAIM_SYSTEM = "none";                     // bump when the Tropical claim system exists
@@ -184,14 +184,22 @@
     "outcome or identity-essence inference": "Do not say or imply that anything works out, holds up, succeeds, turns out well or pays off, and do not describe who the person really is or is most like.",
     "degree sign": "No degree signs."
   };
+  function plainRule(h){
+    if (/ is not comparable$/.test(h)) return " Rule: each evidence item's theme is exactly ONE theme key from the list, never two keys joined together, and only a theme marked comparable.";
+    if (/unknown Western factor/.test(h)) return " Rule: copy Western factor ids exactly as listed.";
+    if (/Vedic claim not eligible or not supplied/.test(h)) return " Rule: cite Vedic claim ids exactly as listed, and only the ones listed.";
+    if (/paragraph/.test(h)) return " Rule: keep the paragraph count for that section.";
+    return "";
+  }
   function repairList(v){
     var lines = (v.details || []).map(function(d, i){ return (i + 1) + ". Sentence: \"" + d.sentence + "\"  Rule broken: " + d.rule + ". " + (RULE_TEXT[d.rule] || ""); });
     var other = v.hard.filter(function(h){ return !(v.details || []).some(function(d){ return h.indexOf(d.rule) >= 0 && h.indexOf(d.section) === 0; }); });
-    other.forEach(function(h){ lines.push((lines.length + 1) + ". " + h); });
+    other.forEach(function(h){ lines.push((lines.length + 1) + ". " + h + "." + plainRule(h)); });
     return lines.join("\n");
   }
   var STEP1_REMINDER = "\n\nRULE REMINDER FOR sharedThemes AND differentEmphases. " + RULE_TEXT["outcome or identity-essence inference"] +
-    " Words and phrases that are refused: works out, holds up, pays off, succeeds, turns out well, the real you, who you really are, meant to, will happen, you will. Describe how each emphasis operates, never a result.";
+    " Words and phrases that are refused: works out, holds up, pays off, succeeds, turns out well, the real you, who you really are, meant to, will happen, you will. Describe how each emphasis operates, never a result." +
+    " Every evidence item names exactly ONE theme key, copied from the THEME lines above; never join two keys with a plus sign or a slash.";
   var STEP2_REMINDER = "\n\nRULE REMINDER FOR integratedView. " + RULE_TEXT["outcome or identity-essence inference"] +
     " Words and phrases that are refused: works out, holds up, pays off, succeeds, turns out well, the real you, who you really are, meant to, will happen, you will. Describe how the two emphases can operate together, never a result.";
 
@@ -401,7 +409,9 @@
             fix = msg + "\n\nREPAIR. Your previous integratedView broke these rules:\n" + repairList(v) +
                   "\n\nFix EVERY item listed in this one reply. For a sentence item, rewrite only that sentence so it keeps its meaning without breaking the rule. For any other item, change only what that item needs. Keep everything else exactly as written. The whole Integrated View is checked again against every rule after this. Return the JSON with integratedView only.\n\nYOUR PREVIOUS integratedView:\n" + JSON.stringify(out.integratedView);
           else
-            fix = msg + "\n\nYour previous attempt broke these rules:\n" + repairList(v) + "\n\nFix every one and return the JSON again.";
+            /* CR3.3: step 1 is repaired the same way, from its own draft */
+            fix = msg + "\n\nREPAIR. Your previous sharedThemes and differentEmphases broke these rules:\n" + repairList(v) +
+                  "\n\nFix EVERY item listed in this one reply. For a sentence item, rewrite only that sentence so it keeps its meaning without breaking the rule. For an evidence item, correct only that evidence entry. Keep everything else exactly as written. Both sections are checked again against every rule after this. Return the JSON with sharedThemes and differentEmphases only.\n\nYOUR PREVIOUS DRAFT:\n" + JSON.stringify(out);
           return write(stage, fix, base, 2).then(function(r2){ r2.firstAttemptProblems = v.hard; return r2; });
         }
         if (v.hard.length) {
