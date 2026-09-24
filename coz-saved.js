@@ -1,4 +1,7 @@
-/* COZ SAVED · CS1.2 (Sep 23 2026) · library hook
+/* COZ SAVED · CS1.3 (Sep 24 2026) · library hook
+   CS1.3: Tropical pages open tropical-birth-chart.html?saved=1&id=... after saving; a Tropical
+   chart record (and the Tropical pill) restores to that page; a chart record is complete when
+   the captured reading exists for every system it holds.
    CS1.2: a page may register a payload provider (CozSaved.registerPayload) whose result is
    stored on the record as rec.library[name] at save time; pieces a provider does not return
    are kept from the previous save. Vedic pages open the Saved Library landing page
@@ -33,8 +36,9 @@
   var RUN_PREFIX = ["cozCombinedReadingDEV:", "cozCombinedStep1DEV:", "cozAscReading:"];
   var COMPARE_PAGES = ["compare-reading", "combined-reading", "your-ascendants", "ascendant-reading",
                        "compare-current-timing", "compare-current-timing-reading", "compare-birth-charts"];
-  var TROPICAL_PAGES = ["tropical-reading"];
+  var TROPICAL_PAGES = ["tropical-reading", "tropical-birth-chart"];
   var VEDIC_LIBRARY_PAGES = ["vedic-reading", "vedic-birth-chart", "current-life-cycle", "current-season", "key-time-windows", "what-comes-next"];
+  var TROPICAL_LIBRARY_PAGES = ["tropical-reading", "tropical-birth-chart"];
   var PROVIDERS = {};
 
   function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
@@ -120,11 +124,13 @@
     });
     /* CS1.2: a Vedic chart is complete when the captured six-section reading is complete,
        not merely because a Sections 3-6 draft exists */
-    if (kind === "chart" && rec.systems.vedic) {
-      var cap = rec.library.vedic && rec.library.vedic.reading;
-      rec.readings.vedicReading = !!(cap && cap.sections && Array.isArray(cap.order) && cap.order.length &&
-        cap.order.every(function (sec) { return Array.isArray(cap.sections[sec.id]) && cap.sections[sec.id].length > 0; }));
-      rec.complete = rec.readings.vedicReading;
+    function captured(cap){ return !!(cap && cap.sections && Array.isArray(cap.order) && cap.order.length &&
+        cap.order.every(function (sec) { return Array.isArray(cap.sections[sec.id]) && cap.sections[sec.id].length > 0; })); }
+    if (kind === "chart") {
+      var flags = [];
+      if (rec.systems.vedic) { rec.readings.vedicReading = captured(rec.library.vedic && rec.library.vedic.reading); flags.push(rec.readings.vedicReading); }
+      if (rec.systems.tropical) { rec.readings.tropicalReading = captured(rec.library.tropical && rec.library.tropical.reading); flags.push(rec.readings.tropicalReading); }
+      if (flags.length) rec.complete = flags.every(Boolean);
     }
     try { writeStore(s); } catch (e) { return { ok: false, reason: "storage_full" }; }
     return { ok: true, record: rec };
@@ -163,10 +169,11 @@
     localStorage.setItem(RESTORED, rec.runId);
     /* CS1.2: a Vedic chart record opens its Saved Library landing page (card and Vedic pill alike) */
     var library = "vedic-birth-chart.html?saved=1&id=" + encodeURIComponent(rec.id);
-    if (target === "tropical") return "tropical-reading.html";
+    var tlibrary = "tropical-birth-chart.html?saved=1&id=" + encodeURIComponent(rec.id);
+    if (target === "tropical") return tlibrary;
     if (target === "vedic") return library;
     if (rec.kind === "compare") return "compare-reading.html";
-    return rec.systems && rec.systems.vedic ? library : "tropical-reading.html";
+    return rec.systems && rec.systems.vedic ? library : tlibrary;
   }
 
   /* HARD RULE: a reopened saved chart never calls the model */
@@ -200,6 +207,7 @@
     else if (!r.ok && r.reason === "storage_full") alert("There isn't enough space on this device to save this chart.");
     else if (!r.ok && r.reason === "store_error") alert("Your saved charts couldn't be read on this device.");
     if (r.ok && VEDIC_LIBRARY_PAGES.indexOf(p) >= 0) location.href = "vedic-birth-chart.html?saved=1&id=" + encodeURIComponent(r.record.id);
+    else if (r.ok && TROPICAL_LIBRARY_PAGES.indexOf(p) >= 0) location.href = "tropical-birth-chart.html?saved=1&id=" + encodeURIComponent(r.record.id);
     else location.href = "saved-charts.html";
   }, true);
 
