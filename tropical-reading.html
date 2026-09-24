@@ -1482,7 +1482,7 @@ function tropicalRulerLayer(sign){
   notice.push('These themes describe possible patterns, not fixed outcomes.');
   return { ruler: ruler, notice: notice, trace: trace, status: TROPICAL_BANK_STATUS, policy: TROPICAL_NATAL_POLICY.version };
 }
-
+  window.COZ_TROPICAL_RISING = { shared: TROPICAL_SHARED.intro, signs: TROPICAL_SIGNS, rulerLayer: tropicalRulerLayer };
   const MODE = "tropical";
   const key = ASC_SIGN ? String(ASC_SIGN).toLowerCase() : "";
   const S = SIGNS[key] || null;
