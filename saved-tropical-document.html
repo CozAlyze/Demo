@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saved Reading · CozAlyze</title>
+<!--
+  COZALYZE · SAVED TROPICAL DOCUMENT · TD1.0 (Sep 24 2026)
+  One renderer for the Tropical saved-document views:
+    saved-tropical-document.html?view=reading&id=<record>     Your Tropical Reading (six sections)
+    saved-tropical-document.html?view=ascendant&id=<record>   Your Ascendant (Rising Sign)
+    saved-tropical-document.html?view=transits&id=<record>    Your Current Transits (not available yet)
+  Data: the selected cozSavedCharts record's library (rec.library.tropical), captured at save
+  time by saved-tropical-library.js. Document renderer only: no animation, no model request,
+  no regeneration. Shares saved-document.css with the Vedic documents; loads no Vedic module.
+  Print / Save PDF opens at top level when framed and expands every section.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="saved-document.css?v=1">
+<script src="coz-saved.js?v=3"></script>
+<script src="saved-tropical-library.js?v=1"></script>
+</head>
+<body>
+<div class="doc-shell">
+  <div class="doc-toolbar">
+    <a class="doc-button" id="backBtn" href="saved-charts.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      Back to Birth Chart
+    </a>
+    <div class="doc-actions">
+    <button type="button" class="doc-button" id="expandBtn">Expand All</button>
+    <button type="button" class="doc-button" id="printBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-3M7 14h10v7H7z"/></svg>
+      Print / Save PDF
+    </button>
+    </div>
+  </div>
+  <div id="mount"></div>
+  <p class="doc-savednote" id="savedNote"></p>
+</div>
+<script>
+"use strict";
+(function(){
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var DISCLOSURE = "This AI-generated astrological content is provided for reflection and entertainment only. It is not scientific, medical, legal, financial, or professional advice.";
+  var TITLES = { "reading": "Your Tropical Reading", "ascendant": "Your Ascendant", "transits": "Your Current Transits" };
+
+  function el(tag,cls,text){ var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function paras(host, list){ (list || []).forEach(function(t){ t = t == null ? "" : String(t); if (!t.trim()) return; host.appendChild(t.indexOf("## ") === 0 ? el("h3",null,t.slice(3)) : el("p",null,t)); }); return host; }
+  function pad2(n){ n = Math.round(Number(n) || 0); return (n<10?"0":"")+n; }
+  function longDate(iso){ if (!iso) return ""; var d = new Date(iso); if (isNaN(d)) return String(iso); return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate() + ", " + d.getUTCFullYear(); }
+  function section(number, title, open){
+    var d = el("details","doc-section"); if (open) d.open = true;
+    var sm = el("summary"); var h2 = el("h2");
+    if (number != null){ h2.appendChild(el("span","num",number + ".")); }
+    h2.appendChild(document.createTextNode(title));
+    sm.appendChild(h2); sm.appendChild(el("span","chev","\u203A")); d.appendChild(sm);
+    return d;
+  }
+  function empty(msg, heading){
+    var c = el("div","doc-empty");
+    c.appendChild(el("h2",null,heading || "This saved reading could not be opened"));
+    var p = el("p",null,msg + " "); var a = el("a",null,"Open Saved Charts"); a.href = "saved-charts.html"; p.appendChild(a); c.appendChild(p);
+    return c;
+  }
+  function cozPrint(){
+    var framed = false; try { framed = window.top !== window; } catch (e) { framed = true; }
+    if (framed) { var u = new URL(location.href); u.searchParams.set("print", "1"); window.open(u.href, "_blank"); return; }
+    window.print();
+  }
+  function cozAutoPrint(){
+    if (!/[?&]print=1\b/.test(location.search)) return;
+    var go = function(){ setTimeout(function(){ window.print(); }, 250); };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+  }
+
+  var qp = new URLSearchParams(location.search);
+  var view = qp.get("view") || "reading";
+  var mount = document.getElementById("mount");
+  document.getElementById("printBtn").addEventListener("click", cozPrint);
+  document.getElementById("expandBtn").addEventListener("click", function(){
+    var all = document.querySelectorAll("details.doc-section"), open = Array.prototype.every.call(all, function(d){ return d.open; });
+    all.forEach(function(d){ d.open = !open; });
+    this.textContent = open ? "Expand All" : "Collapse All";
+  });
+  window.addEventListener("beforeprint", function(){ document.querySelectorAll("details.doc-section").forEach(function(d){ d.dataset.wasOpen = d.open ? "1" : "0"; d.open = true; }); });
+  window.addEventListener("afterprint", function(){ document.querySelectorAll("details.doc-section").forEach(function(d){ if (d.dataset.wasOpen === "0") d.open = false; }); });
+
+  var lib = window.CozSavedTropical ? window.CozSavedTropical.load() : null;
+  if (!lib){ mount.appendChild(empty("It may have been removed from this device.")); return; }
+  document.getElementById("backBtn").href = "tropical-birth-chart.html?saved=1&id=" + encodeURIComponent(lib.id);
+  document.title = (TITLES[view] || "Saved Reading") + " \u00B7 CozAlyze";
+
+  var paper = el("article","doc-paper"), inner = el("div","doc-inner");
+  paper.appendChild(inner);
+  inner.appendChild(el("p","doc-kicker", TITLES[view] || "Saved Reading"));
+  inner.appendChild(el("h1",null, lib.name || "Your Chart"));
+  var b = lib.birth || {}, bits = [b.date, b.time, b.location].filter(Boolean);
+  if (bits.length) inner.appendChild(el("p","doc-birthline", bits.join("  \u2022  ")));
+
+  var L = lib.library || {}, ok = true;
+
+  if (view === "reading"){
+    var R = L.reading;
+    if (!R || !R.sections){ ok = false; mount.appendChild(empty("The Tropical Reading hadn't finished when this chart was saved.")); }
+    else (R.order || []).forEach(function(s, i){
+      var d = section(s.number, s.title, i === 0);
+      d.appendChild(paras(el("div","doc-copy"), R.sections[s.id]));
+      inner.appendChild(d);
+    });
+  }
+  else if (view === "ascendant"){
+    var A = L.ascendant;
+    if (!A || !A.sign){ ok = false; mount.appendChild(empty("The Ascendant reading wasn't saved with this chart.")); }
+    else {
+      var head = el("div");
+      head.appendChild(el("p","doc-label","Tropical Ascendant"));
+      head.appendChild(el("p","doc-big", A.sign + (A.degree != null ? " " + pad2(A.degree) + "\u00B0" + pad2(A.minute) + "\u2032" : "")));
+      inner.appendChild(head);
+      var s1 = section(null,"Tropical Perspective",true); s1.appendChild(paras(el("div","doc-copy"), A.shared)); inner.appendChild(s1);
+      var s2 = section(null,"How You Meet the World",false); s2.appendChild(paras(el("div","doc-copy"), A.meet && A.meet.length ? [A.meet[0]] : [])); inner.appendChild(s2);
+      if (A.ruler && A.ruler.length){ var s3 = section(null,"Your Chart Ruler",false); s3.appendChild(paras(el("div","doc-copy"), A.ruler)); inner.appendChild(s3); }
+      var noticeList = (A.notice && A.notice.length) ? A.notice : ((A.meet && A.meet[1]) ? [A.meet[1], "These themes describe possible patterns, not fixed outcomes."] : []);
+      if (noticeList.length){ var s4 = section(null,"What to Notice",false); s4.appendChild(paras(el("div","doc-copy"), noticeList)); inner.appendChild(s4); }
+    }
+  }
+  else if (view === "transits"){
+    ok = false;
+    mount.appendChild(empty("Your Current Transits reading is not part of the Saved Library yet.", "Not available yet"));
+  }
+  else { ok = false; mount.appendChild(empty("Unknown view.")); }
+
+  if (!ok) return;
+  var foot = el("footer","doc-footer");
+  foot.appendChild(el("p",null,DISCLOSURE));
+  if (lib.chart && lib.chart.documentId) foot.appendChild(el("p",null,"Generated by CozAlyze \u00B7 " + lib.chart.documentId));
+  inner.appendChild(foot);
+  mount.appendChild(paper);
+  var savedAt = lib.rec.updatedAt || lib.rec.savedAt;
+  document.getElementById("savedNote").textContent = "These are your saved results. No animation. No rewrite." + (savedAt ? " \u00B7 Saved " + longDate(savedAt) : "");
+  cozAutoPrint();
+})();
+</script>
+</body>
+</html>
