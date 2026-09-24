@@ -1,6 +1,14 @@
 /* ============================================================
-   COZALYZE · COMPARE · CURRENT TIMING · CT3.1 · shared engine
-   Used by compare-current-timing.html and compare-current-timing-reading.html.
+   COZALYZE · COMPARE · CURRENT TIMING · CT3.2 · shared engine
+   Used by compare-current-timing.html and compare-current-timing-reading.html,
+   and (CT3.2) by tropical-current-transits.html through loadTropical().
+
+   CT3.2 (Sep 24 2026): loadTropical() is the Tropical-only path for the
+   Tropical reading's Your Current Transits page. It reads no Vedic data. It
+   uses the SAME TRANSIT_POLICY, the same selection (selectTransits), the same
+   motion solver (transitWindow), the same timing sentences (timingText) and
+   the same Tropical bank as Compare. Nothing Compare shows has changed: the
+   selection and timing code were moved into shared functions, word for word.
 
    DATA. Both charts come ONLY from the validated chart-run pair
    (COZ_ASC.ensurePair in ascendant-library.js): same runId, same birth
@@ -32,8 +40,9 @@
 (function (global) {
   'use strict';
 
-  var ENGINE = 'compare-current-timing 3.1';
+  var ENGINE = 'compare-current-timing 3.2';
   var FAIL = 'We couldn\u2019t load your timing for this chart. Please return and run your chart again.';
+  var FAIL_TROPICAL = 'We couldn\u2019t load your transits for this chart. Please return and run your chart again.';
 
   /* ============================================================
      TRANSIT POLICY: the ONE place every transit rule lives.
@@ -476,6 +485,34 @@
   function heading(h) { return 'Transiting ' + h.planet + ' ' + T_VERB[h.aspect] + ' ' + natal(h.target); }
   function phrase(h) { return h.planet + ' ' + T_PHRASE[h.aspect] + ' ' + natal(h.target); }
 
+  /* CT3.2: the calculated timing paragraph for one contact, shared by Compare and the
+     Tropical page. Moved here from compose() unchanged. */
+  function timingText(h, now) {
+    var w = h.window;
+    var tl;
+    if (w.openStart) tl = 'This contact has been active for some time and runs until ' + fmtDay(w.exit, now) + '.';
+    else if (w.openEnd) tl = 'This contact became active on ' + fmtDay(w.entry, now) + ' and continues beyond the next several months.';
+    else tl = 'This contact is active from ' + fmtDay(w.entry, now) + ' to ' + fmtDay(w.exit, now) + ', ' + durWords(w.exit - w.entry) + '.';
+    var next = w.passes.filter(function (p) { return p > now.getTime(); })[0], last = w.passes.filter(function (p) { return p <= now.getTime(); }).pop();
+    if (w.passes.length > 1) {
+      tl += ' Because ' + h.planet + ' turns retrograde during this time, it becomes exact ' + NUMW[Math.min(w.passes.length, 5)] + ', on ' +
+            listAnd(w.passes.map(function (p) { return fmtDay(p, now); })) + '.';
+      if (h.status === 'exact') tl += ' It is currently within ' + TRANSIT_POLICY.exactThresholdDegrees + '\u00B0 of exact, so its theme is near its peak.';
+      if (next) tl += ' The next exact pass is on ' + fmtDay(next, now) + '.';
+      else if (h.status !== 'exact') tl += ' The last exact pass has already happened, so it is now easing.';
+    } else if (h.status === 'exact') {
+      tl += ' It is currently within ' + TRANSIT_POLICY.exactThresholdDegrees + '\u00B0 of exact, so its theme is near its peak.';
+      if (next) tl += ' It becomes exact on ' + fmtDay(next, now) + '.';
+      else if (last) tl += ' It was exact on ' + fmtDay(last, now) + '.';
+      else if (w.closest) tl += ' It comes closest on ' + fmtDay(w.closest.t, now) + ' without becoming exact.';
+    }
+    else if (next) tl += ' It is still building toward exact on ' + fmtDay(next, now) + '.';
+    else if (last && !h.applying) tl += ' It was exact on ' + fmtDay(last, now) + ', and it is now easing.';
+    else if (w.closest) tl += ' It comes closest on ' + fmtDay(w.closest.t, now) + ', within ' + dmin(w.closest.f) + ' of exact, without becoming exact' +
+                              (w.closest.t > now.getTime() ? '.' : ', and it is now easing.');
+    return tl;
+  }
+
   /* ---------------- composer ---------------- */
   function compose(G, d) {
     var MD = d.md.lord, AD = d.ad.lord, v = d.vedic, now = d.now, trace = [];
@@ -534,28 +571,7 @@
         ' describes ' + T_POINT[h.target] + '. ' + T_ASPECT[h.aspect] + ' This contact may make ' + T_EFFECT[h.planet][g] + ' more noticeable around ' +
         T_POINT_SHORT[h.target] + '.' + (h.targetHouse ? ' Your natal ' + h.target + ' sits in your ' + ord(h.targetHouse) + ' house, so it may show up around ' + TH_AREA[h.targetHouse] + '.' : '') +
         ' You might observe ' + T_QUALITY[h.planet][g] + ', especially ' + TARGET_NOTICE[h.target] + '.', ['transit_' + h.planet, 'aspect_' + h.aspect + '_' + h.target, h.targetHouse ? 'target_house_' + h.targetHouse : 'target_angle']));
-      var tl;
-      if (w.openStart) tl = 'This contact has been active for some time and runs until ' + fmtDay(w.exit, now) + '.';
-      else if (w.openEnd) tl = 'This contact became active on ' + fmtDay(w.entry, now) + ' and continues beyond the next several months.';
-      else tl = 'This contact is active from ' + fmtDay(w.entry, now) + ' to ' + fmtDay(w.exit, now) + ', ' + durWords(w.exit - w.entry) + '.';
-      var next = w.passes.filter(function (p) { return p > now.getTime(); })[0], last = w.passes.filter(function (p) { return p <= now.getTime(); }).pop();
-      if (w.passes.length > 1) {
-        tl += ' Because ' + h.planet + ' turns retrograde during this time, it becomes exact ' + NUMW[Math.min(w.passes.length, 5)] + ', on ' +
-              listAnd(w.passes.map(function (p) { return fmtDay(p, now); })) + '.';
-        if (h.status === 'exact') tl += ' It is currently within ' + TRANSIT_POLICY.exactThresholdDegrees + '\u00B0 of exact, so its theme is near its peak.';
-        if (next) tl += ' The next exact pass is on ' + fmtDay(next, now) + '.';
-        else if (h.status !== 'exact') tl += ' The last exact pass has already happened, so it is now easing.';
-      } else if (h.status === 'exact') {
-        tl += ' It is currently within ' + TRANSIT_POLICY.exactThresholdDegrees + '\u00B0 of exact, so its theme is near its peak.';
-        if (next) tl += ' It becomes exact on ' + fmtDay(next, now) + '.';
-        else if (last) tl += ' It was exact on ' + fmtDay(last, now) + '.';
-        else if (w.closest) tl += ' It comes closest on ' + fmtDay(w.closest.t, now) + ' without becoming exact.';
-      }
-      else if (next) tl += ' It is still building toward exact on ' + fmtDay(next, now) + '.';
-      else if (last && !h.applying) tl += ' It was exact on ' + fmtDay(last, now) + ', and it is now easing.';
-      else if (w.closest) tl += ' It comes closest on ' + fmtDay(w.closest.t, now) + ', within ' + dmin(w.closest.f) + ' of exact, without becoming exact' +
-                                (w.closest.t > now.getTime() ? '.' : ', and it is now easing.');
-      sky.push(note('sky', tl + ' One option is to ' + TARGET_OPTION[h.target][g] + '.', ['window', 'passes_' + w.passes.length, h.status]));
+      sky.push(note('sky', timingText(h, now) + ' One option is to ' + TARGET_OPTION[h.target][g] + '.', ['window', 'passes_' + w.passes.length, h.status]));
     });
     if (!active.length) sky.push(note('sky', 'None of the included transiting planets is forming one of the selected aspects within the current orb settings.', ['no_transit_in_orb']));
 
@@ -627,6 +643,28 @@
     };
   }
 
+  /* CT3.2: transit selection, shared by load() (Compare) and loadTropical(). Moved out
+     of load() unchanged: the tightest in-orb contact per planet, smallest orb first,
+     two fast slots and one slow slot, each stamped with its solved window and status. */
+  function selectTransits(now, targets, t) {
+    /* announcementWindowDays is 0: only aspects already inside the orb are shown, nothing is announced ahead */
+    var nowMs = now.getTime();
+    function stamp(h) {
+      var tg = targets.filter(function (x) { return x.name === h.target; })[0];
+      var a = ASPECTS.filter(function (x) { return x.type === h.aspect; })[0];
+      h.window = transitWindow(h, tg.lon, a.angle, nowMs);
+      h.applying = h.window.applying;                     /* distance from exactness decreasing */
+      h.status = h.orb <= TRANSIT_POLICY.exactThresholdDegrees ? 'exact' : (h.applying ? 'applying' : 'separating');
+      return h;
+    }
+    function pick(list, n) {
+      return list.map(function (p) { return bestHit(p, now, targets, t); })
+        .filter(function (r) { return r.hit; }).map(function (r) { return r.hit; })
+        .sort(function (a, b) { return a.orb - b.orb; }).slice(0, n).map(stamp);
+    }
+    return { fast: pick(FAST, TRANSIT_POLICY.slots.fast), slow: pick(SLOW, TRANSIT_POLICY.slots.slow)[0] || null };
+  }
+
   /* ---------------- load ---------------- */
   var loading = null;
   function load() {
@@ -643,23 +681,9 @@
       if (!per.ok) return { ok: false, reason: per.reason };
       var targets = natalTargets(t);
       if (targets.length < 10) return { ok: false, reason: 'tropical natal positions incomplete (' + targets.length + ')' };
-      /* announcementWindowDays is 0: only aspects already inside the orb are shown, nothing is announced ahead */
-      var nowMs = now.getTime();
-      function stamp(h) {
-        var tg = targets.filter(function (x) { return x.name === h.target; })[0];
-        var a = ASPECTS.filter(function (x) { return x.type === h.aspect; })[0];
-        h.window = transitWindow(h, tg.lon, a.angle, nowMs);
-        h.applying = h.window.applying;                     /* distance from exactness decreasing */
-        h.status = h.orb <= TRANSIT_POLICY.exactThresholdDegrees ? 'exact' : (h.applying ? 'applying' : 'separating');
-        return h;
-      }
-      function pick(list, n) {
-        return list.map(function (p) { return bestHit(p, now, targets, t); })
-          .filter(function (r) { return r.hit; }).map(function (r) { return r.hit; })
-          .sort(function (a, b) { return a.orb - b.orb; }).slice(0, n).map(stamp);
-      }
-      var fast = pick(FAST, TRANSIT_POLICY.slots.fast);
-      var slow = pick(SLOW, TRANSIT_POLICY.slots.slow)[0] || null;
+      var sel = selectTransits(now, targets, t);
+      var fast = sel.fast;
+      var slow = sel.slow;
       var fastAll = fast, slowAll = slow ? [slow] : [];
       var d = { ok: true, now: now, md: per.md, ad: per.ad, next: per.next, fast: fast, slow: slow,
                 vedic: v, tropical: t, run: res.run, engine: ENGINE, policy: TRANSIT_POLICY,
@@ -680,6 +704,165 @@
     return loading;
   }
 
-  global.COZ_TIMING = { load: load, FAIL: FAIL, TGLYPH: TGLYPH, ENGINE: ENGINE, POLICY: TRANSIT_POLICY, DRISHTI: DRISHTI, BANK_STATUS: BANK_STATUS,
-    _test: { computeDrishti: computeDrishti, transitWindow: transitWindow, compose: compose, pairClass: pairClass, transitTags: transitTags } };
+
+  /* ============================================================
+     CT3.2 · TROPICAL-ONLY PAGE (tropical-current-transits.html)
+     Composes the one-page Tropical reading from the same selected contacts
+     and the same Tropical bank as Compare. No Vedic data, no Where They Meet.
+     STATUS: the calculations and the selection policy are the established
+     Compare ones. ALL wording here, like the Tropical bank above, is
+     DEVELOPMENT-ONLY: a draft awaiting review by a Western astrologer, never
+     described to the customer as professionally validated. The connecting
+     sentences below only join bank phrases; every date, orb, house and exact
+     pass comes from the calculation, and a claim the calculation does not
+     support is left out.
+     ============================================================ */
+  var T_ASPECT_AGAIN = {
+    conjunction: 'This is another conjunction, so again the two are joined directly.',
+    opposition: 'This is another opposition, again a contact that asks for balance.',
+    square: 'This is another square, again a contact that asks for adjustment.',
+    trine: 'This is another trine, again a flowing contact.',
+    sextile: 'This is another sextile, again an opening that responds to effort.'
+  };
+  var T_STATUS_LABEL = { applying: 'Applying', exact: 'Exact', separating: 'Separating' };
+  var NOTICE_LEAD = ['You might observe ', 'You may notice ', 'This can show up as '];
+  var COUNT_WORD = ['No', 'One', 'Two', 'Three'];
+  function fmtOrb(x) { var d = Math.floor(x), m = Math.round((x - d) * 60); if (m === 60) { d += 1; m = 0; } return d + '\u00B0' + (m < 10 ? '0' : '') + m + '\u2032'; }
+  function possT(n) { return Art(n) + "'s"; }
+  function contactT(h) { return (h.planet === 'Sun' ? 'the transiting Sun' : 'transiting ' + h.planet) + ' ' + T_VERB[h.aspect] + ' ' + natal(h.target); }
+  function phraseT(h) { return art(h.planet) + ' ' + T_PHRASE[h.aspect] + ' ' + natal(h.target); }
+  function statusWords(h) {
+    if (h.status === 'exact') return 'within ' + TRANSIT_POLICY.exactThresholdDegrees + '\u00B0 of exact';
+    return fmtOrb(h.orb) + ' from exact and ' + (h.status === 'applying' ? 'still building' : 'easing');
+  }
+  function spanMs(w) { return w.exit - w.entry; }
+
+  function composeTropical(d) {
+    var now = d.now, trace = [];
+    function note(section, text, factors) { trace.push({ section: section, factors: factors, text: text.slice(0, 90) }); return text; }
+    var active = d.fast.concat(d.slow ? [d.slow] : []);
+    var closest = active.slice().sort(function (a, b) { return a.orb - b.orb; })[0] || null;
+    var P = TRANSIT_POLICY, planets = P.fastPlanets.concat(P.slowPlanets).map(art);
+
+    /* summary: names the closest contact when one exists */
+    var summary = [];
+    if (!active.length) {
+      summary.push(note('summary', 'None of the included transiting planets is forming one of the selected aspects within the current orb settings.', ['no_transit_in_orb']));
+    } else if (active.length === 1) {
+      var only = contactT(active[0]);
+      summary.push(note('summary', 'One contact is active in your chart right now: ' + only + ', ' + statusWords(active[0]) + '.', ['count_1', 'closest_' + active[0].planet]));
+    } else {
+      summary.push(note('summary', COUNT_WORD[active.length] + ' contacts are active in your chart right now. The closest is ' + contactT(closest) + ', ' + statusWords(closest) + '.',
+        ['count_' + active.length, 'closest_' + closest.planet]));
+    }
+
+    /* THE PRESENT SKY: the selected contacts as current themes */
+    var sky = [];
+    if (!active.length) {
+      sky.push({ type: 'p', text: note('sky', 'That is a quiet sky for your chart, not an error. The planets are always moving, but none of ' + listAnd(planets).replace(/ and ([^,]+)$/, ' or $1') +
+        ' is close enough to one of the points this page follows to count as an active contact.', ['no_transit_in_orb']) });
+    } else {
+      sky.push({ type: 'p', text: note('sky', active.map(function (h, i) {
+        var c = possT(h.planet) + ' ' + h.aspect + ' to your natal ' + h.target, e = T_EFFECT[h.planet][group(h.aspect)], a = T_POINT_SHORT[h.target];
+        /* three sentence frames in turn, so three contacts never read as one repeated line */
+        return [c + ' may make ' + e + ' more noticeable around ' + a + '.',
+                c + ' can put ' + e + ' in focus around ' + a + '.',
+                'With ' + c + ', ' + e + ' may stand out around ' + a + '.'][i % 3];
+      }).join(' '), active.map(function (h) { return 'effect_' + h.planet + '_' + group(h.aspect); })) });
+      /* the slow contact is called the steadier background only when its solved window is
+         longer than every fast window shown (open-ended windows count as the longest) */
+      var s = d.slow;
+      if (s && d.fast.length) {
+        var sLong = s.window.openStart || s.window.openEnd || d.fast.every(function (f) { return !f.window.openStart && !f.window.openEnd && spanMs(s.window) > spanMs(f.window); });
+        if (sLong) sky.push({ type: 'p', text: note('sky', possT(s.planet) + ' contact runs the longest of these, so it may feel like a steadier background while the faster contacts come and go.', ['slow_longest']) });
+      }
+      sky.push({ type: 'p', text: note('sky', active.length === 1 ? 'The contact is described below, with the dates it is active.' : 'Each contact is described below, with the dates it is active.', ['pointer']) });
+    }
+
+    /* YOUR ACTIVE TRANSITS: one passage per selected contact */
+    var passages = [], seenAspect = {}, seenTarget = {};
+    if (!active.length) passages.push({ type: 'p', text: note('active', 'There are no active transits to describe right now.', ['no_transit_in_orb']) });
+    active.forEach(function (h, i) {
+      var g = group(h.aspect);
+      passages.push({ type: 'h3', text: heading(h) });
+      passages.push({ type: 'meta', text: T_STATUS_LABEL[h.status] + ', orb ' + fmtOrb(h.orb) +
+        (h.targetHouse ? ', natal ' + h.target + ' in your ' + ord(h.targetHouse) + ' house' : '') });
+      var p = (i === 0 ? 'In Western astrology, ' + art(h.planet) : Art(h.planet)) + ' represents ' + T_PLANET[h.planet] + '. ';
+      p += seenTarget[h.target] ? 'This contact also touches your natal ' + h.target + '. ' : 'Your natal ' + h.target + ' describes ' + T_POINT[h.target] + '. ';
+      p += seenAspect[h.aspect] ? T_ASPECT_AGAIN[h.aspect] : T_ASPECT[h.aspect];
+      if (h.targetHouse && !seenTarget[h.target]) p += ' Your natal ' + h.target + ' sits in your ' + ord(h.targetHouse) + ' house, so this may show up around ' + TH_AREA[h.targetHouse] + '.';
+      p += ' ' + NOTICE_LEAD[i % NOTICE_LEAD.length] + T_QUALITY[h.planet][g] + ', especially ' + TARGET_NOTICE[h.target] + '.';
+      seenAspect[h.aspect] = 1; seenTarget[h.target] = 1;
+      passages.push({ type: 'p', text: note('active', p, ['transit_' + h.planet, 'aspect_' + h.aspect + '_' + h.target, h.targetHouse ? 'target_house_' + h.targetHouse : 'target_angle']) });
+      passages.push({ type: 'p', timing: true, text: note('active', timingText(h, now), ['window', 'passes_' + h.window.passes.length, h.status]) });
+    });
+
+    /* WHAT TO NOTICE NOW: grounded in the selected contacts only */
+    var notice = [];
+    if (!active.length) {
+      notice.push({ type: 'p', text: note('notice', 'Without a close contact, there is nothing specific to watch for from the moving sky right now. This page recalculates each time you open it, so a contact will appear here once one comes within orb.', ['no_transit_in_orb']) });
+    } else {
+      notice.push({ type: 'p', text: note('notice', active.map(function (h, i) {
+        var o = TARGET_OPTION[h.target][group(h.aspect)];
+        return ['With ' + phraseT(h) + ', one option is to ' + o + '.',
+                'While ' + art(h.planet) + ' is ' + T_PHRASE[h.aspect] + ' ' + natal(h.target) + ', it may help to ' + o + '.',
+                'For ' + possT(h.planet).replace(/^The /, 'the ') + ' ' + h.aspect + ' to your natal ' + h.target + ', you could ' + o + '.'][i % 3];
+      }).join(' '), active.map(function (h) { return 'option_' + h.target + '_' + group(h.aspect); })) });
+      var cw = closest.window;
+      if (!cw.openEnd) notice.push({ type: 'p', text: note('notice', 'The closest of these, ' + contactT(closest) + ', stays active until ' + fmtDay(cw.exit, now) + '. These are options, not rules. The aim is simply to notice where these themes are already showing up.', ['closest_exit']) });
+      else notice.push({ type: 'p', text: note('notice', 'These are options, not rules. The aim is simply to notice where these themes are already showing up.', ['options_not_rules']) });
+    }
+
+    return {
+      summary: summary,
+      sections: [
+        { id: 'sky', title: 'The Present Sky', blocks: sky },
+        { id: 'active', title: 'Your Active Transits', blocks: passages },
+        { id: 'notice', title: 'What To Notice Now', blocks: notice }
+      ],
+      trace: trace
+    };
+  }
+
+  /* Tropical-only load. The natal chart must belong to the CURRENT chart run: the run ID
+     and birth fingerprint stamped by Scene 1 (COZ_ASC.currentRun) must match the ones
+     the tropical engine stamped into cozTropicalChartJSON, with an engine version. A
+     missing, stale or mismatched chart is refused, never replaced by an older one.
+     Transits are calculated fresh for this moment every time the page opens. */
+  var loadingT = null;
+  function loadTropical() {
+    if (loadingT) return loadingT;
+    var A = global.COZ_ASC;
+    if (!A || !A.currentRun) return (loadingT = Promise.resolve({ ok: false, reason: 'ascendant-library.js missing' }));
+    if (typeof Astronomy === 'undefined') return (loadingT = Promise.resolve({ ok: false, reason: 'astronomy-engine failed to load' }));
+    loadingT = Promise.resolve().then(function () {
+      var run = A.currentRun();
+      if (!run) return { ok: false, reason: 'no stamped chart run for the current birth record' };
+      var t = null;
+      try { t = JSON.parse(global.localStorage.getItem('cozTropicalChartJSON') || 'null'); } catch (e) { t = null; }
+      if (!t || !t.run || typeof t.run.runId !== 'string' || !t.run.runId || typeof t.run.fingerprint !== 'string' || !t.run.fingerprint ||
+          t.run.runId !== run.runId || t.run.fingerprint !== run.fingerprint || !t.run.engineVersion) return { ok: false, reason: 'tropical chart missing or from another chart run' };
+      if (!t.settings || t.settings.zodiac !== 'Tropical') return { ok: false, reason: 'stored chart is not Tropical' };
+      var targets = natalTargets(t);
+      if (targets.length < 10) return { ok: false, reason: 'tropical natal positions incomplete (' + targets.length + ')' };
+      var now = new Date();
+      var sel = selectTransits(now, targets, t);
+      var d = { ok: true, now: now, fast: sel.fast, slow: sel.slow, tropical: t, run: run, engine: ENGINE, policy: TRANSIT_POLICY,
+                bankStatus: { tropical: BANK_STATUS.tropical }, targets: targets };
+      d.text = composeTropical(d);
+      if (global.console) {
+        console.log('[TROPICAL TRANSITS] ' + ENGINE + ' run ' + run.runId + ' | ' + TRANSIT_POLICY.version + ' | bank ' + BANK_STATUS.tropical);
+        sel.fast.concat(sel.slow ? [sel.slow] : []).forEach(function (h) {
+          console.log('[TROPICAL TRANSITS] ' + h.planet + ' ' + h.aspect + ' natal ' + h.target + ' orb ' + h.orb.toFixed(2) + ' (allowed ' + h.allowed + ') ' + h.status +
+                      ' | passes ' + h.window.passes.length + ' | natal target house ' + (h.targetHouse || 'angle'));
+        });
+      }
+      return d;
+    }).catch(function (e) { return { ok: false, reason: (e && e.message) || 'unknown error' }; });
+    return loadingT;
+  }
+
+  global.COZ_TIMING = { load: load, loadTropical: loadTropical, FAIL: FAIL, FAIL_TROPICAL: FAIL_TROPICAL, TGLYPH: TGLYPH, ENGINE: ENGINE, POLICY: TRANSIT_POLICY, DRISHTI: DRISHTI, BANK_STATUS: BANK_STATUS,
+    _test: { computeDrishti: computeDrishti, transitWindow: transitWindow, compose: compose, composeTropical: composeTropical, pairClass: pairClass, transitTags: transitTags,
+             selectTransits: selectTransits, timingText: timingText, natalTargets: natalTargets } };
 })(window);
