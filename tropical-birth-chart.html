@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tropical Birth Chart</title>
 <!--
-  COZALYZE · TROPICAL BIRTH CHART · TBC1.5 saved mode
+  COZALYZE · TROPICAL BIRTH CHART · TBC1.6 saved mode
   TBC1.5: ?saved=1&id=<record> renders the selected cozSavedCharts record (Tropical Saved
   Library landing page): same renderer, data from the saved snapshot, toolbar becomes
   "Saved Charts" + Print / Save PDF, bottom Saved Readings links. Print opens at top level
@@ -267,7 +267,7 @@ button{font:inherit}
   <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
   <div id="reportMount"></div>
 </div>
-<div class="build-stamp">BIRTH CHART · TBC1.5 · saved mode</div>
+<div class="build-stamp">BIRTH CHART · TBC1.6 · saved mode</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -790,8 +790,10 @@ function cozAutoPrint(){
   var go = function(){ setTimeout(function(){ window.print(); }, 250); };
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
 }
-/* TBC1.5: the Saved Readings links, appended in saved mode only. Current Transits has no
-   reading yet, so its link is present but unavailable. */
+/* TBC1.5: the Saved Readings links, appended in saved mode only.
+   TBC1.6: Your Current Transits opens the live page (tropical-current-transits.html), which
+   recalculates the transits for this chart at that moment; a transit snapshot is never
+   treated as current, so nothing is stored for it. */
 function renderSavedReadings(lib){
   var sec = el("section","report-section saved-readings");
   sec.setAttribute("aria-labelledby","saved-readings-heading");
@@ -799,10 +801,10 @@ function renderSavedReadings(lib){
   var grid = el("div","saved-readings-links");
   [["Your Tropical Reading","reading",lib.has.reading,"Not finished when saved"],
    ["Your Ascendant","ascendant",lib.has.ascendant,"Not saved with this chart"],
-   ["Your Current Transits","transits",lib.has.transits,"Not available yet"]].forEach(function(row){
+   ["Your Current Transits","transits",true,""]].forEach(function(row){
     var a = el("a", row[2] ? null : "unavailable");
     a.appendChild(el("span",null,row[0])); a.firstChild.style.color = "";
-    if (row[2]){ a.href = "saved-tropical-document.html?view=" + row[1] + "&id=" + encodeURIComponent(lib.id); a.appendChild(el("span",null,"\u203A")); }
+    if (row[2]){ a.href = row[1] === "transits" ? "tropical-current-transits.html" : "saved-tropical-document.html?view=" + row[1] + "&id=" + encodeURIComponent(lib.id); a.appendChild(el("span",null,"\u203A")); }
     else { a.setAttribute("aria-disabled","true"); a.appendChild(el("small",null,row[3])); }
     grid.appendChild(a);
   });
