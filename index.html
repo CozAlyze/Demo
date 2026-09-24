@@ -3065,7 +3065,7 @@ document.querySelectorAll('.syscard').forEach(card => {
     });
   }
 
-  function enqueue(runId, job, priority){
+  function enqueue(runId, job, priority, urgent){
     if (!runId) return;
     if (current && current.runId === runId && current.job === job) return;           /* running here now */
     var s = get(runId, job);
@@ -3078,7 +3078,7 @@ document.querySelectorAll('.syscard').forEach(card => {
       if (priority && at > 0) { queue.splice(at, 1); queue.unshift({ runId: runId, job: job }); console.log('[COZ GEN] ' + job + ' moved to the front'); }
       return;
     }
-    if (priority) queue.unshift({ runId: runId, job: job }); else queue.push({ runId: runId, job: job });
+    if (priority) queue.unshift({ runId: runId, job: job, urgent: !!urgent }); else queue.push({ runId: runId, job: job, urgent: !!urgent });
     patch(runId, job, { state: "queued", owner: OWNER, queuedAt: Date.now(), startedAt: null, endedAt: null, error: null });
     console.log('[COZ GEN] queued ' + job + (priority ? ' (priority)' : '') + ' · queue: ' + queue.map(function(q){ return q.job; }).join(', '));
     pump();
@@ -3088,7 +3088,10 @@ document.querySelectorAll('.syscard').forEach(card => {
     if (current || !queue.length) return;
     current = queue.shift();
     var c = current;
-    cozWhenIdle().then(function(){
+    /* Sep 24: a job marked urgent (Vedic Sections 3-6 released by GOTO_VEDIC) starts at once
+       instead of waiting for the page change to settle, so the whole Vedic transition and
+       rising animation is writing time. Every other job still waits for idle as before. */
+    (c.urgent ? Promise.resolve() : cozWhenIdle()).then(function(){
       patch(c.runId, c.job, { state: "running", owner: OWNER, startedAt: Date.now(), beat: Date.now(), requests: 0 });
       console.log('[COZ GEN] started ' + c.job);
       return runJob(c);
@@ -3170,7 +3173,7 @@ document.querySelectorAll('.syscard').forEach(card => {
     var order = ORDERS[product];
     if (!order) { console.log('[COZ GEN] unknown purchase ' + product + ' · nothing queued'); return; }
     console.log('[COZ GEN] purchase ' + product + ' · order: ' + (order.join(', ') || 'nothing to write'));
-    order.forEach(function(j){ enqueue(h.runId, j, false); });
+    order.forEach(function(j){ enqueue(h.runId, j, false, product === "VEDIC" && j === "vedic36"); });
     var A = readAll(), R = A[h.runId] || (A[h.runId] = { jobs: {} }); R.product = product; R.updatedAt = Date.now(); writeAll(A);
   }
   /* Compare opened, or the Combined Reading page asked: Combined goes next */
