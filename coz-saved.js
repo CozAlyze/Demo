@@ -1,4 +1,7 @@
-/* COZ SAVED · CS1.3 (Sep 24 2026) · library hook
+/* COZ SAVED · CS1.4 (Sep 24 2026) · library hook
+   CS1.4: tropical-current-transits (the Tropical reading's Your Current Transits page) is a
+   Tropical page: its Saved button saves a Tropical chart record and opens the Tropical Saved
+   Library landing page. Nothing else changed.
    CS1.3: Tropical pages open tropical-birth-chart.html?saved=1&id=... after saving; a Tropical
    chart record (and the Tropical pill) restores to that page; a chart record is complete when
    the captured reading exists for every system it holds.
@@ -36,9 +39,9 @@
   var RUN_PREFIX = ["cozCombinedReadingDEV:", "cozCombinedStep1DEV:", "cozAscReading:"];
   var COMPARE_PAGES = ["compare-reading", "combined-reading", "your-ascendants", "ascendant-reading",
                        "compare-current-timing", "compare-current-timing-reading", "compare-birth-charts"];
-  var TROPICAL_PAGES = ["tropical-reading", "tropical-birth-chart"];
+  var TROPICAL_PAGES = ["tropical-reading", "tropical-birth-chart", "tropical-current-transits"];
   var VEDIC_LIBRARY_PAGES = ["vedic-reading", "vedic-birth-chart", "current-life-cycle", "current-season", "key-time-windows", "what-comes-next"];
-  var TROPICAL_LIBRARY_PAGES = ["tropical-reading", "tropical-birth-chart"];
+  var TROPICAL_LIBRARY_PAGES = ["tropical-reading", "tropical-birth-chart", "tropical-current-transits"];
   var PROVIDERS = {};
 
   function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
