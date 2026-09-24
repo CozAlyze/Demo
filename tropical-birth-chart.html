@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tropical Birth Chart</title>
 <!--
-  COZALYZE · TROPICAL BIRTH CHART · TBC1.0 master port
+  COZALYZE · TROPICAL BIRTH CHART · TBC1.5 saved mode
+  TBC1.5: ?saved=1&id=<record> renders the selected cozSavedCharts record (Tropical Saved
+  Library landing page): same renderer, data from the saved snapshot, toolbar becomes
+  "Saved Charts" + Print / Save PDF, bottom Saved Readings links. Print opens at top level
+  when framed. Without ?saved=1 the page behaves exactly as before.
   Direct Western/Tropical twin of vedic-birth-chart.html (BC2.1), same shell,
   tokens, accordion, print behavior. Only the astrology-specific chart,
   labels, fields and interpretations differ. See that file's own header
@@ -43,6 +47,14 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+/* TBC1.5 saved mode */
+body.saved-mode .toolbar-left p{display:none}
+.saved-readings{margin-top:2rem}
+.saved-readings-links{display:grid; grid-template-columns:repeat(auto-fit,minmax(14rem,1fr)); gap:.75rem}
+.saved-readings-links a{display:flex; align-items:center; justify-content:space-between; gap:.6rem; min-height:3.1rem; padding:.7rem .9rem; border:1px solid var(--coz-rule); border-radius:.4rem; color:var(--coz-ink); font-size:.9rem; text-decoration:none; background:rgb(255 255 255 / .35)}
+.saved-readings-links a span{color:var(--coz-gold)}
+.saved-readings-links a.unavailable{color:var(--coz-ink-soft); pointer-events:none}
+.saved-readings-links a.unavailable small{display:block; margin-top:.15rem; font-size:.68rem; letter-spacing:.06em; text-transform:uppercase}
 :root{
   --background:#061326; --foreground:#f7f1e7;
   --coz-paper:#f7f1e7; --coz-ink:#07162b; --coz-ink-soft:#314456;
@@ -212,7 +224,7 @@ button{font:inherit}
 @media print{
   :root{--background:#ffffff; --foreground:#07162b}
   html,body{background:#ffffff !important}
-  .screen-only,.report-toolbar,.sample-banner,.build-stamp{display:none !important}
+  .screen-only,.report-toolbar,.sample-banner,.build-stamp,.saved-readings{display:none !important}
   .report-shell{min-height:0; padding:0}
   .birth-report{width:100%; max-width:none; overflow:visible; border:0; box-shadow:none; print-color-adjust:exact; -webkit-print-color-adjust:exact}
   .birth-report::before{inset:.2in}
@@ -234,6 +246,8 @@ button{font:inherit}
   .report-footer{font-size:.6rem}
 }
 </style>
+<script src="coz-saved.js?v=3"></script>
+<script src="saved-tropical-library.js?v=1"></script>
 </head>
 <body>
 <div class="report-shell">
@@ -253,7 +267,7 @@ button{font:inherit}
   <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
   <div id="reportMount"></div>
 </div>
-<div class="build-stamp">BIRTH CHART · TBC1.4 · back to dashboard</div>
+<div class="build-stamp">BIRTH CHART · TBC1.5 · saved mode</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -764,12 +778,44 @@ function renderEmptyState(){
   return card;
 }
 
+/* Print / Save PDF: iOS Safari ignores window.print() from inside the app frame, so a
+   framed page opens itself at top level with ?print=1 and prints there. */
+function cozPrint(){
+  var framed = false; try { framed = window.top !== window; } catch (e) { framed = true; }
+  if (framed) { var u = new URL(location.href); u.searchParams.set("print", "1"); window.open(u.href, "_blank"); return; }
+  window.print();
+}
+function cozAutoPrint(){
+  if (!/[?&]print=1\b/.test(location.search)) return;
+  var go = function(){ setTimeout(function(){ window.print(); }, 250); };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+}
+/* TBC1.5: the Saved Readings links, appended in saved mode only. Current Transits has no
+   reading yet, so its link is present but unavailable. */
+function renderSavedReadings(lib){
+  var sec = el("section","report-section saved-readings");
+  sec.setAttribute("aria-labelledby","saved-readings-heading");
+  sec.appendChild(sectionHeading("Quick access to other views for this chart","Saved Readings","saved-readings-heading","",false));
+  var grid = el("div","saved-readings-links");
+  [["Your Tropical Reading","reading",lib.has.reading,"Not finished when saved"],
+   ["Your Ascendant","ascendant",lib.has.ascendant,"Not saved with this chart"],
+   ["Your Current Transits","transits",lib.has.transits,"Not available yet"]].forEach(function(row){
+    var a = el("a", row[2] ? null : "unavailable");
+    a.appendChild(el("span",null,row[0])); a.firstChild.style.color = "";
+    if (row[2]){ a.href = "saved-tropical-document.html?view=" + row[1] + "&id=" + encodeURIComponent(lib.id); a.appendChild(el("span",null,"\u203A")); }
+    else { a.setAttribute("aria-disabled","true"); a.appendChild(el("small",null,row[3])); }
+    grid.appendChild(a);
+  });
+  sec.appendChild(grid);
+  return sec;
+}
+
 /* ---------- Boot ---------- */
 (function(){
   var mount = document.getElementById("reportMount");
   var banner = document.getElementById("sampleBanner");
-  document.getElementById("printBtn").addEventListener("click",function(){window.print();});
-  document.getElementById("backBtn").addEventListener("click",function(){ location.href = /\bfrom=compare\b/.test(location.search) ? "compare-birth-charts.html" : "tropical-reading.html"; });
+  document.getElementById("printBtn").addEventListener("click",cozPrint);
+  document.getElementById("backBtn").addEventListener("click",function(){ location.href = /\bsaved=1\b/.test(location.search) ? "saved-charts.html" : (/\bfrom=compare\b/.test(location.search) ? "compare-birth-charts.html" : "tropical-reading.html"); });
   /* Points at tropical-reveal.html for now — a confirmed-working page. Swap this
      one line if a dedicated tropical dashboard page (parallel to vedic-reading.html)
      turns out to exist or gets built under a different filename later. */
@@ -777,7 +823,21 @@ function renderEmptyState(){
   var qp = new URLSearchParams(location.search);
   var chart = null, isSample = false;
 
-  if (qp.get("chart") === "demo"){ chart = DEMO_TROPICAL_CHART; isSample = true; }
+  /* TBC1.5 saved mode: data from the selected saved record, never from the live keys */
+  var savedLib = null;
+  if (qp.get("saved") === "1"){
+    document.body.classList.add("saved-mode");
+    document.getElementById("backBtn").lastChild.textContent = " Saved Charts";
+    savedLib = window.CozSavedTropical ? window.CozSavedTropical.load() : null;
+    if (!savedLib || !savedLib.chart){
+      var card = el("div","empty-card");
+      card.appendChild(el("h2",null,"This saved chart could not be opened"));
+      card.appendChild(el("p",null,"It may have been removed from this device. Open Saved Charts to choose another."));
+      mount.appendChild(card); return;
+    }
+    chart = savedLib.chart;
+  }
+  else if (qp.get("chart") === "demo"){ chart = DEMO_TROPICAL_CHART; isSample = true; }
   else if (qp.get("chart") === "stellium"){ chart = STELLIUM_QA; isSample = true; }
   else {
     var raw = null;
@@ -796,7 +856,10 @@ function renderEmptyState(){
   var errsFinal = validatePayload(chart);
   if (errsFinal.length){ mount.appendChild(renderEmptyState()); return; }
   if (isSample) banner.hidden = false;
-  mount.appendChild(renderReport(chart));
+  var report = renderReport(chart);
+  if (savedLib){ var innerEl = report.querySelector(".report-inner"); innerEl.insertBefore(renderSavedReadings(savedLib), innerEl.querySelector(".report-footer")); }
+  mount.appendChild(report);
+  cozAutoPrint();
 })();
 
 </script>
