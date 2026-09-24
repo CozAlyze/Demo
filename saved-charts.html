@@ -9,7 +9,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@400;500&family=Montserrat:wght@300;400&display=swap" rel="stylesheet">
 <script src="coz-saved.js?v=3"></script>
 <style>
-/* SAVED CHARTS · S1.1 (Sep 23). Built from his blank bake IMG_0588 (1185 x 2576), cut into
+/* SAVED CHARTS · S1.2 (Sep 24): Home returns to the Tropical dashboard when this page was
+   reached from a Tropical page; every other origin still leaves for index.html.
+   S1.1 (Sep 23). Built from his blank bake IMG_0588 (1185 x 2576), cut into
    sc-top (rows 0-746), sc-card-chart (747-1079), sc-card-compare (1080-1412, his filled
    card bookmark placed over the outline one, per the "every card is filled" ruling) and
    sc-bottom (1413-2576, the nav bookmark filled with the card bookmark gold as the active
@@ -76,7 +78,7 @@ h1{font-family:var(--head);font-weight:500;font-size:max(30px,calc(98 * var(--K)
       <a class="saved" href="saved-charts.html" aria-label="Saved Charts" aria-current="page"></a>
       <a class="acct" href="#" aria-label="Account"></a>
     </nav>
-    <div class="stamp">SAVED CHARTS · S1.1</div>
+    <div class="stamp">SAVED CHARTS · S1.2</div>
   </div>
 </main>
 <script>
@@ -131,9 +133,16 @@ h1{font-family:var(--head);font-weight:500;font-size:max(30px,calc(98 * var(--K)
     try { location.href = CozSaved.restore(id, go === "vedic" || go === "tropical" ? go : null); }
     catch (e) { alert("This saved chart couldn't be opened."); }
   });
-  /* Home and Create a New Chart leave the living page for index.html (his ruling) */
+  /* Create a New Chart leaves the living page for index.html (his ruling) */
   function toIndex(ev){ if (ev) ev.preventDefault(); try { window.top.location.href = "index.html"; } catch (e) { location.href = "index.html"; } }
-  document.querySelector(".nav .home").addEventListener("click", toIndex);
+  /* S1.2: Home goes back to the dashboard this page was opened from. Reached from a Tropical
+     page (the reading, its Birth Chart, Current Transits or a Tropical saved document), Home
+     opens the Tropical dashboard; otherwise index.html as before. */
+  function fromTropical(){ var r = ""; try { r = document.referrer || ""; } catch (e) {} return /\/(tropical-[a-z-]+|saved-tropical-[a-z-]+)\.html/.test(r); }
+  document.querySelector(".nav .home").addEventListener("click", function(ev){
+    if (!fromTropical()) return toIndex(ev);
+    ev.preventDefault(); location.href = "tropical-reading.html#/dashboard";
+  });
   document.getElementById("create").addEventListener("click", toIndex);
   document.querySelector(".nav .acct").addEventListener("click", function(ev){ ev.preventDefault(); });   /* Account page not built yet */
   render();
