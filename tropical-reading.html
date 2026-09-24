@@ -1770,7 +1770,8 @@ document.getElementById("hotReading").addEventListener("click", function(){
     if (!w || !h) return;
     /* Sep 22: the whole clip frame stays visible during the flight (no cropping of the
        planets), so the stage returns to exactly 1 rather than a screen-covering scale */
-    st.style.setProperty("--reveal-zoom", "1");
+    st.style.setProperty("--reveal-zoom", String(Math.max(innerWidth / w, innerHeight / h) * 1.002)
+ );
   }
   function reset() { clearTimeout(t); st.style.removeProperty("--reveal-zoom"); }
   vid.addEventListener("playing", function () { clearTimeout(t); t = setTimeout(unzoom, 3600); });
