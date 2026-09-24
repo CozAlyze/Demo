@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Saved Reading · CozAlyze</title>
 <!--
-  COZALYZE · SAVED VEDIC DOCUMENT · SD1.2 (Sep 23 2026)
+  COZALYZE · SAVED VEDIC DOCUMENT · SD1.3 (Sep 23 2026) · top-level print
   One renderer for the three clean Vedic saved-document views:
     saved-vedic-document.html?view=reading&id=<record>      Your Vedic Reading (six sections)
     saved-vedic-document.html?view=lagna&id=<record>        Your Ascendant – Lagna
@@ -70,7 +70,19 @@
   var qp = new URLSearchParams(location.search);
   var view = qp.get("view") || "reading";
   var mount = document.getElementById("mount");
-  document.getElementById("printBtn").addEventListener("click", function(){ window.print(); });
+/* Print / Save PDF: iOS Safari ignores window.print() from inside the app frame, so a
+     framed page opens itself at top level with ?print=1 and prints there. */
+  function cozPrint(){
+    var framed = false; try { framed = window.top !== window; } catch (e) { framed = true; }
+    if (framed) { var u = new URL(location.href); u.searchParams.set("print", "1"); window.open(u.href, "_blank"); return; }
+    window.print();
+  }
+  function cozAutoPrint(){
+    if (!/[?&]print=1\b/.test(location.search)) return;
+    var go = function(){ setTimeout(function(){ window.print(); }, 250); };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+  }
+  document.getElementById("printBtn").addEventListener("click", cozPrint);
   window.addEventListener("beforeprint", function(){ document.querySelectorAll("details.doc-section").forEach(function(d){ d.dataset.wasOpen = d.open ? "1" : "0"; d.open = true; }); });
   document.getElementById("expandBtn").addEventListener("click", function(){
     var all = document.querySelectorAll("details.doc-section"), open = Array.prototype.every.call(all, function(d){ return d.open; });
@@ -158,6 +170,7 @@
   mount.appendChild(paper);
   var savedAt = lib.rec.updatedAt || lib.rec.savedAt;
   document.getElementById("savedNote").textContent = "These are your saved results. No animation. No rewrite." + (savedAt ? " \u00B7 Saved " + longDate(savedAt) : "");
+  cozAutoPrint();
 })();
 </script>
 </body>
