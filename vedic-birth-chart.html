@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Vedic Birth Chart</title>
 <!--
-  COZALYZE · VEDIC BIRTH CHART · BC2.4 saved mode
+  COZALYZE · VEDIC BIRTH CHART · BC2.5 top-level print
+  BC2.5: Print / Save PDF opens the page at top level when framed (iOS ignores print() in a frame).
   BC2.4: ?saved=1&id=<record> renders the selected cozSavedCharts record (Vedic Saved
   Library landing page): same renderer, data from the saved snapshot, toolbar becomes
   "Saved Charts" + Print / Save PDF, bottom Saved Readings links, no footer nav. Without
@@ -279,7 +280,7 @@ body.saved-mode #cozFoot,body.saved-mode .toolbar-left p{display:none}
     <a href="#" data-foot="account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
   </div>
 </div>
-<div class="build-stamp">BIRTH CHART · BC2.4 · saved mode</div>
+<div class="build-stamp">BIRTH CHART · BC2.5 · top-level print</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -708,11 +709,24 @@ function renderEmptyState(){
   return card;
 }
 
+/* Print / Save PDF: iOS Safari ignores window.print() from inside the app frame, so a
+   framed page opens itself at top level with ?print=1 and prints there. */
+function cozPrint(){
+  var framed = false; try { framed = window.top !== window; } catch (e) { framed = true; }
+  if (framed) { var u = new URL(location.href); u.searchParams.set("print", "1"); window.open(u.href, "_blank"); return; }
+  window.print();
+}
+function cozAutoPrint(){
+  if (!/[?&]print=1\b/.test(location.search)) return;
+  var go = function(){ setTimeout(function(){ window.print(); }, 250); };
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+}
+
 /* ---------- Boot ---------- */
 (function(){
   var mount = document.getElementById("reportMount");
   var banner = document.getElementById("sampleBanner");
-  document.getElementById("printBtn").addEventListener("click",function(){window.print();});
+  document.getElementById("printBtn").addEventListener("click",cozPrint);
   document.getElementById("backBtn").addEventListener("click",function(){ location.href = /\bsaved=1\b/.test(location.search) ? "saved-charts.html" : (/\bfrom=compare\b/.test(location.search) ? "compare-birth-charts.html" : "vedic-reading.html"); });
   /* v20.1: the top Back button is gone; the footer Home link returns to the reading */
 
@@ -759,6 +773,7 @@ function renderEmptyState(){
   var report = renderReport(chart);
   if (savedLib){ var innerEl = report.querySelector(".report-inner"); innerEl.insertBefore(renderSavedReadings(savedLib), innerEl.querySelector(".report-footer")); }
   mount.appendChild(report);
+  cozAutoPrint();
 })();
 
 
