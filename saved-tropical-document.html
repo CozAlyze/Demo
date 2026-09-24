@@ -5,11 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Saved Reading · CozAlyze</title>
 <!--
-  COZALYZE · SAVED TROPICAL DOCUMENT · TD1.0 (Sep 24 2026)
+  COZALYZE · SAVED TROPICAL DOCUMENT · TD1.1 (Sep 24 2026)
   One renderer for the Tropical saved-document views:
     saved-tropical-document.html?view=reading&id=<record>     Your Tropical Reading (six sections)
     saved-tropical-document.html?view=ascendant&id=<record>   Your Ascendant (Rising Sign)
-    saved-tropical-document.html?view=transits&id=<record>    Your Current Transits (not available yet)
+    saved-tropical-document.html?view=transits&id=<record>    Your Current Transits (TD1.1: recalculated
+                                                              from the record's own Tropical chart each time
+                                                              the page opens; never stored)
   Data: the selected cozSavedCharts record's library (rec.library.tropical), captured at save
   time by saved-tropical-library.js. Document renderer only: no animation, no model request,
   no regeneration. Shares saved-document.css with the Vedic documents; loads no Vedic module.
@@ -19,8 +21,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="saved-document.css?v=1">
-<script src="coz-saved.js?v=3"></script>
-<script src="saved-tropical-library.js?v=1"></script>
+<script src="coz-saved.js?v=4"></script>
+<script src="saved-tropical-library.js?v=2"></script>
+<script src="https://cdn.jsdelivr.net/npm/astronomy-engine@2.1.19/astronomy.browser.min.js"></script>
+<script src="compare-current-timing.js?v=5"></script>
 </head>
 <body>
 <div class="doc-shell">
@@ -127,20 +131,61 @@
     }
   }
   else if (view === "transits"){
-    ok = false;
-    mount.appendChild(empty("Your Current Transits reading is not part of the Saved Library yet.", "Not available yet"));
+    var TM = window.COZ_TIMING;
+    if (!lib.chart || !TM || !TM.loadTropicalChart){ ok = false; mount.appendChild(empty("The Tropical chart wasn't saved with this record.")); }
+    else {
+      mount.appendChild(paper);
+      var wait = el("p","doc-copy","Calculating your current transits\u2026"); inner.appendChild(wait);
+      TM.loadTropicalChart(lib.chart).then(function(d){
+        inner.removeChild(wait);
+        if (!d.ok){ inner.appendChild(el("p","doc-copy", TM.FAIL_TROPICAL)); return; }
+        var now = d.now;
+        inner.appendChild(el("p","doc-label","As of " + now.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) + ", " + now.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})));
+        var sum = el("div","doc-copy"); (d.text.summary || []).forEach(function(p){ sum.appendChild(el("p",null,p)); }); inner.appendChild(sum);
+        (d.text.sections || []).forEach(function(s, i){
+          var sec = section(null, s.title, i === 0), body = el("div","doc-copy");
+          (s.blocks || []).forEach(function(b){
+            if (b.type === "h3") body.appendChild(el("h3",null,b.text));
+            else if (b.type === "meta") body.appendChild(el("p","doc-when",b.text));
+            else body.appendChild(el("p",null,b.text));
+          });
+          sec.appendChild(body); inner.appendChild(sec);
+        });
+        var m = section(null,"How This Was Calculated",false), mb = el("div","doc-copy"), t = d.tropical, P = d.policy, st = t.settings || {}, cl = t.client || {};
+        function stamp(x){ return new Date(x).toLocaleString("en-US",{dateStyle:"medium",timeStyle:"short"}); }
+        var shown = d.fast.concat(d.slow ? [d.slow] : []);
+        [["Zodiac", st.zodiac || "Tropical"],
+         ["Calculated", stamp(now) + ". Transits are recalculated each time this page opens; they are not part of the saved record."],
+         ["Natal chart", [cl.birthDate, cl.birthTime, cl.locationLabel].filter(Boolean).join(", ")],
+         ["Transiting planets", P.fastPlanets.join(", ") + " (faster); " + P.slowPlanets.join(", ") + " (slower)" + (P.moonIncluded ? "; the Moon" : ". The Moon is not included.")],
+         ["Natal points", P.natalTargets.join(", ") + ". The nodes are " + (st.nodeType || P.nodeType) + " nodes."],
+         ["Aspects and orbs", P.aspects.map(function(a){ return a.type.charAt(0).toUpperCase() + a.type.slice(1) + " " + a.angle + "\u00B0, orb " + a.orb + "\u00B0"; }).join("; ")],
+         ["Active transits", shown.length ? shown.map(function(h){ return h.planet + " " + h.aspect + " natal " + h.target + ", orb " + h.orb.toFixed(2) + "\u00B0, " + h.status; }).join("; ") : "None within the current orbs"],
+         ["Interpretation", "The calculations and selection rules are the same ones used for Compare Current Timing. The interpretive wording is a development draft awaiting review by a Western astrologer. It has not been professionally reviewed."]
+        ].forEach(function(r){ if (!r[1]) return; var p = el("p"); var b = el("strong",null,r[0] + ". "); p.appendChild(b); p.appendChild(document.createTextNode(r[1])); mb.appendChild(p); });
+        m.appendChild(mb); inner.appendChild(m);
+        inner.appendChild(el("p","doc-when","These are themes that may be present, not predictions of what will happen."));
+        finish(true);
+      });
+      return;
+    }
   }
   else { ok = false; mount.appendChild(empty("Unknown view.")); }
 
+  function finish(live){
+    var foot = el("footer","doc-footer");
+    foot.appendChild(el("p",null,DISCLOSURE));
+    if (lib.chart && lib.chart.documentId) foot.appendChild(el("p",null,"Generated by CozAlyze \u00B7 " + lib.chart.documentId));
+    inner.appendChild(foot);
+    if (!paper.parentNode) mount.appendChild(paper);
+    var savedAt = lib.rec.updatedAt || lib.rec.savedAt;
+    document.getElementById("savedNote").textContent = live
+      ? "Calculated for this saved chart at the moment this page opened. No animation. No rewrite."
+      : "These are your saved results. No animation. No rewrite." + (savedAt ? " \u00B7 Saved " + longDate(savedAt) : "");
+    cozAutoPrint();
+  }
   if (!ok) return;
-  var foot = el("footer","doc-footer");
-  foot.appendChild(el("p",null,DISCLOSURE));
-  if (lib.chart && lib.chart.documentId) foot.appendChild(el("p",null,"Generated by CozAlyze \u00B7 " + lib.chart.documentId));
-  inner.appendChild(foot);
-  mount.appendChild(paper);
-  var savedAt = lib.rec.updatedAt || lib.rec.savedAt;
-  document.getElementById("savedNote").textContent = "These are your saved results. No animation. No rewrite." + (savedAt ? " \u00B7 Saved " + longDate(savedAt) : "");
-  cozAutoPrint();
+  finish(false);
 })();
 </script>
 </body>

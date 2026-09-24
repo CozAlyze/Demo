@@ -1,7 +1,8 @@
 /* ============================================================
-   COZALYZE · COMPARE · CURRENT TIMING · CT3.2 · shared engine
+   COZALYZE · COMPARE · CURRENT TIMING · CT3.3 · shared engine
    Used by compare-current-timing.html and compare-current-timing-reading.html,
-   and (CT3.2) by tropical-current-transits.html through loadTropical().
+   and (CT3.2) by tropical-current-transits.html through loadTropical(),
+   and (CT3.3) by saved-tropical-document.html through loadTropicalChart(chart).
 
    CT3.2 (Sep 24 2026): loadTropical() is the Tropical-only path for the
    Tropical reading's Your Current Transits page. It reads no Vedic data. It
@@ -40,7 +41,7 @@
 (function (global) {
   'use strict';
 
-  var ENGINE = 'compare-current-timing 3.2';
+  var ENGINE = 'compare-current-timing 3.3';
   var FAIL = 'We couldn\u2019t load your timing for this chart. Please return and run your chart again.';
   var FAIL_TROPICAL = 'We couldn\u2019t load your transits for this chart. Please return and run your chart again.';
 
@@ -862,7 +863,29 @@
     return loadingT;
   }
 
-  global.COZ_TIMING = { load: load, loadTropical: loadTropical, FAIL: FAIL, FAIL_TROPICAL: FAIL_TROPICAL, TGLYPH: TGLYPH, ENGINE: ENGINE, POLICY: TRANSIT_POLICY, DRISHTI: DRISHTI, BANK_STATUS: BANK_STATUS,
+  /* CT3.3 (Sep 24): Tropical transits for a SUPPLIED chart, used by the Tropical Saved
+     Library document (saved-tropical-document.html?view=transits). The saved record's own
+     cozTropicalChartJSON is passed in; nothing is read from the live keys and no run check
+     applies, because the chart belongs to the saved record, not to the current run.
+     Transits are still calculated fresh for this moment; nothing is stored. load() and
+     loadTropical() are unchanged. */
+  function loadTropicalChart(t) {
+    if (typeof Astronomy === 'undefined') return Promise.resolve({ ok: false, reason: 'astronomy-engine failed to load' });
+    return Promise.resolve().then(function () {
+      if (!t || !t.run || !t.run.engineVersion) return { ok: false, reason: 'saved tropical chart missing or unstamped' };
+      if (!t.settings || t.settings.zodiac !== 'Tropical') return { ok: false, reason: 'saved chart is not Tropical' };
+      var targets = natalTargets(t);
+      if (targets.length < 10) return { ok: false, reason: 'tropical natal positions incomplete (' + targets.length + ')' };
+      var now = new Date();
+      var sel = selectTransits(now, targets, t);
+      var d = { ok: true, now: now, fast: sel.fast, slow: sel.slow, tropical: t, run: t.run, engine: ENGINE, policy: TRANSIT_POLICY,
+                bankStatus: { tropical: BANK_STATUS.tropical }, targets: targets };
+      d.text = composeTropical(d);
+      return d;
+    }).catch(function (e) { return { ok: false, reason: (e && e.message) || 'unknown error' }; });
+  }
+
+  global.COZ_TIMING = { load: load, loadTropical: loadTropical, loadTropicalChart: loadTropicalChart, FAIL: FAIL, FAIL_TROPICAL: FAIL_TROPICAL, TGLYPH: TGLYPH, ENGINE: ENGINE, POLICY: TRANSIT_POLICY, DRISHTI: DRISHTI, BANK_STATUS: BANK_STATUS,
     _test: { computeDrishti: computeDrishti, transitWindow: transitWindow, compose: compose, composeTropical: composeTropical, pairClass: pairClass, transitTags: transitTags,
              selectTransits: selectTransits, timingText: timingText, natalTargets: natalTargets } };
 })(window);

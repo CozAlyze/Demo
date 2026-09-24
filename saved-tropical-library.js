@@ -108,7 +108,7 @@
     var cl = (chart && chart.client) || {};
     return {
       rec: rec, id: rec.id, chart: chart, library: lib,
-      has: { reading: !!(lib.reading && lib.reading.sections), ascendant: !!(lib.ascendant && lib.ascendant.sign), transits: false },
+      has: { reading: !!(lib.reading && lib.reading.sections), ascendant: !!(lib.ascendant && lib.ascendant.sign), transits: !!(chart && chart.run) },
       name: rec.name || cl.displayName || "",
       birth: { date: cl.birthDate || "", time: cl.birthTime || "", location: cl.locationLabel || "" }
     };
