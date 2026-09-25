@@ -119,7 +119,7 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
   </nav>
  </div>
 </main>
-<div class="stamp">COMBINED READING · CR3.3 · step 1 repair</div>
+<div class="stamp">COMBINED READING · CR3.3 · step 1 repair · CV1 viewer limits</div>
 
 <script src="dev-review-engine.js?v=8"></script>
 <script src="ascendant-library.js?v=5"></script>
@@ -236,8 +236,26 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
         setWait("Preparing your reading\u2026 " + mmss(Date.now() - ph.startedAt) + " \u00b7 step " + ph.stage + " of 2 \u00b7 attempt " + ph.validationAttempt + " \u00b7 request " + ph.totalRequests + " of " + ph.maxRequests);
       else setWait("Preparing your reading\u2026 " + mmss(Date.now() - t0));
     }
+    /* CV1 (Sep 25): two viewer-only limits so this page can never wait forever without saying why.
+       They stop THIS PAGE'S WAITING only: the job, its records, the generator and the coordinator
+       are never touched, and no request is sent. The limit is the generator's own worst case
+       (4 requests x 150 s) plus margin. */
+    var CV1_GRACE_MS = 8000, CV1_DEADLINE_MS = 11 * 60 * 1000;
+    function cv1Fail(kind, message){ var e = new Error(message); e.kind = kind; e.cv1 = true; return e; }
+    /* read-only diagnostic line for the two CV1 screens */
+    function cv1Diag(m){
+      var parts = [];
+      try { var bytes = 0; for (var i = 0; i < localStorage.length; i++) { var k = localStorage.key(i) || ""; bytes += (k.length + (localStorage.getItem(k) || "").length) * 2; }
+            parts.push("browser storage in use about " + (bytes / 1048576).toFixed(2) + " MB (Safari allows about 5 MB)"); } catch (e) { parts.push("storage estimate unavailable"); }
+      try { var js = jobState(); parts.push("job state " + (js ? js.state : "none") + (js && typeof js.requests === "number" ? ", " + js.requests + " requests" : "")); } catch (e) {}
+      try { var ph = m ? G.readPhase(res.pair, m) : null; if (ph) parts.push("generator phase " + ph.state + ", step " + ph.stage + ", request " + ph.totalRequests + " of " + G.MAX_REQUESTS); } catch (e) {}
+      try { var lf = JSON.parse(localStorage.getItem("cozCombinedGenLastFail") || "null");
+            if (lf) parts.push("last validation failure (" + (lf.stage || "?") + ", " + String(lf.at || "").slice(11, 19) + " UTC): " + ((lf.hard || []).slice(0, 3).join("; ") || "none listed")); } catch (e) {}
+      return "DIAGNOSTIC: " + parts.join(" \u00b7 ");
+    }
     /* follow the coordinator's job until the reading lands or the job ends in failure */
     function watch(m, askedAt){
+      var completeSeenAt = null;
       return new Promise(function(resolve, reject){
         (function poll(){
           var hit = G.peek(res.pair, m); if (hit) return resolve(hit);
@@ -246,6 +264,13 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
             var e = new Error((js.error && js.error.message) || "DEV: reading unavailable"); e.kind = js.error && js.error.kind; return reject(e);
           }
           if (!js && Date.now() - askedAt > 20000) return reject(new Error("DEV: the coordinator did not pick up the job"));
+          /* CV1 limit 1: the job says complete but no saved reading can be found */
+          if (js && js.state === "complete") {
+            if (completeSeenAt === null) completeSeenAt = Date.now();
+            if (Date.now() - completeSeenAt > CV1_GRACE_MS) return reject(cv1Fail("viewer_complete_missing", "DEV: the reading was generated but could not be found on this device (it may not have saved)"));
+          } else completeSeenAt = null;
+          /* CV1 limit 2: waited longer than the generator's own worst case */
+          if (Date.now() - askedAt > CV1_DEADLINE_MS) return reject(cv1Fail("viewer_timeout", "DEV: stopped waiting after 11 minutes; the job was left as it is"));
           watchTimer = setTimeout(poll, 1000);
         })();
       });
@@ -267,7 +292,8 @@ h1{font-family:var(--head);font-weight:500;font-size:calc(72 * var(--k));line-he
         clearInterval(tick); clearTimeout(watchTimer);
         console.log("[COZ COMBINED]", e && e.message);
         var msg = ((e && e.message) || "DEV: reading unavailable") + " (" + mmss(Date.now() - t0) + " total)";
-        bodies.forEach(function(b, i){ b.innerHTML = '<p class="dev">' + esc(msg) + '</p>' + (i === 0 ? '<p class="dev"><a href="#" class="retry">Try again</a></p>' : ''); });
+        var diag = (e && e.cv1) ? cv1Diag(man) : "";
+        bodies.forEach(function(b, i){ b.innerHTML = '<p class="dev">' + esc(msg) + '</p>' + (i === 0 && diag ? '<p class="dev cv1">' + esc(diag) + '</p>' : '') + (i === 0 ? '<p class="dev"><a href="#" class="retry">Try again</a></p>' : ''); });
         if (man) setWhy(man);
         var r = document.querySelector(".body .retry"); if (r) r.addEventListener("click", function(ev){ ev.preventDefault(); run(); });
       });
