@@ -840,7 +840,7 @@ const WRITING_NOTE = "Writing your Tropical reading for this chart. This takes a
    Validation fails closed: after the single repair any remaining hard
    violation leaves the reading unavailable and stores nothing.
    ============================================================ */
-var COZ_TGEN_VERSION = "tropical-gen 1.0.3";
+var COZ_TGEN_VERSION = "tropical-gen 1.0.4";
 var COZ_TGEN_SYSTEM = [
 "You write Your Tropical Reading for CozAlyze: six sections of one continuous Western Tropical reading, from the chart evidence given to you. Customer-facing identity: Western Tropical astrology, the person's outer expression, outward personality, psychological expression, relational style, motivations, creative drives, ambitions and the ways they tend to engage with life.",
 "",
@@ -856,17 +856,17 @@ var COZ_TGEN_SYSTEM = [
 "",
 "SECTION 1, At Your Core: the fundamental personality pattern, from the Ascendant, the chart ruler and its placement, the Sun, the Moon, bodies on the Ascendant, and the element and modality balance where it is meaningful. Explain outward manner, central motivations, emotional temperament, how the parts cooperate or conflict, and the traits most recognizable to the person and to others. One synthesized portrait, not three descriptions. Do not turn this into a Rising sign reading; that page already exists.",
 "",
-"SECTION 2, Love, Desire & Creativity: relationship style, attraction, affection, desire and creative expression, from Venus, Mars, the Moon, the 5th, 7th and 8th houses with their rulers, and the Descendant. Describe tendencies, needs, tensions and how the person may approach closeness, pleasure and creative work. Never predict marriage, divorce, sexuality, pregnancy, the number of relationships or a specific partner.",
+"SECTION 2, Love, Desire & Creativity: relationship style, attraction, affection, desire and creative expression, from Venus, Mars, the Moon, the 5th, 7th and 8th houses with their rulers and any bodies or points occupying them, and the Descendant. Describe tendencies, needs, tensions and how the person may approach closeness, pleasure and creative work. Never predict marriage, divorce, sexuality, pregnancy, the number of relationships or a specific partner.",
 "",
-"SECTION 3, Work, Money & Expression: how the chart approaches work, ambition, resources, communication, competence, visibility and material priorities, from Mercury, Saturn, Jupiter, the Midheaven, the 2nd, 3rd, 6th and 10th houses and the rulers of the 2nd, 6th and 10th. Translate patterns into working style, motivations, strengths, friction points and priorities. Kinds of work may be suggested as reasonable fits, never a specific profession, never a promise of wealth, success or failure.",
+"SECTION 3, Work, Money & Expression: how the chart approaches work, ambition, resources, communication, competence, visibility and material priorities, from Mercury, Saturn, Jupiter, the Midheaven, the 2nd, 3rd, 6th and 10th houses with their rulers and any bodies or points occupying them. Translate patterns into working style, motivations, strengths, friction points and priorities. Kinds of work may be suggested as reasonable fits, never a specific profession, never a promise of wealth, success or failure.",
 "",
-"SECTION 4, Wisdom, Purpose & Legacy: meaning-making, learning, worldview, longer-range direction, contribution and what the person may want their life to stand for, from Jupiter, Saturn, the Midheaven, the 9th, 10th, 11th and 12th houses with their rulers, and the nodes. The North Node is the direction of growth this life leans toward; the South Node is what comes easily and can be over-relied on. Western and psychological throughout; never one predetermined life mission, never destiny language.",
+"SECTION 4, Wisdom, Purpose & Legacy: meaning-making, learning, worldview, longer-range direction, contribution and what the person may want their life to stand for, from Jupiter, Saturn, the Midheaven, the 9th, 10th, 11th and 12th houses with their rulers and any bodies or points occupying them, and the nodes. The North Node is the direction of growth this life leans toward; the South Node is what comes easily and can be over-relied on. Western and psychological throughout; never one predetermined life mission, never destiny language.",
 "",
-"SECTION 5, Challenges & Resilience: genuine friction, contradiction or pressure the chart supports, from Saturn, Mars, Pluto and the 6th, 8th and 12th houses with their rulers (and the demanding aspects only if aspects are listed in the evidence). For each pressure: where the pattern may become difficult, what tends to trigger it, the constructive expression of the same pattern, and what helps the person work with it more consciously. This is never negative astrology: no diagnoses, no trauma claims, nothing about abuse, addiction, mental illness, illness, death or inevitable hardship. Difficult material is a pull or a current, never darkness, flaw or punishment.",
+"SECTION 5, Challenges & Resilience: genuine friction, contradiction or pressure the chart supports, from Saturn, Mars, Pluto and the 6th, 8th and 12th houses with their rulers and any bodies or points occupying them (and the demanding aspects only if aspects are listed in the evidence). For each pressure: where the pattern may become difficult, what tends to trigger it, the constructive expression of the same pattern, and what helps the person work with it more consciously. This is never negative astrology: no diagnoses, no trauma claims, nothing about abuse, addiction, mental illness, illness, death or inevitable hardship. Difficult material is a pull or a current, never darkness, flaw or punishment.",
 "",
 "SECTION 6, Your Essential Takeaway: synthesis of Sections 1 through 5. Pull together the strongest recurring themes, name the central pattern in clear language, and end with one practical direction. A conclusion, not a sixth interpretation: no pile of new chart factors, no repeated sentences, no section-by-section summary. Its trace may cite only factors already cited in Sections 1 to 5.",
 "",
-"LENGTH, strictly enforced. Each of the six sections must be 245 to 290 words; anything over 310 words is rejected. Write exactly four paragraphs per section, each 60 to 70 words (three or four sentences). Count as you write. Say less, better: one clear idea per paragraph, no restating. Never pad to reach the count.",
+"LENGTH, strictly enforced. Each of the six sections should target 245 to 290 words and must remain within the hard accepted range of 225 to 310 words. Each section must contain exactly 4 paragraphs. Each paragraph should be approximately 60 to 65 words and 3 sentences. Aim for approximately 250 to 260 words per section. Count as you write. Say less, better: one clear idea per paragraph, no restating. Never pad to reach the count.",
 "",
 "QUALITY. The customer should feel 'that describes a recognizable pattern in how I operate', never 'that is vague enough to describe anyone'.",
 "",
@@ -976,7 +976,9 @@ function cozTropicalEvidence(t) {
   /* per-section allowed factor ids, from the approved factor map */
   function has(prefix){ return factors.filter(function (f) { return f.indexOf(prefix) === 0; }); }
   function bodies(names){ var out = []; names.forEach(function (n) { if (by[n]) { out.push(bodyId(n)); if (retro(n)) out.push("retro_" + n); } }); return out; }
-  function houses(list){ var out = []; list.forEach(function (h) { has("h" + h + "_cusp_").forEach(function (f) { out.push(f); }); (houseRulerBodies[h] || []).forEach(function (r) { out = out.concat(bodies([r])); }); }); return out; }
+  /* a section's houses bring their cusp, the cusp ruler, and (1.0.4) every body or point (planets and nodes) stamped in that house; occupant aspects are not added */
+  function houses(list){ var out = []; list.forEach(function (h) { has("h" + h + "_cusp_").forEach(function (f) { out.push(f); }); (houseRulerBodies[h] || []).forEach(function (r) { out = out.concat(bodies([r])); });
+    PLANETS.concat(["North Node","South Node"]).forEach(function (n) { if (by[n] && by[n].house === h) out = out.concat(bodies([n])); }); }); return out; }
   function uniq(a){ var s = {}; return a.filter(function (x) { if (s[x]) return false; s[x] = 1; return true; }); }
   /* whole-chart identity context (balance, emphasis, concentrations, hemispheres) belongs to
      Section 1 only; Sections 2 to 5 may cite nothing beyond their assigned factors */
@@ -1138,8 +1140,8 @@ function generateTropicalReading(chart) {
     /* one corrective request naming every hard failure; the reading is never accepted with one remaining */
     cozTgenStatus(inputsHash, "repair sent", chk.hard.join("; "));
     var adj = Object.keys(chk.counts || {}).map(function (k) { var w = chk.counts[k];
-      return w > COZ_TGEN_BANDS.soft[1] ? k + ": cut about " + (w - 268) + " words (now " + w + ", aim for about 268)" : w < COZ_TGEN_BANDS.soft[0] ? k + ": add about " + (268 - w) + " words (now " + w + ", aim for about 268)" : null; }).filter(Boolean);
-    var note = "Your previous attempt broke these rules: " + chk.hard.join("; ") + "." + (adj.length ? " Length fixes required, section by section: " + adj.join("; ") + ". Keep exactly four paragraphs of 60 to 70 words each; shorten by removing restatement, not substance." : "") +
+      return w > COZ_TGEN_BANDS.soft[1] ? k + ": cut about " + (w - 260) + " words (now " + w + ", aim for about 260)" : w < COZ_TGEN_BANDS.soft[0] ? k + ": add about " + (260 - w) + " words (now " + w + ", aim for about 260)" : null; }).filter(Boolean);
+    var note = "Your previous attempt broke these rules: " + chk.hard.join("; ") + "." + (adj.length ? " Length fixes required, section by section: " + adj.join("; ") + ". Keep exactly 4 paragraphs of about 60 to 65 words and 3 sentences each; shorten by removing restatement, not substance." : "") +
       " Keep the same substance and voice; fix only what is named. Return the full JSON again, including _trace (one factor list per paragraph).";
     return request(userMsg + "\n\n" + note, false).then(function (data2) {
       requests++;
