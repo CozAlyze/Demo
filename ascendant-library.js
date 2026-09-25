@@ -1,4 +1,4 @@
-/* COZALYZE · ASCENDANT LIBRARY · L2.4 · (Sep 22: cross-page in-flight marker + network retry, so a reading started early by index.html is waited for, never duplicated) · chart-run pairing (+ engine versions) + Ascendant-only generation
+/* COZALYZE · ASCENDANT LIBRARY · L2.5 (Sep 25: pair cached per run, failures not cached) · L2.4 · (Sep 22: cross-page in-flight marker + network retry, so a reading started early by index.html is waited for, never duplicated) · chart-run pairing (+ engine versions) + Ascendant-only generation
    L2.2: third reading "combined" (How They Work Together), built from both evidence sets;
    missing charts are exported in parallel; every API call has a 90 second timeout.
    DEMO / DEVELOPMENT ONLY. Shared by your-ascendants.html and ascendant-reading.html.
@@ -80,10 +80,15 @@
     });
   }
 
-  var pairPromise = null;
+  /* L2.5 (Sep 25): the pair is cached per chart run (runId + fingerprint), never for the
+     whole page session, and a failed attempt is not cached, so the next call really retries.
+     Before this, a long-lived page (index.html) kept the first run's answer for every later run. */
+  var pairPromise = null, pairKey = null;
   function ensurePair(){
-    if (pairPromise) return pairPromise;
-    pairPromise = (function(){
+    var cur = currentRun(), key = cur ? cur.runId + "|" + cur.fingerprint : "";
+    if (pairPromise && pairKey === key) return pairPromise;
+    pairKey = key;
+    var mine = pairPromise = (function(){
       var run = currentRun();
       if (!run) return Promise.resolve({ ok:false, reason:"no stamped chart run for the current birth record" });
       var need = [];
@@ -108,7 +113,9 @@
         try { localStorage.setItem("cozAscendantPair", JSON.stringify(pair)); } catch(e){}
         return { ok:true, pair: pair, run: run, charts: { tropical: t, vedic: v } };
       });
-    })();
+    })().then(function(r){ if ((!r || !r.ok) && pairPromise === mine) { pairPromise = null; pairKey = null; } return r; },
+              function(e){ if (pairPromise === mine) { pairPromise = null; pairKey = null; } throw e; });
+    pairPromise = mine;
     return pairPromise;
   }
 

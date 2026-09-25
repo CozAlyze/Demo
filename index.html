@@ -3043,7 +3043,7 @@ document.querySelectorAll('.syscard').forEach(card => {
   function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('could not load ' + src)); }; document.head.appendChild(s); }); }
   function loadGen(){
     var chain = Promise.resolve();
-    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=9'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
+    ['ascendant-library.js?v=6', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=9'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
     return chain;
   }
   /* background writing never starts while a page is changing (or 15 s at most) */
@@ -3137,7 +3137,10 @@ document.querySelectorAll('.syscard').forEach(card => {
     /* CR3.1: the hidden page writes for whatever chart is current, so an old queued job
        must never start once a newer chart has replaced its run */
     if (currentRunId() !== runId) { var st = new Error("DEV: this chart run has been replaced by a newer one"); st.kind = "stale_run"; return Promise.reject(st); }
-    return new Promise(function(resolve, reject){
+    /* Sep 25: both saved charts must exist for this run BEFORE the hidden writer opens; a
+       purchase from the other system's result has never run this engine. pairFor exports the
+       missing side here, on the visible page, where the engine can actually run. */
+    return pairFor(runId).then(function(){ return new Promise(function(resolve, reject){
       var fr = document.createElement('iframe');
       fr.setAttribute('aria-hidden', 'true'); fr.title = 'preparing';
       fr.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;top:0';
@@ -3153,13 +3156,14 @@ document.querySelectorAll('.syscard').forEach(card => {
       window.addEventListener('message', onDone);
       var t = setTimeout(function(){ finish(false, 'DEV: Vedic Sections 3-6 took longer than 240 s'); }, 240000);
       document.body.appendChild(fr);
-    });
+    }); });
   }
 
   /* the six-section Tropical reading, written in a hidden copy of the Tropical reading page (TG1.0) */
   function runTropical16(runId){
     if (currentRunId() !== runId) { var st = new Error("DEV: this chart run has been replaced by a newer one"); st.kind = "stale_run"; return Promise.reject(st); }
-    return new Promise(function(resolve, reject){
+    /* Sep 25: same rule as vedic36, both charts exist for this run before the hidden writer opens */
+    return pairFor(runId).then(function(){ return new Promise(function(resolve, reject){
       var fr = document.createElement('iframe');
       fr.setAttribute('aria-hidden', 'true'); fr.title = 'preparing';
       fr.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;top:0';
@@ -3175,7 +3179,7 @@ document.querySelectorAll('.syscard').forEach(card => {
       window.addEventListener('message', onDone);
       var t = setTimeout(function(){ finish(false, 'DEV: the Tropical reading took longer than 240 s'); }, 240000);
       document.body.appendChild(fr);
-    });
+    }); });
   }
 
   function currentRunId(){ var run = lsJSON('emergeBirthData', null); return run && run.runId; }

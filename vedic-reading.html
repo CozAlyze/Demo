@@ -16,7 +16,7 @@ window.COZ_PREGEN = /[?&]pregen=1\b/.test(location.search);
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE VEDIC READING · R5.2 · quiet pre-write
+   COZALYZE · COMPLETE VEDIC READING · R5.3 · chart before writer
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -633,9 +633,9 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.3 · chart before writer</div>
 
-<script src="ascendant-library.js"></script>
+<script src="ascendant-library.js?v=6"></script>
 <script src="dev-review-engine.js?v=6"></script>
 <script>
 /* ============================================================
@@ -1259,9 +1259,13 @@ const ASC_SIGN = resolveAscendant();
   if (ASC_SIGN) return;
   const run = currentRun(); if (!run || !window.COZ_ASC || !COZ_ASC.ensurePair) return;
   const key = "cozChartRecovery:" + run.runId;
-  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1"); } catch (e) { return; }   /* once per run, no loops */
+  /* Sep 25: never in the hidden pre-write (an engine cannot run inside that invisible frame,
+     so the attempt failed and burned the marker); the marker is set only when recovery worked,
+     just before the one reload, so a failed attempt can be retried on the next visit */
+  if (window.COZ_PREGEN) return;
+  try { if (sessionStorage.getItem(key)) return; } catch (e) { return; }   /* already recovered and reloaded once for this run */
   COZ_ASC.ensurePair().then(res => {
-    if (res && res.ok && verifiedChart()) { try { console.log("[READING] chart record recovered for the current run; reloading"); } catch (e) {} location.reload(); }
+    if (res && res.ok && verifiedChart()) { try { sessionStorage.setItem(key, "1"); } catch (e) {} try { console.log("[READING] chart record recovered for the current run; reloading"); } catch (e) {} location.reload(); }
     else { try { console.log("[READING] chart recovery not possible:", res && res.reason); } catch (e) {} }
   }).catch(() => {});
 })();
@@ -1409,7 +1413,7 @@ revealVideo.addEventListener("error", () => finishReveal(false));
    so the phone's back gesture steps through them, and back past Page 01 lands on the dashboard. */
 if (COZ_PREGEN) {
   /* pre-write only: no dashboard, no clip, no sound. Report when the writing is done. */
-  COZ_READING_READY.then(function(){ try { parent.postMessage({ coz: "COZ_VEDIC_PREGEN_DONE", ok: true }, "*"); } catch (e) {} },
+  COZ_READING_READY.then(function(){ try { parent.postMessage({ coz: "COZ_VEDIC_PREGEN_DONE", ok: !!loadReading() }, "*"); } catch (e) {} },
                          function(){ try { parent.postMessage({ coz: "COZ_VEDIC_PREGEN_DONE", ok: false }, "*"); } catch (e) {} });
 } else {
   window.addEventListener("hashchange", showFromHash);

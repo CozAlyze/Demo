@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE TROPICAL READING · T5.1 · writer status
+   COZALYZE · COMPLETE TROPICAL READING · T5.2 · chart before writer
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -598,7 +598,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T5.1 · writer status</div>
+<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T5.2 · chart before writer</div>
 
 <script>
 /* T5.0: hidden pre-write mode. index.html opens this page as a 1px frame with ?pregen=1 at the
@@ -607,7 +607,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 window.COZ_PREGEN = /[?&]pregen=1\b/.test(location.search);
 if (window.COZ_PREGEN) document.documentElement.style.display = "none";
 </script>
-<script src="ascendant-library.js"></script>
+<script src="ascendant-library.js?v=6"></script>
 <script>
 /* T5.0: the dashboard art and the reveal clip are held back as data-src so the hidden pre-write never fetches them */
 if (!window.COZ_PREGEN) document.querySelectorAll("[data-src]").forEach(function(e){ e.src = e.getAttribute("data-src"); });
@@ -1403,9 +1403,13 @@ const ASC_SIGN = resolveAscendant();
   if (ASC_SIGN) return;
   const run = currentRun(); if (!run || !window.COZ_ASC || !COZ_ASC.ensurePair) return;
   const key = "cozChartRecovery:" + run.runId;
-  try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, "1"); } catch (e) { return; }   /* once per run, no loops */
+  /* Sep 25: never in the hidden pre-write (an engine cannot run inside that invisible frame,
+     so the attempt failed and burned the marker); the marker is set only when recovery worked,
+     just before the one reload, so a failed attempt can be retried on the next visit */
+  if (window.COZ_PREGEN) return;
+  try { if (sessionStorage.getItem(key)) return; } catch (e) { return; }   /* already recovered and reloaded once for this run */
   COZ_ASC.ensurePair().then(res => {
-    if (res && res.ok && verifiedChart()) { try { console.log("[READING] chart record recovered for the current run; reloading"); } catch (e) {} location.reload(); }
+    if (res && res.ok && verifiedChart()) { try { sessionStorage.setItem(key, "1"); } catch (e) {} try { console.log("[READING] chart record recovered for the current run; reloading"); } catch (e) {} location.reload(); }
     else { try { console.log("[READING] chart recovery not possible:", res && res.reason); } catch (e) {} }
   }).catch(() => {});
 })();
