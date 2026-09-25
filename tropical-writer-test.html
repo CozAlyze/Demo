@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CozAlyze Tropical writer test</title>
+<title>CozAlyze Tropical writer test TWT1.2</title>
 <!--
-  COZALYZE · TROPICAL WRITER TEST · TWT1.0 (Sep 25 2026) · DEVELOPMENT WORKBENCH · STANDALONE
-  Runs the preserved TG1.0.4 writer (tropical-gen 1.0.4, source blob 9c87d0cf, SHA-256 563933d0...)
-  against the current chart's Tropical record, only when "Write reading" is tapped.
-  Methodology, prompt, evidence selection, validation, repair and retry are the TG1.0.4 code
-  verbatim. Harness-only differences, none of them methodology:
-    - output is stored ONLY under localStorage "cozTropicalReadingTEST" (production key untouched)
-    - the status record and in-flight marker live in memory, not storage
-    - a fetch observer records HTTP status, request-id, stop_reason, token use and timing
-  Reads (never writes) emergeBirthData, cozTropicalChartJSON, cozTestApiKey, cozTestModel,
-  cozRestoredRunId. "Discard test reading" removes only cozTropicalReadingTEST.
-  Not linked from the application. The API key is never displayed or copied.
+  COZALYZE · TROPICAL WRITER TEST · TWT1.2 SINGLE-CALL STREAMING (Sep 25 2026) · DEVELOPMENT WORKBENCH · STANDALONE
+  ONE streamed model request writes the whole six-section reading. Each section is shown and saved
+  the moment it has fully arrived and passed the unchanged TG1.0.4 checker (cozTgenCheck), with the
+  preserved TG1.0.4 system prompt, evidence selection and factor map. The only addition to the
+  prompt is a delivery-framing note (section blocks) so a finished section can be recognised
+  mid-stream; a partial or malformed block is never accepted. Extra calls are exception-only: one
+  targeted repair for a section that breaks a hard rule, and one recovery call for sections a
+  dropped stream never delivered. Passed sections are never regenerated.
+  Output ONLY under localStorage "cozTropicalReadingTEST". Reads (never writes) emergeBirthData,
+  cozTropicalChartJSON, cozTestApiKey, cozTestModel, cozRestoredRunId. Nothing runs until
+  "Write reading". Not linked from the application. The API key is never displayed or copied.
 -->
 <style>
   html,body{margin:0;background:#050a14;color:#e5d4c5}
@@ -28,12 +28,12 @@
   .box{background:#0b1220;border:1px solid #2a3348;border-radius:8px;padding:10px;margin:8px 0;font-size:13px}
   .mono{font:12px/1.45 Menlo,monospace;white-space:pre-wrap;word-break:break-word}
   .para{margin:10px 0 2px} .ids{font:11px/1.4 Menlo,monospace;color:#9fb3c8;margin:0 0 12px;word-break:break-word}
-  .bad{color:#f0a3a3} .ok{color:#a8d8a8} details summary{cursor:pointer;color:#d4a178}
+  .bad{color:#f0a3a3} .ok{color:#a8d8a8} .sec{background:#0b1220;border:1px solid #2a3348;border-radius:8px;padding:10px;margin:10px 0} .meta{font:12px/1.4 Menlo,monospace;color:#b9a58c;white-space:pre-wrap} details summary{cursor:pointer;color:#d4a178}
 </style>
 </head>
 <body>
-<h1>Tropical writer test · TWT1.0</h1>
-<p class="note">Workbench only. Writes nothing until you tap Write reading, and then only to the test key. Uses the preserved TG1.0.4 writer unchanged.</p>
+<h1>Tropical writer test · TWT1.2 single-call streaming</h1>
+<p class="note">Workbench only. Writes nothing until you tap Write reading, then one streamed call, only to the test key. TG1.0.4 rules and checker unchanged.</p>
 <div class="box mono" id="info">loading…</div>
 <div class="row">
   <button type="button" id="writeBtn">Write reading</button>
@@ -41,45 +41,12 @@
 </div>
 <div class="row"><button type="button" id="discardBtn">Discard test reading</button></div>
 <div class="box" id="status">Status: idle</div>
-<h2>Requests</h2><div class="box mono" id="reqs">none yet</div>
-<h2>Checks</h2><div class="box mono" id="checks">no reading yet</div>
-<h2>Reading</h2><div id="reading" class="box">no reading yet</div>
-<h2>Evidence sent to the model</h2><details class="box"><summary>show evidence block</summary><div class="mono" id="evidence">no reading yet</div></details>
+<h2>Calls</h2><div class="box mono" id="reqs">none yet</div>
+<h2>Reading, section by section</h2><div id="reading">no reading yet</div>
+<h2>Evidence sent to the model</h2><details class="box"><summary>show evidence block</summary><div class="mono" id="evidence">not written yet</div></details>
 <script src="ascendant-library.js?v=5"></script>
 <script>
 "use strict";
-/* ===== TEST HARNESS: fetch observer (records diagnostics, never alters the request) ===== */
-var COZ_TEST_REQS = [];
-(function(){
-  var nf = window.fetch.bind(window);
-  window.fetch = function(input, init){
-    var url = String((input && input.url) || input || "");
-    if (url.indexOf("api.anthropic.com") < 0) return nf(input, init);
-    var rec = { n: COZ_TEST_REQS.length + 1, sentAt: Date.now(), status: "pending", requestId: "unavailable", stopReason: "unavailable", outTokens: "unavailable", inTokens: "unavailable", secs: null, error: "" };
-    COZ_TEST_REQS.push(rec); paintReqs();
-    return nf(input, init).then(function(res){
-      rec.status = "HTTP " + res.status; rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1);
-      try { rec.requestId = res.headers.get("request-id") || "unavailable"; } catch (e) {}
-      res.clone().text().then(function(t){
-        try { var j = JSON.parse(t);
-          if (j && typeof j.stop_reason === "string") rec.stopReason = j.stop_reason;
-          if (j && j.usage) { rec.outTokens = j.usage.output_tokens; rec.inTokens = j.usage.input_tokens; }
-          if (j && j.error && j.error.type) rec.error = "error type " + j.error.type;
-        } catch (e) {}
-        paintReqs();
-      }, function(){});
-      paintReqs(); return res;
-    }, function(e){ rec.status = "network failure (" + ((e && e.name) || "Error") + ")"; rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1); paintReqs(); throw e; });
-  };
-})();
-function paintReqs(){
-  var el = document.getElementById("reqs"); if (!el) return;
-  el.textContent = COZ_TEST_REQS.length ? COZ_TEST_REQS.map(function(r){
-    return "#" + r.n + " " + new Date(r.sentAt).toLocaleTimeString() + " · " + r.status + (r.secs ? " after " + r.secs + " s" : "") + " · stop_reason " + r.stopReason +
-      " · tokens in " + r.inTokens + " / out " + r.outTokens + " · request-id " + r.requestId + (r.error ? " · " + r.error : "");
-  }).join("\n") : "none yet";
-}
-
 /* ===== sections (from the Tropical page, unchanged) ===== */
 const vedicReadingSections = [
   { id: "at-your-core",            number: 1, title: "At Your Core",              nextLabel: "Love, Desire & Creativity" },
@@ -431,106 +398,293 @@ function generateTropicalReading(chart) {
 
 
 /* ===== end of preserved writer ===== */
+/* ===== TWT1.2 SINGLE-CALL STREAMING DELIVERY (test harness) =====
+   ONE streamed request writes the whole reading. The TG1.0.4 system prompt is sent unchanged;
+   the user message adds only a delivery-framing note, so each finished section can be picked out
+   of the stream before the response ends:
+       <<<SECTION section-id>>>  {"section-id": [4 paragraphs], "_trace": {"section-id": [[ids] x4]}}  <<<END section-id>>>
+   A section counts as received only when its END marker has arrived AND its JSON parses; a
+   partial or malformed block is never accepted. Each received section is checked by the unchanged
+   TG1.0.4 checker (cozTgenCheck), saved, and shown immediately. Section 6 is checked only after
+   Sections 1 to 5 are final, because it may cite only factors they cited.
+   Exception-only extra calls: a section that breaks a hard rule gets ONE targeted repair of that
+   section alone; if the stream drops, ONE recovery call asks only for the sections not yet
+   received. Sections that passed are never regenerated. */
+var ST_VERSION = "tropical-gen 1.2-stream (TG1.0.4 rules)";
+var ST_KEY = "cozTropicalReadingTEST", ST_IDLE_MS = 45000, ST_TOTAL_MS = 240000, ST_REPAIR_MS = 90000;
+var ST = null;
+var ST_PRICE = { input: 3.00, output: 15.00 };   /* USD per million tokens, the estimate the writers already use */
+function stBlank(chart, firstName, ev){
+  return { system: "tropical", mode: "stream", genVersion: ST_VERSION, run: { runId: chart.run.runId, fingerprint: chart.run.fingerprint },
+    firstName: firstName, promptHash: cozTgenHash(COZ_TGEN_SYSTEM), evidenceHash: cozTgenHash(ev.text), startedAt: new Date().toISOString(),
+    sections: {}, calls: [], counts: { primary: 0, repair: 0, recovery: 0 }, tokens: { input: 0, output: 0 }, stream: {} };
+}
+function stLoad(chart, ev){
+  try { var r = JSON.parse(localStorage.getItem(ST_KEY) || "null");
+    if (r && r.mode === "stream" && r.genVersion === ST_VERSION && r.run && r.run.runId === chart.run.runId && r.run.fingerprint === chart.run.fingerprint &&
+        r.evidenceHash === cozTgenHash(ev.text) && r.promptHash === cozTgenHash(COZ_TGEN_SYSTEM)) return r;
+  } catch (e) {}
+  return null;
+}
+function stSave(){ try { var copy = JSON.parse(JSON.stringify(ST)); delete copy.evidence; localStorage.setItem(ST_KEY, JSON.stringify(copy)); ST.saveFailed = false; } catch (e) { ST.saveFailed = true; } }
+function stSecById(id){ return vedicReadingSections.filter(function (s) { return s.id === id; })[0]; }
+function stPassed(id){ var s = ST.sections[id]; return !!(s && s.state === "passed"); }
+function stCost(){ return Math.round((ST.tokens.input / 1e6 * ST_PRICE.input + ST.tokens.output / 1e6 * ST_PRICE.output) * 10000) / 10000; }
 
-/* ===== TEST HARNESS: page logic ===== */
+/* framing note appended to the user message; the content rules stay those of the system prompt */
+function stFraming(ids, firstName){
+  return "DELIVERY FORMAT FOR THIS REQUEST (replaces only the OUTPUT format above; every other rule above applies unchanged). " +
+    "Write " + (ids.length === 6 ? "all six sections" : "only these sections: " + ids.join(", ")) + ", in this order: " + ids.join(", ") + ". " +
+    "Emit each section as its own block, exactly like this, one block after another, with nothing before, between or after the blocks:\n" +
+    "<<<SECTION section-id>>>\n{\"section-id\": [\"paragraph 1\", \"paragraph 2\", \"paragraph 3\", \"paragraph 4\"], \"_trace\": {\"section-id\": [[ids for paragraph 1], [ids for paragraph 2], [ids for paragraph 3], [ids for paragraph 4]]}}\n<<<END section-id>>>\n" +
+    "Use the real section id in place of section-id. The JSON inside each block must be complete and valid on its own." +
+    (ids.indexOf("at-your-core") < 0 && firstName ? " The first name is already used in Section 1; do not use it in these sections." : "");
+}
+function stBaseMsg(ctx){
+  return ["First name for the reading: " + (ctx.firstName || "(none; use no name)") + ".",
+    "Birth (display only, no biography): " + [ctx.cl.birthDate, ctx.cl.birthTime, ctx.cl.locationLabel].filter(Boolean).join(", "),
+    "", "EVIDENCE", ctx.ev.text, ""].join("\n");
+}
+function stContext(exceptId){
+  var L = [];
+  vedicReadingSections.forEach(function (s) { if (s.id !== exceptId && stPassed(s.id)) L.push("[" + s.title + "]", ST.sections[s.id].body.join("\n\n"), ""); });
+  return L.length ? "SECTIONS ALREADY WRITTEN FOR THIS READING (keep continuity, do not repeat them; Section 6 may cite only factor ids these sections cited):\n" + L.join("\n") + "\n" : "";
+}
+
+/* the unchanged TG1.0.4 checker on the accepted sections plus this candidate; only this section's findings count */
+function stCheck(id, cand, ctx){
+  var sec = stSecById(id), sections = {}, trace = {};
+  vedicReadingSections.forEach(function (s) { if (s.id !== id && stPassed(s.id)) { sections[s.id] = ST.sections[s.id].body; trace[s.id] = ST.sections[s.id].trace; } });
+  sections[id] = cand.body; trace[id] = cand.trace;
+  var r = cozTgenCheck({ sections: sections, trace: trace }, ctx.firstName, ctx.ev);
+  var mine = function (m) { return m.indexOf(id + " ") === 0 || (sec.number === 1 && /^the first name /.test(m)); };
+  return { hard: r.hard.filter(mine), soft: r.soft.filter(mine), words: r.counts[id] };
+}
+function stParseBlock(id, inner){
+  var obj = null; try { obj = JSON.parse(inner.trim()); } catch (e) { return { error: id + ": block JSON did not parse" }; }
+  var body = obj && Array.isArray(obj[id]) ? obj[id].map(function (p) { return String(p).replace(/\s+/g, " ").trim(); }).filter(Boolean) : [];
+  var tr = obj && obj._trace && Array.isArray(obj._trace[id]) ? obj._trace[id] : null;
+  return { body: body, trace: tr };
+}
+
+/* one streamed call; onBlock(id, innerText) fires for each COMPLETE block, in arrival order */
+function stStream(ctx, kind, msg, onBlock){
+  var rec = { kind: kind, n: ST.calls.length + 1, sentAt: Date.now(), status: "pending", requestId: "unavailable", stopReason: "unavailable", inTokens: 0, outTokens: 0, ended: "" };
+  ST.calls.push(rec); ST.counts[kind]++; paintST();
+  var ctl = new AbortController(), buf = "", text = "", seen = {}, idle = null, total = setTimeout(function () { rec.ended = "total time limit"; ctl.abort(); }, ST_TOTAL_MS);
+  function poke(){ clearTimeout(idle); idle = setTimeout(function () { rec.ended = "no data for " + (ST_IDLE_MS / 1000) + " s"; ctl.abort(); }, ST_IDLE_MS); }
+  function scan(){
+    var re = /<<<SECTION ([a-z-]+)>>>([\s\S]*?)<<<END \1>>>/g, m;
+    while ((m = re.exec(text))) { if (!seen[m[1]]) { seen[m[1]] = true; onBlock(m[1], m[2], Date.now()); } }
+  }
+  poke();
+  return fetch("https://api.anthropic.com/v1/messages", { method: "POST", signal: ctl.signal,
+    headers: { "x-api-key": ctx.key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
+    body: JSON.stringify({ model: ctx.model, max_tokens: 7000, stream: true, system: COZ_TGEN_SYSTEM, messages: [{ role: "user", content: msg }] }) })
+  .then(function (res) {
+    rec.status = "HTTP " + res.status; try { rec.requestId = res.headers.get("request-id") || "unavailable"; } catch (e) {}
+    if (!res.ok) return res.text().then(function (t) { var e = new Error("API " + res.status + (/"type":"([a-z_]+)"/.exec(t) ? " (" + /"type":"([a-z_]+)"/.exec(t)[1] + ")" : "")); e.kind = "api"; throw e; });
+    if (!res.body || !res.body.getReader) { var e2 = new Error("this browser cannot read a streamed response"); e2.kind = "transport"; throw e2; }
+    var reader = res.body.getReader(), dec = new TextDecoder();
+    function pump(){
+      return reader.read().then(function (r) {
+        if (r.done) return;
+        poke(); buf += dec.decode(r.value, { stream: true });
+        var lines = buf.split("\n"); buf = lines.pop();
+        lines.forEach(function (ln) {
+          if (ln.indexOf("data:") !== 0) return;
+          var ev = null; try { ev = JSON.parse(ln.slice(5).trim()); } catch (e) { return; }
+          if (ev.type === "message_start" && ev.message && ev.message.usage) { rec.inTokens = ev.message.usage.input_tokens || 0; }
+          else if (ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta") { text += ev.delta.text; rec.chars = text.length; scan(); }
+          else if (ev.type === "message_delta") { if (ev.delta && ev.delta.stop_reason) rec.stopReason = ev.delta.stop_reason; if (ev.usage && ev.usage.output_tokens != null) rec.outTokens = ev.usage.output_tokens; }
+          else if (ev.type === "error") { rec.ended = "stream error " + ((ev.error && ev.error.type) || ""); }
+        });
+        return pump();
+      });
+    }
+    return pump();
+  })
+  .then(function () { rec.ended = rec.ended || (rec.stopReason === "end_turn" ? "completed normally" : "ended (" + rec.stopReason + ")"); },
+        function (e) { rec.ended = rec.ended || (e && e.kind === "api" ? e.message : "disconnected (" + ((e && e.name) || "Error") + ")"); if (e && e.kind === "api") rec.apiError = true; })
+  .then(function () { clearTimeout(idle); clearTimeout(total); rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1);
+    ST.tokens.input += rec.inTokens; ST.tokens.output += rec.outTokens; rec.receivedIds = Object.keys(seen); paintST(); return rec; });
+}
+
+/* targeted repair of ONE section (not streamed; small) */
+function stRepair(ctx, id, reason, previous){
+  var sec = stSecById(id), rec = { kind: "repair", n: ST.calls.length + 1, sentAt: Date.now(), status: "pending", requestId: "unavailable", stopReason: "unavailable", inTokens: 0, outTokens: 0, forSection: id };
+  ST.calls.push(rec); ST.counts.repair++; paintST();
+  var words = previous && previous.body ? cozTgenWords(previous.body) : 0;
+  var fix = words > COZ_TGEN_BANDS.soft[1] ? " Length fix required: cut about " + (words - 260) + " words (now " + words + ", aim for about 260)." :
+            (words && words < COZ_TGEN_BANDS.soft[0]) ? " Length fix required: add about " + (260 - words) + " words (now " + words + ", aim for about 260)." : "";
+  var msg = stBaseMsg(ctx) + stContext(id) +
+    (previous && previous.body && previous.body.length ? "\nYOUR PREVIOUS VERSION OF " + sec.title.toUpperCase() + ":\n" + previous.body.join("\n\n") + "\n" : "") +
+    "\nREPAIR. That section broke these rules: " + reason + "." + fix + " Keep exactly 4 paragraphs of about 60 to 65 words and 3 sentences each. Keep the same substance and voice; fix only what is named.\n\n" +
+    stFraming([id], ctx.firstName);
+  var ctl = new AbortController(), tm = setTimeout(function () { ctl.abort(); }, ST_REPAIR_MS);
+  return fetch("https://api.anthropic.com/v1/messages", { method: "POST", signal: ctl.signal,
+    headers: { "x-api-key": ctx.key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
+    body: JSON.stringify({ model: ctx.model, max_tokens: 1800, system: COZ_TGEN_SYSTEM, messages: [{ role: "user", content: msg }] }) })
+  .then(function (res) { clearTimeout(tm); rec.status = "HTTP " + res.status; try { rec.requestId = res.headers.get("request-id") || "unavailable"; } catch (e) {}
+    return res.text().then(function (t) { if (!res.ok) throw new Error("API " + res.status); var d = JSON.parse(t);
+      rec.stopReason = d.stop_reason || "unavailable"; rec.inTokens = (d.usage && d.usage.input_tokens) || 0; rec.outTokens = (d.usage && d.usage.output_tokens) || 0;
+      var txt = (d.content || []).filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("");
+      var m = new RegExp("<<<SECTION " + id + ">>>([\\s\\S]*?)<<<END " + id + ">>>").exec(txt);
+      return m ? stParseBlock(id, m[1]) : { error: id + ": repair did not return a complete block" }; }); },
+    function (e) { clearTimeout(tm); rec.status = e && e.name === "AbortError" ? "timed out" : "network failure"; return { error: id + ": repair request failed (" + rec.status + ")" }; })
+  .then(function (r) { rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1); ST.tokens.input += rec.inTokens; ST.tokens.output += rec.outTokens; paintST(); return r; });
+}
+
+function stAccept(id, cand, source, ctx, t){
+  var S = ST.sections[id] || (ST.sections[id] = {});
+  S.state = "passed"; S.body = cand.body; S.trace = cand.trace; S.words = cozTgenWords(cand.body); S.source = source;
+  S.atMs = t - ctx.t0; stSave(); paintST();
+}
+/* check a received block; failures wait for their single targeted repair */
+function stConsider(id, inner, source, ctx, t){
+  if (!stSecById(id) || stPassed(id)) return;
+  var S = ST.sections[id] = ST.sections[id] || {}; S.receivedAtMs = t - ctx.t0; S.attempts = S.attempts || [];
+  var cand = stParseBlock(id, inner);
+  if (id === "essential-takeaway" && !vedicReadingSections.slice(0, 5).every(function (s) { return stPassed(s.id); })) {
+    S.state = "held"; S.held = { cand: cand, source: source, t: t }; S.note = "received; checked once Sections 1 to 5 are final"; paintST(); return;
+  }
+  var chk = cand.error ? { hard: [cand.error], soft: [] } : stCheck(id, cand, ctx);
+  S.attempts.push({ source: source, hard: chk.hard, soft: chk.soft, words: chk.words });
+  if (!chk.hard.length) { S.soft = chk.soft; stAccept(id, cand, source, ctx, t); return; }
+  S.state = "needs repair"; S.failedCand = cand; S.failReason = chk.hard.join("; "); paintST();
+}
+function stRepairPending(ctx){
+  var chain = Promise.resolve();
+  vedicReadingSections.forEach(function (sec) {
+    chain = chain.then(function () {
+      var S = ST.sections[sec.id];
+      if (sec.id === "essential-takeaway" && S && S.state === "held") {
+        var h = S.held; delete S.held;
+        if (!vedicReadingSections.slice(0, 5).every(function (s) { return stPassed(s.id); })) { S.state = "not checked"; S.note = "Sections 1 to 5 did not all pass"; paintST(); return; }
+        var hc = h.cand.error ? { hard: [h.cand.error], soft: [] } : stCheck(sec.id, h.cand, ctx);
+        S.attempts = S.attempts || []; S.attempts.push({ source: h.source, hard: hc.hard, soft: hc.soft, words: hc.words }); S.note = "";
+        if (!hc.hard.length) { S.soft = hc.soft; stAccept(sec.id, h.cand, h.source, ctx, h.t); return; }
+        S.state = "needs repair"; S.failedCand = h.cand; S.failReason = hc.hard.join("; ");
+      }
+      if (!S || S.state !== "needs repair" || S.repairUsed) return;
+      S.repairUsed = true; S.state = "repairing"; paintST();
+      return stRepair(ctx, sec.id, S.failReason, S.failedCand).then(function (r) {
+        var chk = r.error ? { hard: [r.error], soft: [] } : stCheck(sec.id, r, ctx);
+        S.attempts.push({ source: "repair", hard: chk.hard, soft: chk.soft, words: chk.words });
+        if (!chk.hard.length) { S.soft = chk.soft; stAccept(sec.id, r, "repair", ctx, Date.now()); }
+        else { S.state = "failed"; S.error = "rules still broken after the single repair: " + chk.hard.join("; "); stSave(); paintST(); }
+      });
+    });
+  });
+  return chain;
+}
+function stRun(chart){
+  var key = null, model = "claude-sonnet-4-6";
+  try { key = localStorage.getItem("cozTestApiKey"); model = localStorage.getItem("cozTestModel") || model; } catch (_) {}
+  var ev = cozTropicalEvidence(chart); if (!ev.ok) return Promise.reject(new Error("Tropical evidence refused: " + ev.reason));
+  var cl = chart.client || {}, firstName = String(cl.firstName || cl.displayName || "").trim().split(/\s+/)[0] || "";
+  ST = stLoad(chart, ev) || stBlank(chart, firstName, ev);
+  ST.evidence = ev.text; ST.engineAspects = ev.engineAspects; ST.model = model;
+  var ctx = { key: key, model: model, ev: ev, cl: cl, firstName: firstName, t0: Date.now() };
+  ST.runT0 = ctx.t0;
+  var all = vedicReadingSections.map(function (s) { return s.id; });
+  var missing = function () { return all.filter(function (id) { var s = ST.sections[id]; return !(s && (s.state === "passed" || s.state === "needs repair" || s.state === "held" || s.state === "repairing")); }); };
+  var todo = missing(), kind = todo.length === 6 ? "primary" : "recovery";
+  var first = todo.length ? stStream(ctx, kind, stBaseMsg(ctx) + (kind === "recovery" ? stContext(null) : "") + "\n" + stFraming(todo, firstName), function (id, inner, t) {
+      if (todo.indexOf(id) >= 0) stConsider(id, inner, kind, ctx, t); }) : Promise.resolve(null);
+  return first.then(function (rec) {
+    if (rec) ST.stream[kind] = rec.ended;
+    /* one recovery call, only if the primary stream ended before every section arrived */
+    var left = missing();
+    if (rec && kind === "primary" && left.length && !rec.apiError) {
+      return stStream(ctx, "recovery", stBaseMsg(ctx) + stContext(null) + "\n" + stFraming(left, firstName), function (id, inner, t) { if (left.indexOf(id) >= 0) stConsider(id, inner, "recovery", ctx, t); })
+        .then(function (r2) { ST.stream.recovery = r2.ended; });
+    }
+  }).then(function () { return stRepairPending(ctx); })
+    .then(function () {
+      all.forEach(function (id) { var s = ST.sections[id]; if (!s || !s.state) ST.sections[id] = { state: "not received", note: "not delivered by the stream" }; });
+      ST.finishedAt = new Date().toISOString(); ST.totalMs = Date.now() - ctx.t0; stSave(); paintST();
+    });
+}
+
+/* ===== TEST HARNESS: page ===== */
 function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
 function lsJSON(k){ try { return JSON.parse(lsGet(k) || "null"); } catch (e) { return null; } }
 function currentRunT(){ try { return window.COZ_ASC && COZ_ASC.currentRun ? COZ_ASC.currentRun() : null; } catch (e) { return null; } }
-function chartNow(){
-  var run = currentRunT(), rec = lsJSON("cozTropicalChartJSON");
-  var ok = !!(rec && rec.run && run && rec.run.runId === run.runId && rec.run.fingerprint === run.fingerprint && rec.run.engineVersion);
-  return { run: run, rec: rec, ok: ok };
-}
+function chartNow(){ var run = currentRunT(), rec = lsJSON("cozTropicalChartJSON");
+  return { run: run, rec: rec, ok: !!(rec && rec.run && run && rec.run.runId === run.runId && rec.run.fingerprint === run.fingerprint && rec.run.engineVersion) }; }
 function restored(){ var r = lsGet("cozRestoredRunId"), bd = lsJSON("emergeBirthData"); return !!(r && bd && bd.runId === r); }
 function esc(x){ return String(x).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
-var writing = false, t0 = 0, lastReading = null, lastError = "";
-
+var running = false, runT0 = 0;
+function storedFor(c){ var st = lsJSON(ST_KEY); return st && st.mode === "stream" && c.run && st.run && st.run.runId === c.run.runId ? st : null; }
 function paintInfo(){
-  var c = chartNow(), key = !!lsGet("cozTestApiKey"), model = lsGet("cozTestModel") || "claude-sonnet-4-6";
-  var cl = (c.rec && c.rec.client) || {};
-  var lines = [
-    "writer: " + COZ_TGEN_VERSION + " (preserved TG1.0.4)",
+  var c = chartNow(), key = !!lsGet("cozTestApiKey"), model = lsGet("cozTestModel") || "claude-sonnet-4-6", cl = (c.rec && c.rec.client) || {};
+  var raw = lsJSON(ST_KEY), mine = storedFor(c), passedN = mine ? Object.keys(mine.sections || {}).filter(function(k){ return mine.sections[k].state === "passed"; }).length : 0;
+  var stored = !raw ? "none" : mine ? "streamed reading for this chart, " + passedN + " of 6 sections passed" : raw.mode === "stream" ? "streamed reading for a DIFFERENT chart run" : "an older test format (not used by TWT1.2; Discard it first)";
+  document.getElementById("info").textContent = [
+    "writer: " + ST_VERSION,
     "current chart run: " + (c.run ? c.run.runId : "none found"),
     "Tropical chart for this run: " + (c.ok ? "verified" : "NOT available (run a chart through the Tropical result first)"),
     "ascendant: " + (c.ok && c.rec.angles && c.rec.angles.ascendant ? c.rec.angles.ascendant.sign : "?") + " · first name used: " + (c.ok ? (String(cl.firstName || cl.displayName || "").trim().split(/\s+/)[0] || "(none)") : "?"),
     "saved chart reopened: " + (restored() ? "YES (writing is blocked: saved charts never call the model)" : "no"),
     "test API key on this device: " + (key ? "present" : "MISSING (enter it on test-index.html)") + " · model: " + model,
-    "stored test reading: " + (lsGet("cozTropicalReadingTEST") ? describeStored(c) : "none")
-  ];
-  document.getElementById("info").textContent = lines.join("\n");
-  document.getElementById("writeBtn").disabled = writing || !c.ok || !key || restored();
+    "stored test reading: " + stored].join("\n");
+  var w = document.getElementById("writeBtn");
+  w.disabled = running || !c.ok || !key || restored() || (raw && !mine && raw.mode !== "stream");
+  w.textContent = mine && passedN < 6 ? "Resume (request only what is missing)" : mine ? "Written (Discard to test again)" : "Write reading";
+  if (mine && passedN === 6) w.disabled = true;
 }
-function describeStored(c){
-  var r = lsJSON("cozTropicalReadingTEST"); if (!r) return "unreadable";
-  return (r.run && c.run && r.run.runId === c.run.runId ? "for this chart" : "for a DIFFERENT chart run") + ", written " + String(r.generatedAt || "?").slice(0, 19) + ", " + (r.genVersion || "?");
-}
-function paintStatus(){
-  var el = document.getElementById("status"), st = COZ_TEST_STATUS;
-  if (writing) el.textContent = "Status: writing… " + Math.round((Date.now() - t0) / 1000) + " s" + (st ? " · " + st.phase + (st.detail ? " (" + st.detail + ")" : "") : "");
-  else if (lastError) { el.innerHTML = '<span class="bad">Status: FAILED · ' + esc(lastError) + "</span>"; }
-  else if (lastReading) el.innerHTML = '<span class="ok">Status: ' + (lastReading.trace.fromCache ? "shown from the stored test reading (no request)" : "PASSED · reading written and saved to the test key") + "</span>";
-  else el.textContent = "Status: idle";
-}
-setInterval(function(){ if (writing) paintStatus(); }, 1000);
-
-function paintReading(r){
-  var t = r.trace || {};
-  var lines = [
-    "requests " + (t.requests == null ? "?" : t.requests) + (t.repaired ? " · one repair was needed" : " · no repair") + (t.fromCache ? " · from stored test reading" : ""),
-    "model " + (t.model || "?") + " · input tokens " + (t.inputTokens || "?") + " · output tokens " + (t.outputTokens || "?") + " · est. $" + (t.estimatedCostUSD != null ? t.estimatedCostUSD : "?"),
-    "soft flags: " + ((t.soft && t.soft.length) ? t.soft.join("; ") : "none"),
-    "house rulers available: " + t.houseRulersAvailable + " · general aspects sent to model: " + t.aspectsUsedInEvidence,
-    "test save: " + (t.testSaveFailed ? "FAILED (reading shown from memory only)" : "saved to cozTropicalReadingTEST")
-  ];
-  (t.attempts || []).forEach(function(a, i){ lines.push("attempt " + (i + 1) + ": hard " + (a.hard && a.hard.length ? a.hard.join("; ") : "none") + " | soft " + (a.soft && a.soft.length ? a.soft.join("; ") : "none")); });
-  if (t.sectionWordCounts) Object.keys(t.sectionWordCounts).forEach(function(k){ var w = t.sectionWordCounts[k]; lines.push(k + ": " + w.words + " words" + (w.inBand ? "" : " (outside 245-290)")); });
-  if (t.engineAspects && t.engineAspects.length) lines.push("engine aspects WITHHELD from the model: " + t.engineAspects.join("; "));
-  document.getElementById("checks").textContent = lines.join("\n");
-  var pf = t.paragraphFactors || {}, html = "";
-  (r.sections || []).forEach(function(s){
-    html += "<h3>" + s.number + ". " + esc(s.title) + "</h3>";
-    (s.body || []).forEach(function(p, i){ html += '<p class="para">' + esc(p) + '</p><div class="ids">\u2192 ' + esc(((pf[s.id] || [])[i] || ["(no trace)"]).join(", ")) + "</div>"; });
+function paintST(){
+  if (!ST) return;
+  document.getElementById("reqs").textContent = ST.calls.length ? ST.calls.map(function (r) {
+    return "#" + r.n + " " + r.kind + (r.forSection ? " (" + r.forSection + ")" : "") + " · " + r.status + (r.secs ? " after " + r.secs + " s" : (r.chars ? " · receiving, " + r.chars + " characters so far" : "")) +
+      " · stop_reason " + r.stopReason + " · tokens in " + r.inTokens + " / out " + r.outTokens + " · request-id " + r.requestId + (r.ended ? " · " + r.ended : "") + (r.receivedIds ? " · complete sections received: " + (r.receivedIds.join(", ") || "none") : "");
+  }).join("\n") : "none yet";
+  var html = "", passed = 0;
+  vedicReadingSections.forEach(function (sec) {
+    var s = ST.sections[sec.id] || { state: "waiting" };
+    if (s.state === "passed") passed++;
+    var meta = [sec.number + ". " + sec.title + " · " + (s.state || "waiting").toUpperCase() +
+      (s.state === "passed" ? " · readable at " + (s.atMs / 1000).toFixed(1) + " s · from " + s.source + " · " + s.words + " words" : "") + (s.note ? " · " + s.note : "")];
+    (s.attempts || []).forEach(function (a, i) { meta.push("  check " + (i + 1) + " (" + a.source + "): hard " + ((a.hard || []).join("; ") || "none") + " | soft " + ((a.soft || []).join("; ") || "none") + (a.words ? " | " + a.words + " words" : "")); });
+    if (s.error) meta.push("  " + s.error);
+    html += '<div class="sec"><div class="meta ' + (s.state === "passed" ? "ok" : /fail|not/.test(s.state || "") ? "bad" : "") + '">' + esc(meta.join("\n")) + "</div>";
+    if (s.state === "passed") (s.body || []).forEach(function (p, i) { html += '<p class="para">' + esc(p) + '</p><div class="ids">\u2192 ' + esc(((s.trace || [])[i] || ["(no trace)"]).join(", ")) + "</div>"; });
+    else if (!/fail|not/.test(s.state || "")) html += '<p class="para" style="color:#b9a58c">Preparing this section\u2026</p>';
+    html += "</div>";
   });
-  document.getElementById("reading").innerHTML = html || "no sections";
-  document.getElementById("evidence").textContent = t.evidence || "not recorded";
+  document.getElementById("reading").innerHTML = html;
+  document.getElementById("evidence").textContent = ST.evidence || "not recorded";
+  var s1 = ST.sections["at-your-core"], total = ST.counts.primary + ST.counts.repair + ST.counts.recovery;
+  var line = (running ? "writing… " + Math.round((Date.now() - (ST.runT0 || runT0)) / 1000) + " s · " : "") + passed + " of 6 sections passed" +
+    (s1 && s1.state === "passed" ? " · Section 1 readable at " + (s1.atMs / 1000).toFixed(1) + " s" : "") + (ST.totalMs ? " · finished at " + (ST.totalMs / 1000).toFixed(1) + " s" : "") +
+    " · calls: primary " + ST.counts.primary + ", repair " + ST.counts.repair + ", recovery " + ST.counts.recovery + ", total " + total +
+    " · tokens in " + ST.tokens.input + " / out " + ST.tokens.output + " · est. $" + stCost().toFixed(4) +
+    (ST.stream.primary ? " · primary stream: " + ST.stream.primary : "") + (ST.stream.recovery ? " · recovery stream: " + ST.stream.recovery : "") + (ST.saveFailed ? " · TEST SAVE FAILED" : "");
+  document.getElementById("status").innerHTML = '<span class="' + (!running && passed === 6 ? "ok" : (!running && ST.finishedAt && passed < 6 ? "bad" : "")) + '">Status: ' + esc(line) + "</span>";
 }
-function paintFailure(){
-  var f = window.COZ_TROPICAL_GEN_FAILED_TRACE;
-  if (!f) { document.getElementById("checks").textContent = lastError; return; }
-  document.getElementById("checks").textContent = ["failed closed after " + f.requests + " request(s)", f.reason].concat((f.attempts || []).map(function(a, i){ return "attempt " + (i + 1) + ": hard " + ((a.hard || []).join("; ") || "none") + " | soft " + ((a.soft || []).join("; ") || "none"); })).join("\n");
-  document.getElementById("evidence").textContent = f.evidence || "not recorded";
-}
-
+setInterval(function(){ if (running) paintST(); }, 1000);
 document.getElementById("writeBtn").addEventListener("click", function(){
-  var c = chartNow(); if (!c.ok || restored() || writing) return;
-  writing = true; t0 = Date.now(); lastError = ""; lastReading = null; COZ_TEST_STATUS = null; window.COZ_TROPICAL_GEN_FAILED_TRACE = null;
-  paintInfo(); paintStatus();
-  generateTropicalReading(c.rec).then(function(r){ writing = false; lastReading = r; paintReading(r); paintStatus(); paintInfo(); },
-    function(e){ writing = false; lastError = (e && e.message) || String(e); paintFailure(); paintStatus(); paintInfo(); });
+  var c = chartNow(); if (!c.ok || restored() || running) return;
+  running = true; runT0 = Date.now(); paintInfo();
+  stRun(c.rec).then(function(){ running = false; paintST(); paintInfo(); }, function(e){ running = false; document.getElementById("status").innerHTML = '<span class="bad">Status: FAILED · ' + esc((e && e.message) || String(e)) + "</span>"; paintInfo(); });
 });
 document.getElementById("discardBtn").addEventListener("click", function(){
-  if (!lsGet("cozTropicalReadingTEST")) return;
+  if (!lsGet(ST_KEY)) return;
   if (!confirm("Discard the stored test reading? Only cozTropicalReadingTEST is removed.")) return;
-  try { localStorage.removeItem("cozTropicalReadingTEST"); } catch (e) {}
-  lastReading = null; document.getElementById("reading").textContent = "no reading yet"; document.getElementById("checks").textContent = "no reading yet"; paintInfo(); paintStatus();
+  try { localStorage.removeItem(ST_KEY); } catch (e) {}
+  ST = null; document.getElementById("reading").textContent = "no reading yet"; document.getElementById("reqs").textContent = "none yet"; document.getElementById("status").textContent = "Status: idle"; paintInfo();
 });
 document.getElementById("copyBtn").addEventListener("click", function(){
   var b = document.getElementById("copyBtn");
-  var text = ["COZALYZE TROPICAL WRITER TEST TWT1.0", document.getElementById("info").textContent, "", document.getElementById("status").textContent,
-    "", "REQUESTS", document.getElementById("reqs").textContent, "", "CHECKS", document.getElementById("checks").textContent, "", "READING",
-    document.getElementById("reading").innerText, "", "EVIDENCE", document.getElementById("evidence").textContent].join("\n");
+  var text = ["COZALYZE TROPICAL WRITER TEST TWT1.2 SINGLE-CALL STREAMING", document.getElementById("info").textContent, "", document.getElementById("status").textContent,
+    "", "CALLS", document.getElementById("reqs").textContent, "", "READING, SECTION BY SECTION", document.getElementById("reading").innerText, "",
+    "ENGINE ASPECTS WITHHELD FROM THE MODEL", (ST && ST.engineAspects || []).join("; ") || "none", "", "EVIDENCE", document.getElementById("evidence").textContent].join("\n");
   function say(m){ b.textContent = m; setTimeout(function(){ b.textContent = "Copy report"; }, 3000); }
   function fallback(){ var ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.focus(); ta.select(); var ok = false; try { ok = document.execCommand("copy"); } catch (e) {} ta.remove(); say(ok ? "Copied" : "Copy failed"); }
   try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ say("Copied"); }, fallback); else fallback(); } catch (e) { fallback(); }
 });
-
-/* on load: read only. Show the stored test reading if it belongs to this chart run. */
-(function(){
-  paintInfo();
-  var c = chartNow(), r = lsJSON("cozTropicalReadingTEST");
-  if (r && r.run && c.run && r.run.runId === c.run.runId) { r.trace = r.trace || {}; r.trace.fromCache = true; lastReading = r; paintReading(r); }
-  paintStatus();
-})();
+(function(){ paintInfo(); var c = chartNow(), st = storedFor(c); if (st) { ST = st; paintST(); } })();
 </script>
 </body>
 </html>
