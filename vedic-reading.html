@@ -7,6 +7,61 @@
    In normal use the same media loads at exactly the same point as before. */
 window.COZ_PREGEN = /[?&]pregen=1\b/.test(location.search);
 </script>
+<script>
+/* ============================================================
+   READ-ONLY DIAGNOSTIC · VD1.2 (Sep 25 2026). Observes the existing Vedic flow and changes
+   nothing it measures. Both copies of this page log: the hidden ?pregen=1 writer and the
+   visible page, each with its own writer id. Every event carries the chart run and input
+   key THIS writer bound to (fixed when its chart was accepted and its input key computed),
+   never whichever chart becomes active later. Storage: one bounded namespace,
+   localStorage "cozDiag:vedic" (last 300 events, 24 h). It never touches saved charts, job
+   records, cached readings or in-flight markers; never records the API key, birth details,
+   request or response bodies, or raw exception text (errors are classified); and a
+   diagnostic failure can never interrupt the reading. Panel: tap the CozAlyze logo three
+   times quickly on a reading or waiting screen; nothing reloads or restarts.
+   ============================================================ */
+(function(){
+  var KEY = "cozDiag:vedic", MAX = 300, DAY = 86400000, T0 = Date.now();
+  var WRITER = (window.COZ_PREGEN ? "hidden" : "visible") + "-" + Math.random().toString(36).slice(2, 6);
+  var B = { run: "unbound", fp: "", input: "" };
+  try { var b0 = JSON.parse(localStorage.getItem("emergeBirthData") || "null"); if (b0 && b0.runId) { B.run = b0.runId; B.fp = String(b0.fingerprint || "").slice(0, 12); } } catch (e) {}
+  function log(stage, detail){
+    try {
+      var a = []; try { a = JSON.parse(localStorage.getItem(KEY) || "[]"); if (!Array.isArray(a)) a = []; } catch (e) { a = []; }
+      var now = Date.now();
+      a.push({ t: now, ms: now - T0, w: WRITER, run: B.run, fp: B.fp, k: B.input, s: String(stage).slice(0, 60), d: detail == null ? "" : String(detail).slice(0, 200) });
+      a = a.filter(function (x) { return x && now - x.t < DAY; }).slice(-MAX);
+      localStorage.setItem(KEY, JSON.stringify(a));
+    } catch (e) {}
+  }
+  /* classified, never the raw message */
+  function classify(e){
+    try {
+      if (!e) return "unknown failure";
+      if (e.kind === "saved_no_regen") return "saved-chart guard refused the model request (reopened saved chart)";
+      var m = String(e.message || "");
+      var api = m.match(/^API (\d{3})/); if (api) return "API error HTTP " + api[1];
+      if (/No API key/.test(m)) return "no test API key on this device";
+      if (/Model did not return JSON/.test(m)) return "model output was not JSON";
+      var ms = m.match(/missing section: ([a-z0-9-]+)/); if (ms) return "model output missing section " + ms[1];
+      var ff = m.match(/fetch failed \((\d{3})\): ([A-Za-z0-9._-]+)/); if (ff) return "file load failed HTTP " + ff[1] + ": " + ff[2];
+      var nj = m.match(/NOT JSON: ([A-Za-z0-9._-]+)/); if (nj) return "file was not JSON: " + nj[1];
+      if (/dev-review-engine\.js did not load/.test(m)) return "dev-review-engine.js did not load";
+      if (e.name === "TypeError") return "network or script failure (TypeError)";
+      if (e.name === "SyntaxError") return "JSON parse error (SyntaxError)";
+      return "other failure (" + (e.name || "Error") + ")";
+    } catch (x) { return "unclassifiable failure"; }
+  }
+  window.COZ_DIAG = {
+    log: log, classify: classify, writer: WRITER, key: KEY,
+    bindRun: function (run){ try { if (run && run.runId) { B.run = run.runId; B.fp = String(run.fingerprint || "").slice(0, 12); } } catch (e) {} },
+    bindInput: function (cacheKey){ try { B.input = String(cacheKey || "").slice(-8); } catch (e) {} }
+  };
+  var mode = "unknown"; try { var r = localStorage.getItem("cozRestoredRunId"); mode = r && r === B.run ? "SAVED CHART REOPENED (model requests are refused by the saved-chart guard)" : "fresh chart"; } catch (e) {}
+  log("page loaded", "build R5.2+VD1.2 · " + (window.COZ_PREGEN ? "hidden pre-write" : "visible page") + " · " + mode + " · route " + (String(location.hash || "none").slice(0, 30)));
+  window.addEventListener("error", function (ev) { log("page error", "script error at line " + ((ev && ev.lineno) || "?") + " in " + String((ev && ev.filename) || "?").split("/").pop().split("?")[0]); });
+})();
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000f26">
@@ -633,7 +688,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write · VD1.2 diagnostic</div>
 
 <script src="ascendant-library.js"></script>
 <script src="dev-review-engine.js?v=6"></script>
@@ -687,6 +742,8 @@ function requestChartData() {
      used for birth data between index.html and sidereal-reveal.html.) */
   /* R4.5: only the chart record stamped with the current run is used */
   const chartData = verifiedChart();
+  try{if (chartData && window.COZ_DIAG) COZ_DIAG.bindRun(chartData.run);}catch(_d){}
+  try{(window.COZ_DIAG&&COZ_DIAG.log)("chart",chartData ? "accepted for run " + chartData.run.runId : "REFUSED: no chart record for the current run");}catch(_d){}
   if (!chartData) { window.COZ_VEDIC_NO_CHART = true; try { console.log("[VEDIC READING] no chart record for the current run; reading unavailable"); } catch (e) {} }
   return Promise.resolve(chartData);
 }
@@ -794,11 +851,12 @@ function generateSections3to6(chart, reading12, firstName) {
   var inputs = { facts: facts, fingerprint: chart.run && chart.run.fingerprint || "", runId: chart.run && chart.run.runId || "",
                  s12Hash: cozGenHash(s12), firstName: firstName || "", model: model, promptHash: cozGenHash(COZ_GEN_SYSTEM), genVersion: GEN_VERSION };
   var cacheKey = "cozGenDraft:" + cozGenHash(JSON.stringify(inputs));
+  try{if (window.COZ_DIAG) COZ_DIAG.bindInput(cacheKey);}catch(_d){}
   try {
     var cached = JSON.parse(localStorage.getItem(cacheKey) || "null");
     var same = cached && cached.sections && cached.inputs && Object.keys(inputs).every(function (k) { return cached.inputs[k] === inputs[k]; });
-    if (same) { cached.trace.fromCache = true; return Promise.resolve(cached); }
-    if (cached) { try { console.log("[VEDIC READING] cached draft rejected: inputs or version differ"); } catch (e) {} }
+    if (same) { try{(window.COZ_DIAG&&COZ_DIAG.log)("path","CACHED TEXT reused for these exact inputs (no model call)");}catch(_d){} cached.trace.fromCache = true; return Promise.resolve(cached); }
+    if (cached) { try{(window.COZ_DIAG&&COZ_DIAG.log)("cache","an older cached entry exists but its inputs differ; not used");}catch(_d){} try { console.log("[VEDIC READING] cached draft rejected: inputs or version differ"); } catch (e) {} }
   } catch (_) {}
 
   /* Sep 22: the same writing may already be running in the hidden pre-write started at
@@ -810,10 +868,11 @@ function generateSections3to6(chart, reading12, firstName) {
   if (flightActive()) {
     try { console.log("[VEDIC READING] sections 3-6 are already being written; waiting for that result"); } catch (e) {}
     window.COZ_GEN_WAITING = true;
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("path","WAITING: another writer holds the in-flight marker for these inputs");}catch(_d){}
     return new Promise(function (resolve) {
       (function poll(){
-        var c = cachedNow(); if (c) { c.trace.fromCache = true; window.COZ_GEN_WAITING = false; return resolve(c); }
-        if (!flightActive()) { window.COZ_GEN_WAITING = false; return resolve(null); }
+        var c = cachedNow(); if (c) { try{(window.COZ_DIAG&&COZ_DIAG.log)("wait ended","the other writer saved the text");}catch(_d){} c.trace.fromCache = true; window.COZ_GEN_WAITING = false; return resolve(c); }
+        if (!flightActive()) { try{(window.COZ_DIAG&&COZ_DIAG.log)("wait ended","marker gone with NO saved text; this page now starts its own request");}catch(_d){} window.COZ_GEN_WAITING = false; return resolve(null); }
         setTimeout(poll, 1200);
       })();
     }).then(function (c) { return c || generateSections3to6(chart, reading12, firstName); });
@@ -836,11 +895,13 @@ function generateSections3to6(chart, reading12, firstName) {
 
   window.COZ_GEN_IN_FLIGHT = true;
   markFlight(true);
+  try{(window.COZ_DIAG&&COZ_DIAG.log)("path","FRESH GENERATION by this writer (model " + model + ")");}catch(_d){}
   return cozGenerateOnce(key, model, userMsg, false).then(function (r) { markFlight(false); return r; },
                                                           function (e) { markFlight(false); throw e; });
 
   function cozGenerateOnce(key, model, userMsg, retrying) {
   var body = { model: model, max_tokens: 4000, system: COZ_GEN_SYSTEM, messages: [{ role: "user", content: userMsg }] };
+  var __dT = Date.now(); try{(window.COZ_DIAG&&COZ_DIAG.log)("request sent",retrying ? "length retry" : "attempt 1");}catch(_d){}
   return fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
@@ -851,11 +912,15 @@ function generateSections3to6(chart, reading12, firstName) {
     },
     body: JSON.stringify(body)
   }).then(function (r) {
+    var __rid = "unavailable"; try { __rid = (r.headers && r.headers.get("request-id")) || "unavailable"; } catch (_) {}
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("response","HTTP " + r.status + " after " + Math.round((Date.now() - __dT) / 1000) + " s · request-id " + __rid);}catch(_d){}
     return r.text().then(function (t) {
+      if (!r.ok) { try{(window.COZ_DIAG&&COZ_DIAG.log)("api error","HTTP " + r.status + " · error type " + (function(){ try { var j = JSON.parse(t); return (j && j.error && typeof j.error.type === "string") ? j.error.type.replace(/[^a-z_]/gi, "").slice(0, 40) : "unavailable"; } catch (x) { return "unavailable"; } })() + " · request-id " + __rid);}catch(_d){} }
       if (!r.ok) throw new Error("API " + r.status + ": " + t.slice(0, 300));
       return JSON.parse(t);
     });
   }).then(function (data) {
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("model output","stop_reason " + (typeof data.stop_reason === "string" ? data.stop_reason.replace(/[^a-z_]/gi, "") : "unavailable") + " · output tokens " + ((data.usage && typeof data.usage.output_tokens === "number") ? data.usage.output_tokens : "unavailable"));}catch(_d){}
     var text = (data.content || []).filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("\n");
     var clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
     var s = clean.indexOf("{"), e = clean.lastIndexOf("}");
@@ -888,7 +953,7 @@ function generateSections3to6(chart, reading12, firstName) {
     var bad = Object.keys(lens).filter(function (k) {
       var b = COZ_BANDS[k]; return b && b[2] === "generated" && (lens[k] < b[0] || lens[k] > b[1]);
     });
-    if (bad.length && !retrying) {
+    if (bad.length && !retrying) { try{(window.COZ_DIAG&&COZ_DIAG.log)("validation","length missed, retrying: " + bad.map(function (k) { return k + " " + lens[k]; }).join(", "));}catch(_d){}
       /* one retry, telling the model exactly which sections missed and by how much */
       var note = bad.map(function (k) { return k + " was " + lens[k] + " words"; }).join("; ");
       return cozGenerateOnce(key, model, userMsg + "\n\nYour previous attempt missed the length rule: " + note +
@@ -901,6 +966,7 @@ function generateSections3to6(chart, reading12, firstName) {
       inputTokens: inTok, outputTokens: outTok, estimatedCostUSD: Math.round(cost * 10000) / 10000,
       chartFacts: facts, systemPrompt: COZ_GEN_SYSTEM, userMessage: userMsg, rawResponse: text, fromCache: false } };
     try { localStorage.setItem(cacheKey, JSON.stringify(out)); } catch (_) {}
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("cache save",(function(){ try { var raw = localStorage.getItem(cacheKey); if (!raw) return "NOT SAVED: no entry after the write"; var c = JSON.parse(raw); var ids = ["relationships-karmic","dharma-direction","rahu-ketu","essential-takeaway"]; var full = !!(c && c.sections && ids.every(function (id) { return Array.isArray(c.sections[id]) && c.sections[id].length > 0; })); var same = !!(c && c.inputs && Object.keys(inputs).every(function (k) { return c.inputs[k] === inputs[k]; })); return full && same ? "saved, read back and verified: all four sections present for these inputs" : "saved entry FAILED verification: " + (full ? "" : "sections incomplete ") + (same ? "" : "inputs differ"); } catch (e) { return "readback failed (" + (e && e.name || "Error") + ")"; } })());}catch(_d){}
     return out;
   });
   }
@@ -986,11 +1052,13 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
     "application-claims-padas-batch4d.json",
     "application-claims.json"
 ];
+  try{(window.COZ_DIAG&&COZ_DIAG.log)("claim files","loading " + (SECTION1_FILES.length + SECTION2_FILES.length) + " claim files + review drafts");}catch(_d){}
   return Promise.all([
     Promise.all(SECTION1_FILES.map(function (f) { return fetchJSON(f); })),
     Promise.all(SECTION2_FILES.map(function (f) { return fetchJSON(f); })),
     fetchJSON("section3-6-review-drafts.json")
   ]).then(function (results) {
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("claim files","loaded");}catch(_d){}
     var claimData = { section1Files: results[0], section2Files: results[1] };
     var snippets36 = results[2];
     if (!window.CozDevReview) throw new Error("dev-review-engine.js did not load (window.CozDevReview missing)");
@@ -998,10 +1066,13 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
     var result = window.CozDevReview.generateDevReview(chart, claimData, snippets36, firstName);
     window.COZ_VEDIC_REVIEW_META = result.meta;
     var hasReviewed = !/no identity match/i.test(String(result.meta.sections3to6Source || ""));
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("sections 1-2","assembled (no model call)");}catch(_d){}
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("path",hasReviewed ? "REVIEWED DRAFT for sections 3-6 (no model call)" : "sections 3-6 need the generator");}catch(_d){}
     if (hasReviewed) { if (result.meta.sections3to6Unverified) result.reading._generated36 = true; result.reading.run = { runId: chart.run.runId, fingerprint: chart.run.fingerprint }; window.COZ_VEDIC_READING = result.reading; return; }
     /* No hand-reviewed draft for this chart: generate Sections 3-6 as unverified
        development copy so every chart produces all six sections. */
     return generateSections3to6(chart, result.reading, firstName).then(function (gen) {
+      try{(window.COZ_DIAG&&COZ_DIAG.log)("sections 3-6",gen && gen.trace && gen.trace.fromCache ? "received (reused text)" : "received (newly written)");}catch(_d){}
       window.COZ_GEN_IN_FLIGHT = false;
       gen.trace.sectionWordCounts = cozWordCountReport(result.reading, gen.sections);
       gen.trace.outOfBand = Object.keys(gen.trace.sectionWordCounts).filter(function (k) {
@@ -1015,6 +1086,7 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
       try { console.log("[COZ GEN TRACE]", JSON.stringify(gen.trace)); } catch (_) {}
     });
   }).catch(function (e) {
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("FAILED",(window.COZ_DIAG && COZ_DIAG.classify(e)) || "unknown");}catch(_d){}
     console.log("[EMERGE FLOW] dev-review generation failed:", e);
     window.COZ_GEN_IN_FLIGHT = false;
     window.COZ_VEDIC_READING_UNAVAILABLE = true;
@@ -1185,6 +1257,7 @@ function showFromHash() {
       <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
       <section class="vedic-body"><p>Writing Sections 3 through 6 for this chart. This takes about 10 to 20 seconds.</p></section>`;
     old.replaceWith(fresh);
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("display (after render)","waiting screen on display");}catch(_d){}
   }
   const proceed = () => {
     if (myNav !== navGen) return;                       /* the person has navigated on; this callback is stale */
@@ -1192,6 +1265,7 @@ function showFromHash() {
       if (!window.COZ_VEDIC_DEBUG) window.COZ_VEDIC_DEBUG = "Generation finished but no reading was stored (COZ_VEDIC_READING=" + typeof window.COZ_VEDIC_READING + ")";
       history.replaceState({ id: "essential-nature" }, "", "#/essential-nature");
       renderUnavailableNotice();
+      try{(window.COZ_DIAG&&COZ_DIAG.log)("display (after render)",(function(){ var el = document.getElementById("vedicContent"); var unavailable = !!document.getElementById("vedicRetry"); var n = el ? el.querySelectorAll(".vedic-body p").length : 0; return (unavailable ? "UNAVAILABLE screen on display" : "reading on display, route " + String(location.hash || "").slice(0, 30) + ", " + n + " paragraphs") + " · complete reading object present: " + !!loadReading(); })());}catch(_d){}
       window.scrollTo({ top: 0, behavior: "instant" });
       return;
     }
@@ -1200,6 +1274,7 @@ function showFromHash() {
       history.replaceState({ id: section.id }, "", `#/${section.id}`);
     }
     renderSection(section);
+    try{(window.COZ_DIAG&&COZ_DIAG.log)("display (after render)",(function(){ var el = document.getElementById("vedicContent"); var unavailable = !!document.getElementById("vedicRetry"); var n = el ? el.querySelectorAll(".vedic-body p").length : 0; return (unavailable ? "UNAVAILABLE screen on display" : "reading on display, route " + String(location.hash || "").slice(0, 30) + ", " + n + " paragraphs") + " · complete reading object present: " + !!loadReading(); })());}catch(_d){}
     window.scrollTo({ top: 0, behavior: "instant" });
   };
   if (COZ_READING_READY && typeof COZ_READING_READY.then === "function") COZ_READING_READY.then(proceed).catch(proceed);
@@ -1207,6 +1282,59 @@ function showFromHash() {
 }
 
 document.getElementById("vedicBack").addEventListener("click", goDashboard);
+/* VD1.2 panel: a fixed launcher above the reading footer (works even when the reading area is
+   empty, for example while waiting on the hidden writer), plus three quick taps on the CozAlyze
+   logo as a shortcut. Read-only; nothing reloads or restarts. Development only. */
+(function(){
+  if (window.COZ_PREGEN) return;
+  try {
+    var st = document.createElement("style");
+    st.textContent = "#cozDiagLaunch{display:none;position:fixed;right:10px;z-index:41;bottom:calc(env(safe-area-inset-bottom,0px) + var(--asq-nav-h,64px) + 44px);" +
+      "padding:7px 11px;border:1px solid rgba(201,161,94,.55);border-radius:8px;background:rgba(5,10,20,.92);color:#e5d4c5;font:12px/1.2 Menlo,monospace;letter-spacing:.02em}" +
+      "body[data-view=\"reading\"] #cozDiagLaunch{display:block}@media print{#cozDiagLaunch,#cozDiagPanel{display:none!important}}";
+    document.head.appendChild(st);
+    var lb = document.createElement("button"); lb.type = "button"; lb.id = "cozDiagLaunch";
+    lb.textContent = "Diagnostic VD1.2 \u00B7 open report";
+    lb.addEventListener("click", function(){ try { cozDiagPanel(); } catch (e) {} });
+    document.body.appendChild(lb);
+  } catch (e) {}
+  var taps = [];
+  document.addEventListener("click", function (ev) {
+    try {
+      if (!ev.target || !ev.target.closest || !ev.target.closest(".vedic-logo")) return;
+      var now = Date.now(); taps = taps.filter(function (t) { return now - t < 1500; }); taps.push(now);
+      if (taps.length >= 3) { taps = []; cozDiagPanel(); }
+    } catch (e) {}
+  });
+  function report(){
+    var a = []; try { a = JSON.parse(localStorage.getItem("cozDiag:vedic") || "[]"); if (!Array.isArray(a)) a = []; } catch (e) { a = []; }
+    var cur = "none"; try { cur = (JSON.parse(localStorage.getItem("emergeBirthData") || "null") || {}).runId || "none"; } catch (e) {}
+    var mine = a.filter(function (x) { return x && x.run === cur; }), t0 = mine.length ? mine[0].t : Date.now();
+    var head = ["COZALYZE VEDIC DIAGNOSTIC VD1.2", "report built " + new Date().toISOString(), "active chart run " + cur,
+      "this page " + (window.COZ_DIAG && COZ_DIAG.writer), "events bound to this run: " + mine.length + " (of " + a.length + " stored)", ""];
+    return head.concat(mine.map(function (x) { return "+" + ((x.t - t0) / 1000).toFixed(1) + "s  [" + x.w + (x.k ? " · in " + x.k : "") + "]  " + x.s + (x.d ? ": " + x.d : ""); })).join("\n");
+  }
+  function cozDiagPanel(){
+    var old = document.getElementById("cozDiagPanel"); if (old) old.remove();
+    var wrap = document.createElement("div"); wrap.id = "cozDiagPanel";
+    wrap.style.cssText = "position:fixed;left:8px;right:8px;top:8px;bottom:8px;z-index:99999;background:#050a14;border:1px solid #6b5a3e;border-radius:10px;display:flex;flex-direction:column;padding:10px;font:12px/1.4 Menlo,monospace;color:#e5d4c5";
+    var ta = document.createElement("textarea"); ta.readOnly = true; ta.value = report();
+    ta.style.cssText = "flex:1;width:100%;background:#000;color:#e5d4c5;border:0;font:11px/1.45 Menlo,monospace;padding:8px;white-space:pre;overflow:auto";
+    var row = document.createElement("div"); row.style.cssText = "display:flex;gap:8px;margin-top:8px";
+    function btn(label, fn){ var b = document.createElement("button"); b.type = "button"; b.textContent = label; b.style.cssText = "flex:1;padding:12px;background:#1a2233;color:#e5d4c5;border:1px solid #6b5a3e;border-radius:8px;font:14px sans-serif"; b.addEventListener("click", fn); row.appendChild(b); return b; }
+    var cb = btn("Copy diagnostic report", function(){
+      var text = report(); ta.value = text;                       /* rebuilt at the moment of copying */
+      function say(msg){ cb.textContent = msg; setTimeout(function(){ cb.textContent = "Copy diagnostic report"; }, 3000); }
+      function fallback(){ var ok = false; try { ta.focus(); ta.select(); ta.setSelectionRange(0, text.length); ok = document.execCommand("copy"); } catch (e) { ok = false; }
+        say(ok ? "Copied" : "Copy failed: select the text and copy it"); }
+      try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ say("Copied"); }, fallback); else fallback(); }
+      catch (e) { fallback(); }
+    });
+    btn("Refresh", function(){ ta.value = report(); });
+    btn("Close", function(){ wrap.remove(); });
+    wrap.appendChild(ta); wrap.appendChild(row); document.body.appendChild(wrap);
+  }
+})();
 
 /* ============================================================
    DASHBOARD
@@ -1409,7 +1537,7 @@ revealVideo.addEventListener("error", () => finishReveal(false));
    so the phone's back gesture steps through them, and back past Page 01 lands on the dashboard. */
 if (COZ_PREGEN) {
   /* pre-write only: no dashboard, no clip, no sound. Report when the writing is done. */
-  COZ_READING_READY.then(function(){ try { parent.postMessage({ coz: "COZ_VEDIC_PREGEN_DONE", ok: true }, "*"); } catch (e) {} },
+  COZ_READING_READY.then(function(){ try{(window.COZ_DIAG&&COZ_DIAG.log)("hidden writer done","will report ok:true · complete reading present: " + !!loadReading());}catch(_d){} try { parent.postMessage({ coz: "COZ_VEDIC_PREGEN_DONE", ok: true }, "*"); } catch (e) {} },
                          function(){ try { parent.postMessage({ coz: "COZ_VEDIC_PREGEN_DONE", ok: false }, "*"); } catch (e) {} });
 } else {
   window.addEventListener("hashchange", showFromHash);
