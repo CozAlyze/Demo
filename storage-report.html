@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CozAlyze storage report</title>
+<!--
+  COZALYZE · STORAGE REPORT · SR1.0 (Sep 25 2026) · DEVELOPMENT DIAGNOSTIC · READ-ONLY
+  Measures what this site currently keeps in the browser's localStorage and prints key names,
+  sizes, counts, groups and safe structural facts. It never writes, removes or clears anything,
+  never calls the model or any other network service, loads no other script, and never prints
+  a stored value: no API key, prompt, model answer, reading text, name or birth detail.
+  Sizes are estimated at 2 bytes per character (JavaScript strings are UTF-16). Not linked
+  from the application; open it by typing its address.
+-->
+<style>
+  html,body{margin:0;background:#050a14;color:#e5d4c5}
+  body{padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 12px);font:14px/1.4 -apple-system,system-ui,sans-serif}
+  h1{font-size:17px;margin:0 0 4px}
+  p.note{margin:0 0 10px;color:#b9a58c;font-size:12px}
+  .row{display:flex;gap:8px;margin:0 0 10px}
+  button{flex:1;padding:12px;background:#1a2233;color:#e5d4c5;border:1px solid #6b5a3e;border-radius:8px;font:15px -apple-system,system-ui,sans-serif}
+  textarea{width:100%;box-sizing:border-box;height:calc(100vh - 170px);min-height:320px;background:#000;color:#e5d4c5;border:1px solid #333;border-radius:8px;padding:8px;font:11px/1.45 Menlo,monospace;white-space:pre;overflow:auto}
+</style>
+</head>
+<body>
+<h1>CozAlyze storage report · SR1.0</h1>
+<p class="note">Read-only. Nothing on this page changes what is stored. No stored values are shown.</p>
+<div class="row">
+  <button type="button" id="copyBtn">Copy storage report</button>
+  <button type="button" id="refreshBtn">Refresh</button>
+</div>
+<textarea id="out" readonly></textarea>
+<script>
+(function(){
+  "use strict";
+  /* ---- reads only: getItem, key, length. No setItem, removeItem or clear anywhere. ---- */
+  var LS = window.localStorage;
+  function readAll(){
+    var rows = [], n = 0;
+    try { n = LS.length; } catch (e) { return { error: "localStorage unavailable (" + (e && e.name) + ")", rows: [] }; }
+    for (var i = 0; i < n; i++) {
+      var k = null, v = null;
+      try { k = LS.key(i); } catch (e) {}
+      if (k == null) continue;
+      try { v = LS.getItem(k); } catch (e) { v = null; }
+      rows.push({ key: k, value: v });
+    }
+    return { rows: rows };
+  }
+  function bytes(k, v){ return ((k ? k.length : 0) + (v ? v.length : 0)) * 2; }
+  function fmt(b){ return b + " B · " + (b / 1024).toFixed(1) + " KB · " + (b / 1048576).toFixed(3) + " MB"; }
+  function kb(b){ return (b / 1024).toFixed(1) + " KB"; }
+  function pad(s, n){ s = String(s); return s.length >= n ? s : s + new Array(n - s.length + 1).join(" "); }
+  function lpad(s, n){ s = String(s); return s.length >= n ? s : new Array(n - s.length + 1).join(" ") + s; }
+
+  /* groups, first match wins; everything else lands in "unclassified" so totals reconcile */
+  var GROUPS = [
+    ["saved charts library",               function(k){ return k === "cozSavedCharts"; }],
+    ["saved charts working backup",        function(k){ return k === "cozWorkingBackup"; }],
+    ["Combined readings",                  function(k){ return k.indexOf("cozCombinedReadingDEV:") === 0; }],
+    ["Combined step 1 checkpoints",        function(k){ return k.indexOf("cozCombinedStep1DEV:") === 0; }],
+    ["Vedic sections 3-6 drafts",          function(k){ return k.indexOf("cozGenDraft:") === 0; }],
+    ["Ascendant readings",                 function(k){ return k.indexOf("cozAscReading:") === 0; }],
+    ["coordinator jobs",                   function(k){ return k === "cozGenJobs" || k === "cozGenCoord"; }],
+    ["generator phases",                   function(k){ return k === "cozCombinedGenPhase"; }],
+    ["in-flight markers",                  function(k){ return k === "cozCombinedGenInFlight" || k === "cozVedicGenInFlight" || k === "cozTropicalGenInFlight" || k.indexOf("cozAscInFlight:") === 0; }],
+    ["generator logs and last failure",    function(k){ return k === "cozCombinedGenLog" || k === "cozAscGenLog" || k === "cozCombinedGenLastFail"; }],
+    ["diagnostics",                        function(k){ return k.indexOf("cozDiag:") === 0; }],
+    ["chart records",                      function(k){ return k === "emergeBirthData" || k === "cozChartJSON" || k === "cozTropicalChartJSON" || k === "cozAscendantPair" || k.indexOf("emergeAscendant") === 0; }],
+    ["current reading records and flags",  function(k){ return k === "cozTropicalReading" || k === "cozCompareReading" || k === "cozRestoredRunId" || /^coz(Vedic|Tropical|Compare)ReadingComplete$/.test(k); }],
+    ["rolled-back Tropical writer leftovers", function(k){ return k === "cozTropicalGenStatus"; }],
+    ["test settings (values hidden)",      function(k){ return k === "cozTestApiKey" || k === "cozTestModel"; }],
+    ["interface flags",                    function(k){ return k.indexOf("cozSeen") === 0 || k.indexOf("emerge:") === 0 || k === "cozSkipIntro" || k === "cozGoChart"; }]
+  ];
+  function groupOf(k){ for (var i = 0; i < GROUPS.length; i++) if (GROUPS[i][1](k)) return GROUPS[i][0]; return "unclassified"; }
+
+  /* run identity: only the runId is read from the birth record, nothing else */
+  function runIdIn(o){ return o && typeof o === "object" ? ((o.run && o.run.runId) || o.runId || (o.inputs && o.inputs.runId) || (o.pair && o.pair.runId) || null) : null; }
+  function parse(v){ try { return { ok: true, o: JSON.parse(v) }; } catch (e) { return { ok: false, err: (e && e.name) || "Error" }; } }
+  function runOf(k, v, cur){
+    if (cur && k.indexOf(cur) >= 0) return "current";
+    var p = parse(v); if (!p.ok) return "n/a";
+    var r = runIdIn(p.o);
+    if (!r) { var m = k.match(/run-[a-z0-9]+-[a-z0-9]+/); r = m ? m[0] : null; }
+    return r ? (r === cur ? "current" : "old") : "n/a";
+  }
+
+  function build(){
+    var t0 = Date.now(), all = readAll(), L = [];
+    L.push("COZALYZE STORAGE REPORT SR1.0 (read-only)");
+    L.push("built " + new Date().toISOString() + " · " + location.host + location.pathname.replace(/[^/]*$/, ""));
+    if (all.error) { L.push(all.error); return L.join("\n"); }
+    var cur = null; try { var bd = JSON.parse(LS.getItem("emergeBirthData") || "null"); cur = bd && typeof bd.runId === "string" ? bd.runId : null; } catch (e) {}
+    L.push("current chart run: " + (cur || "none found"));
+    var total = 0, groups = {}, rows = all.rows.map(function (r) {
+      var b = bytes(r.key, r.value), g = groupOf(r.key), p = parse(r.value);
+      total += b;
+      (groups[g] = groups[g] || { n: 0, b: 0, cur: 0, old: 0, na: 0 });
+      var run = runOf(r.key, r.value, cur);
+      groups[g].n++; groups[g].b += b; groups[g][run === "current" ? "cur" : run === "old" ? "old" : "na"]++;
+      return { key: r.key, b: b, g: g, run: run, parsed: p.ok, perr: p.ok ? "" : p.err, chars: r.value ? r.value.length : 0 };
+    });
+    L.push("keys: " + rows.length + " · total used: " + fmt(total));
+    L.push("(sizes estimated at 2 bytes per character; key names are shown, stored values are not)");
+    L.push("");
+    L.push("BY GROUP (largest first)            keys   size        current/old/other runs");
+    var gsum = 0;
+    Object.keys(groups).sort(function (a, b) { return groups[b].b - groups[a].b; }).forEach(function (g) {
+      var x = groups[g]; gsum += x.b;
+      L.push(pad(g, 36) + lpad(x.n, 4) + "   " + pad(kb(x.b), 11) + " " + x.cur + "/" + x.old + "/" + x.na);
+    });
+    L.push(pad("groups total", 36) + lpad(rows.length, 4) + "   " + kb(gsum) + (gsum === total ? "   (reconciles with total)" : "   (DOES NOT RECONCILE: " + kb(total) + ")"));
+    L.push("");
+
+    /* saved charts library: structure only, never names or birth details */
+    var sc = null; try { sc = LS.getItem("cozSavedCharts"); } catch (e) {}
+    L.push("SAVED CHARTS LIBRARY (cozSavedCharts)");
+    if (sc == null) L.push("  not present");
+    else {
+      var ps = parse(sc);
+      L.push("  size " + fmt(bytes("cozSavedCharts", sc)));
+      if (!ps.ok) L.push("  could not be parsed (" + ps.err + "); left unchanged");
+      else if (!ps.o || !Array.isArray(ps.o.records)) L.push("  parsed, but no records list found");
+      else {
+        var recs = ps.o.records; L.push("  records: " + recs.length);
+        recs.forEach(function (rec, i) {
+          var rb = 0; try { rb = JSON.stringify(rec).length * 2; } catch (e) {}
+          var snap = (rec && rec.snapshot && typeof rec.snapshot === "object") ? rec.snapshot : {};
+          var sg = {}; Object.keys(snap).forEach(function (k) { var g = groupOf(k), s = bytes(k, typeof snap[k] === "string" ? snap[k] : JSON.stringify(snap[k] || "")); (sg[g] = sg[g] || { n: 0, b: 0 }); sg[g].n++; sg[g].b += s; });
+          var when = String((rec && (rec.updatedAt || rec.savedAt)) || "").slice(0, 16);
+          L.push("  " + lpad(i + 1, 2) + ". " + String(rec && rec.id || "?") + " · run " + String(rec && rec.runId || "?") + (rec && rec.runId === cur ? " (current)" : "") +
+                 " · " + String(rec && (rec.kind || rec.system) || "?") + " · saved " + (when || "?") + " · " + kb(rb) + " · snapshot keys " + Object.keys(snap).length);
+          Object.keys(sg).sort(function (a, b) { return sg[b].b - sg[a].b; }).forEach(function (g) { L.push("        " + pad(g, 34) + lpad(sg[g].n, 3) + "  " + kb(sg[g].b)); });
+        });
+      }
+    }
+    L.push("");
+    L.push("EVERY KEY (largest first)   size        group · run · parse");
+    rows.sort(function (a, b) { return b.b - a.b; }).forEach(function (r) {
+      L.push(pad(kb(r.b), 10) + "  " + r.key + "  [" + r.g + " · " + r.run + " · " + (r.parsed ? "json" : "not json" + (r.perr ? " (" + r.perr + ")" : "")) + "]");
+    });
+    var ss = 0, sn = 0; try { for (var i = 0; i < sessionStorage.length; i++) { var k = sessionStorage.key(i); sn++; ss += bytes(k, sessionStorage.getItem(k)); } } catch (e) {}
+    L.push("");
+    L.push("sessionStorage (for reference, not part of the total): " + sn + " keys · " + kb(ss));
+    L.push("report built in " + (Date.now() - t0) + " ms");
+    return L.join("\n");
+  }
+
+  var out = document.getElementById("out"), copyBtn = document.getElementById("copyBtn");
+  function refresh(){ try { out.value = build(); } catch (e) { out.value = "report failed (" + (e && e.name) + "); nothing was changed"; } }
+  document.getElementById("refreshBtn").addEventListener("click", refresh);
+  copyBtn.addEventListener("click", function(){
+    var text = ""; try { text = build(); out.value = text; } catch (e) { text = out.value; }
+    function say(m){ copyBtn.textContent = m; setTimeout(function(){ copyBtn.textContent = "Copy storage report"; }, 3000); }
+    function fallback(){ var ok = false; try { out.focus(); out.select(); out.setSelectionRange(0, text.length); ok = document.execCommand("copy"); } catch (e) { ok = false; } say(ok ? "Copied" : "Copy failed: select the text and copy it"); }
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ say("Copied"); }, fallback); else fallback(); } catch (e) { fallback(); }
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>
