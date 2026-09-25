@@ -10,7 +10,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,500&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 /* ============================================================
-   COZALYZE · COMPLETE TROPICAL READING · T5.0 · tropical writer
+   COZALYZE · COMPLETE TROPICAL READING · T5.1 · writer status
    Paid dashboard + reveal + six reading sections in ONE document
    (standing rule: no iframe, no page navigation between them).
    Design tokens and structure follow the supplied spec verbatim.
@@ -598,7 +598,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T5.0 · tropical writer</div>
+<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T5.1 · writer status</div>
 
 <script>
 /* T5.0: hidden pre-write mode. index.html opens this page as a 1px frame with ?pregen=1 at the
@@ -996,6 +996,12 @@ function cozTropicalEvidence(t) {
   return { ok: true, text: lines.join("\n"), factors: uniq(factors), allowed: allowed, engineAspects: engineAspects, houseRulersAvailable: !!cusps };
 }
 
+/* T5.1: on-page writer status (he tests on iPhone only, no console). Whichever copy is writing
+   records its phase in localStorage cozTropicalGenStatus; the writing screen shows it live. */
+function cozTgenStatus(hash, phase, detail){
+  try { localStorage.setItem("cozTropicalGenStatus", JSON.stringify({ hash: hash, phase: phase, detail: detail || "", at: Date.now(), by: window.COZ_PREGEN ? "hidden pre-write" : "reading page" })); } catch (e) {}
+}
+function cozTgenReadStatus(){ try { return JSON.parse(localStorage.getItem("cozTropicalGenStatus") || "null"); } catch (e) { return null; } }
 var COZ_TGEN_VEDIC_TERMS = /\b(lagna|graha|bhava|nakshatra|pada|dasha|mahadasha|antardasha|rahu|ketu|drishti|dispositor|sidereal|ayanamsha|yoga|karaka)s?\b/i;
 var COZ_TGEN_BANDS = { soft: [245, 290], hard: [225, 310] };
 function cozTgenHash(s) { var h = 0; for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; } return (h >>> 0).toString(36); }
@@ -1052,10 +1058,20 @@ function generateTropicalReading(chart) {
   var run = { runId: chart.run.runId, fingerprint: chart.run.fingerprint };
   var inputs = { evidence: ev.text, runId: run.runId, fingerprint: run.fingerprint, firstName: firstName, model: model, promptHash: cozTgenHash(COZ_TGEN_SYSTEM), genVersion: COZ_TGEN_VERSION };
   var inputsHash = cozTgenHash(JSON.stringify(inputs));
+  window.COZ_TROPICAL_ACTIVE_HASH = inputsHash;   /* the generation this page is waiting for; the status line shows only this hash */
 
   /* already written for exactly these inputs: reuse, never a second request */
   function storedNow(){ try { var c = JSON.parse(localStorage.getItem("cozTropicalReading") || "null"); return c && c.trace && c.trace.inputsHash === inputsHash && !c.fixture && !c.sample ? c : null; } catch (e) { return null; } }
   var hit = storedNow(); if (hit) { hit.trace.fromCache = true; return Promise.resolve(hit); }
+
+  /* T5.1: a matching recorded failure (same inputsHash) is surfaced, never re-run; a failure
+     recorded for other inputs is ignored */
+  var priorStatus = cozTgenReadStatus();
+  if (priorStatus && priorStatus.hash === inputsHash && priorStatus.phase === "failed") {
+    var priorFailure = new Error("The hidden pre-write failed: " + priorStatus.detail);
+    priorFailure.kind = "contract";
+    return Promise.reject(priorFailure);
+  }
 
   /* the same writing may already be running in the hidden pre-write: wait for it */
   var FLIGHT = "cozTropicalGenInFlight", FLIGHT_MS = 240000;
@@ -1064,7 +1080,12 @@ function generateTropicalReading(chart) {
   if (flightActive()) {
     try { console.log("[TROPICAL READING] the reading is already being written; waiting for that result"); } catch (e) {}
     return new Promise(function (resolve) { (function poll(){ var c = storedNow(); if (c) { c.trace.fromCache = true; return resolve(c); } if (!flightActive()) return resolve(null); setTimeout(poll, 1200); })(); })
-      .then(function (c) { return c || generateTropicalReading(chart); });
+      .then(function (c) {
+        if (c) return c;
+        var st = cozTgenReadStatus();
+        if (st && st.hash === inputsHash && st.phase === "failed") { var f = new Error("The hidden pre-write failed: " + st.detail); f.kind = "contract"; throw f; }
+        return generateTropicalReading(chart);
+      });
   }
 
   var userMsg = [
@@ -1106,6 +1127,7 @@ function generateTropicalReading(chart) {
 
   window.COZ_TROPICAL_GEN_PENDING = true;
   markFlight(true);
+  cozTgenStatus(inputsHash, "request 1 sent", "waiting for the model");
   var requests = 0, attempts = [];
   return request(userMsg, false).then(function (data) {
     requests++;
@@ -1113,6 +1135,7 @@ function generateTropicalReading(chart) {
     attempts.push({ counts: chk.counts, hard: chk.hard, soft: chk.soft, raw: r.raw });
     if (!chk.hard.length) return { r: r, chk: chk, repaired: false };
     /* one corrective request naming every hard failure; the reading is never accepted with one remaining */
+    cozTgenStatus(inputsHash, "repair sent", chk.hard.slice(0, 3).join("; ") + (chk.hard.length > 3 ? " (+" + (chk.hard.length - 3) + " more)" : ""));
     var note = "Your previous attempt broke these rules: " + chk.hard.join("; ") + ". Keep the same substance and voice; fix only what is named. Return the full JSON again, including _trace.";
     return request(userMsg + "\n\n" + note, false).then(function (data2) {
       requests++;
@@ -1138,9 +1161,11 @@ function generateTropicalReading(chart) {
                engineAspects: ev.engineAspects, aspectsUsedInEvidence: COZ_TGEN_ASPECTS_APPROVED, ascPolicy: COZ_TGEN_ASC_POLICY,
                systemPrompt: COZ_TGEN_SYSTEM, userMessage: userMsg, rawResponse: res.r.raw, fromCache: false } };
     try { localStorage.setItem("cozTropicalReading", JSON.stringify(reading)); } catch (_) {}
+    cozTgenStatus(inputsHash, "done", requests + " request" + (requests > 1 ? "s" : ""));
     return reading;
   }, function (e) {
     markFlight(false); window.COZ_TROPICAL_GEN_PENDING = false;
+    cozTgenStatus(inputsHash, "failed", (e && e.message) || String(e));
     if (e && e.kind === "contract") { window.COZ_TROPICAL_GEN_FAILED_TRACE = { reason: e.message, attempts: e.attempts, requests: e.requests, evidence: ev.text }; try { console.warn("[TROPICAL READING] failed closed:", JSON.stringify(window.COZ_TROPICAL_GEN_FAILED_TRACE)); } catch (_) {} }
     throw e;
   });
@@ -1174,6 +1199,18 @@ function cozTgenUsageLine() {
     (t.repaired ? " \u00B7 one repair" : "") + (w ? " \u00B7 " + w.words + " words" + (w.inBand ? "" : " \u00B7 outside 245-290") : "") + "</p>";
 }
 var cozTgenCurrentSection = null;
+/* T5.1: ?trace=1 on the reading page prints each paragraph's cited factor ids beneath it,
+   plus the section's word count and any soft flag. Development audit only. */
+function cozTgenTraceView(id, paragraphs, loaded){
+  var on = /[?&]trace=1\b/.test(location.search), t = window.COZ_TROPICAL_GEN_TRACE;
+  if (!on && loaded && loaded.source === "personal") { try { t = JSON.parse(localStorage.getItem("cozTropicalReading") || "null").trace; } catch (e) {} }
+  if (!on || !loaded || loaded.source !== "personal") return paragraphs.map(function (p) { return "<p>" + esc(p) + "</p>"; }).join("");
+  try { t = t || JSON.parse(localStorage.getItem("cozTropicalReading") || "null").trace; } catch (e) {}
+  var pf = t && t.paragraphFactors && t.paragraphFactors[id] || [], wc = t && t.sectionWordCounts && t.sectionWordCounts[id];
+  var small = function (x) { return '<p style="font-size:12px;line-height:1.4;color:var(--vedic-gold-muted);margin:-6px 0 18px;word-break:break-word">' + esc(x) + "</p>"; };
+  return (wc ? small("TRACE \u00B7 " + wc.words + " words" + (wc.inBand ? "" : " \u00B7 outside 245-290") + (t.soft && t.soft.length ? " \u00B7 soft: " + t.soft.join("; ") : "") + " \u00B7 requests " + t.requests + (t.repaired ? " (repaired)" : "")) : "") +
+    paragraphs.map(function (p, i) { return "<p>" + esc(p) + "</p>" + small("\u2192 " + (pf[i] || ["(no trace)"]).join(", ")); }).join("");
+}
 
 /* ============================================================
    NAVIGATION TARGETS
@@ -1209,7 +1246,11 @@ function renderSection(section) {
   const loaded = loadReading();
   cozTgenCurrentSection = section.id;
   const pending = !loaded && window.COZ_TROPICAL_GEN_PENDING === true;
-  const paragraphs = loaded ? loaded.map[section.id] : [pending ? WRITING_NOTE : READING_UNAVAILABLE].concat(!pending && window.COZ_TROPICAL_DEBUG ? ["DEBUG: " + window.COZ_TROPICAL_DEBUG] : []);
+  const stRaw = pending ? cozTgenReadStatus() : null;
+  const stNow = stRaw && window.COZ_TROPICAL_ACTIVE_HASH && stRaw.hash === window.COZ_TROPICAL_ACTIVE_HASH ? stRaw : null;
+  const stLine = !pending ? null : stNow ? "Status: " + stNow.phase + (stNow.detail ? " (" + stNow.detail + ")" : "") + ", " + stNow.by + ", " + Math.round((Date.now() - stNow.at) / 1000) + " s ago" : "Status: waiting for this chart's writer to report";
+  if (pending) { clearTimeout(window.__cozTgenTick); window.__cozTgenTick = setTimeout(function(){ if (idFromHash() === section.id && document.body.dataset.view === "reading" && !loadReading()) renderSection(section); }, 2000); }
+  const paragraphs = loaded ? loaded.map[section.id] : (pending ? [WRITING_NOTE, stLine] : [READING_UNAVAILABLE]).concat(!pending && window.COZ_TROPICAL_DEBUG ? ["DEBUG: " + window.COZ_TROPICAL_DEBUG] : []);
   if (pending) { const myId = section.id; COZ_READING_READY.then(function(){ if (idFromHash() === myId && document.body.dataset.view === "reading") renderSection(section); }); }
   const usageLine = loaded && loaded.source === "personal" ? cozTgenUsageLine() : "";
   const sampleLabel = (loaded && loaded.source === "sample") ? `<p class="dev-label">${esc(SAMPLE_LABEL)}</p>` : "";
@@ -1231,7 +1272,7 @@ function renderSection(section) {
     <h1 class="${titleClass}">${esc(section.title)}</h1>
     <div class="vedic-divider" aria-hidden="true">${STAR_SVG}</div>
     <section class="vedic-body">
-      ${sampleLabel}${usageLine}${paragraphs.map(p => `<p>${esc(p)}</p>`).join("")}
+      ${sampleLabel}${usageLine}${cozTgenTraceView(section.id, paragraphs, loaded)}
     </section>
     <nav class="vedic-nav" aria-label="Reading navigation">
       <div class="vedic-nav-rule" aria-hidden="true">${STAR_SVG}</div>
