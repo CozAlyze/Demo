@@ -1176,7 +1176,20 @@ function generateTropicalReading(chart) {
    dashboard this never starts a second request: it waits for the pre-write's marker. */
 var COZ_READING_READY = Promise.resolve().then(function () {
   var chart = verifiedChart();
-  if (!chart) { window.COZ_TROPICAL_READING_UNAVAILABLE = true; window.COZ_TROPICAL_DEBUG = "No Tropical chart for the current run in localStorage.cozTropicalChartJSON"; return; }
+  if (!chart) {
+    window.COZ_TROPICAL_READING_UNAVAILABLE = true;
+    /* T5.1: say WHY the record does not match, so a phone screenshot is enough to diagnose */
+    var why = []; try {
+      var run = currentRun(), rec = JSON.parse(localStorage.getItem("cozTropicalChartJSON") || "null"), bd = JSON.parse(localStorage.getItem("emergeBirthData") || "null");
+      why.push("current run: " + (run ? run.runId + " / " + String(run.fingerprint).slice(0, 12) : "NONE (COZ_ASC.currentRun empty)"));
+      why.push("birth record runId: " + (bd && bd.runId ? bd.runId : "NONE"));
+      why.push("tropical chart: " + (!rec ? "NONE stored" : "run " + (rec.run ? rec.run.runId + " / " + String(rec.run.fingerprint).slice(0, 12) + " engine " + rec.run.engineVersion : "UNSTAMPED") + ", " + ((rec.bodies || []).length) + " bodies, asc " + (rec.angles && rec.angles.ascendant ? rec.angles.ascendant.sign : "none") + ", generated " + (rec.generatedAt || "?")));
+      why.push("restored saved run: " + (localStorage.getItem("cozRestoredRunId") || "no"));
+      why.push("recovery marker: " + (run ? (sessionStorage.getItem("cozChartRecovery:" + run.runId) || "no") : "no current run"));
+    } catch (e) { why.push("diagnostic error " + e.message); }
+    window.COZ_TROPICAL_DEBUG = "No Tropical chart for the current run. " + why.join(" | ");
+    return;
+  }
   var have = loadReading(); if (have && have.source === "personal") return;      /* already written for this run */
   window.COZ_TROPICAL_GEN_PENDING = true;
   return generateTropicalReading(chart).then(function (reading) {
