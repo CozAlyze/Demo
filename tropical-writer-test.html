@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CozAlyze Tropical writer test</title>
+<!--
+  COZALYZE · TROPICAL WRITER TEST · TWT1.0 (Sep 25 2026) · DEVELOPMENT WORKBENCH · STANDALONE
+  Runs the preserved TG1.0.4 writer (tropical-gen 1.0.4, source blob 9c87d0cf, SHA-256 563933d0...)
+  against the current chart's Tropical record, only when "Write reading" is tapped.
+  Methodology, prompt, evidence selection, validation, repair and retry are the TG1.0.4 code
+  verbatim. Harness-only differences, none of them methodology:
+    - output is stored ONLY under localStorage "cozTropicalReadingTEST" (production key untouched)
+    - the status record and in-flight marker live in memory, not storage
+    - a fetch observer records HTTP status, request-id, stop_reason, token use and timing
+  Reads (never writes) emergeBirthData, cozTropicalChartJSON, cozTestApiKey, cozTestModel,
+  cozRestoredRunId. "Discard test reading" removes only cozTropicalReadingTEST.
+  Not linked from the application. The API key is never displayed or copied.
+-->
+<style>
+  html,body{margin:0;background:#050a14;color:#e5d4c5}
+  body{padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 24px);font:15px/1.5 -apple-system,system-ui,sans-serif}
+  h1{font-size:17px;margin:0 0 4px} h2{font-size:16px;margin:22px 0 6px;color:#d4a178} h3{font-size:14px;margin:14px 0 4px;color:#d4a178}
+  .note{color:#b9a58c;font-size:12px;margin:0 0 10px}
+  .row{display:flex;gap:8px;margin:10px 0}
+  button{flex:1;padding:12px;background:#1a2233;color:#e5d4c5;border:1px solid #6b5a3e;border-radius:8px;font:15px -apple-system,system-ui,sans-serif}
+  button:disabled{opacity:.45}
+  .box{background:#0b1220;border:1px solid #2a3348;border-radius:8px;padding:10px;margin:8px 0;font-size:13px}
+  .mono{font:12px/1.45 Menlo,monospace;white-space:pre-wrap;word-break:break-word}
+  .para{margin:10px 0 2px} .ids{font:11px/1.4 Menlo,monospace;color:#9fb3c8;margin:0 0 12px;word-break:break-word}
+  .bad{color:#f0a3a3} .ok{color:#a8d8a8} details summary{cursor:pointer;color:#d4a178}
+</style>
+</head>
+<body>
+<h1>Tropical writer test · TWT1.0</h1>
+<p class="note">Workbench only. Writes nothing until you tap Write reading, and then only to the test key. Uses the preserved TG1.0.4 writer unchanged.</p>
+<div class="box mono" id="info">loading…</div>
+<div class="row">
+  <button type="button" id="writeBtn">Write reading</button>
+  <button type="button" id="copyBtn">Copy report</button>
+</div>
+<div class="row"><button type="button" id="discardBtn">Discard test reading</button></div>
+<div class="box" id="status">Status: idle</div>
+<h2>Requests</h2><div class="box mono" id="reqs">none yet</div>
+<h2>Checks</h2><div class="box mono" id="checks">no reading yet</div>
+<h2>Reading</h2><div id="reading" class="box">no reading yet</div>
+<h2>Evidence sent to the model</h2><details class="box"><summary>show evidence block</summary><div class="mono" id="evidence">no reading yet</div></details>
+<script src="ascendant-library.js?v=5"></script>
+<script>
+"use strict";
+/* ===== TEST HARNESS: fetch observer (records diagnostics, never alters the request) ===== */
+var COZ_TEST_REQS = [];
+(function(){
+  var nf = window.fetch.bind(window);
+  window.fetch = function(input, init){
+    var url = String((input && input.url) || input || "");
+    if (url.indexOf("api.anthropic.com") < 0) return nf(input, init);
+    var rec = { n: COZ_TEST_REQS.length + 1, sentAt: Date.now(), status: "pending", requestId: "unavailable", stopReason: "unavailable", outTokens: "unavailable", inTokens: "unavailable", secs: null, error: "" };
+    COZ_TEST_REQS.push(rec); paintReqs();
+    return nf(input, init).then(function(res){
+      rec.status = "HTTP " + res.status; rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1);
+      try { rec.requestId = res.headers.get("request-id") || "unavailable"; } catch (e) {}
+      res.clone().text().then(function(t){
+        try { var j = JSON.parse(t);
+          if (j && typeof j.stop_reason === "string") rec.stopReason = j.stop_reason;
+          if (j && j.usage) { rec.outTokens = j.usage.output_tokens; rec.inTokens = j.usage.input_tokens; }
+          if (j && j.error && j.error.type) rec.error = "error type " + j.error.type;
+        } catch (e) {}
+        paintReqs();
+      }, function(){});
+      paintReqs(); return res;
+    }, function(e){ rec.status = "network failure (" + ((e && e.name) || "Error") + ")"; rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1); paintReqs(); throw e; });
+  };
+})();
+function paintReqs(){
+  var el = document.getElementById("reqs"); if (!el) return;
+  el.textContent = COZ_TEST_REQS.length ? COZ_TEST_REQS.map(function(r){
+    return "#" + r.n + " " + new Date(r.sentAt).toLocaleTimeString() + " · " + r.status + (r.secs ? " after " + r.secs + " s" : "") + " · stop_reason " + r.stopReason +
+      " · tokens in " + r.inTokens + " / out " + r.outTokens + " · request-id " + r.requestId + (r.error ? " · " + r.error : "");
+  }).join("\n") : "none yet";
+}
+
+/* ===== sections (from the Tropical page, unchanged) ===== */
+const vedicReadingSections = [
+  { id: "at-your-core",            number: 1, title: "At Your Core",              nextLabel: "Love, Desire & Creativity" },
+  { id: "love-desire-creativity",  number: 2, title: "Love, Desire & Creativity", nextLabel: "Work, Money & Expression" },
+  { id: "work-money-expression",   number: 3, title: "Work, Money & Expression",  nextLabel: "Wisdom, Purpose & Legacy" },
+  { id: "wisdom-purpose-legacy",   number: 4, title: "Wisdom, Purpose & Legacy",  nextLabel: "Challenges & Resilience" },
+  { id: "challenges-resilience",   number: 5, title: "Challenges & Resilience",   nextLabel: "Your Essential Takeaway" },
+  { id: "essential-takeaway",      number: 6, title: "Your Essential Takeaway",   nextLabel: null }
+];
+
+/* ===== PRESERVED TG1.0.4 WRITER (tropical-gen 1.0.4), harness substitutions marked TEST HARNESS ===== */
+var COZ_TGEN_VERSION = "tropical-gen 1.0.4";
+var COZ_TGEN_SYSTEM = [
+"You write Your Tropical Reading for CozAlyze: six sections of one continuous Western Tropical reading, from the chart evidence given to you. Customer-facing identity: Western Tropical astrology, the person's outer expression, outward personality, psychological expression, relational style, motivations, creative drives, ambitions and the ways they tend to engage with life.",
+"",
+"VOICE. Write like a perceptive person explaining a chart to another person. Warm but not flattering, confident but not absolute, psychologically recognizable, concrete rather than mystical, interpretive rather than technical, nuanced enough to acknowledge contradictions, useful without pretending astrology determines behavior or events. Second person. Roughly 7th to 8th grade readability without sounding simplistic: familiar words, mostly short sentences, concrete human situations. Preferred phrasing: 'you may', 'you tend to', 'this can show up as', 'the chart suggests', 'one side of this pattern', 'when these parts work together', 'when they pull against each other'. Do not begin every sentence with a hedge; keep the uncertainty in the claims themselves. Never 'you are', 'you will', 'this means you always', 'this guarantees', 'this causes', unless the sentence only identifies a supplied chart fact. No 'delve', no 'tapestry', no stacked adjectives, no rhetorical questions, no bullet points, no headings inside the paragraphs.",
+"",
+"TECHNICAL LANGUAGE. Western terms may appear where they genuinely help: Sun, Moon, Rising sign or Ascendant, the planets, houses, chart ruler, Midheaven, elements, modalities, North Node, South Node. Whenever one appears, translate its meaning into ordinary language in the same breath; the reading is for the customer, not an astrology exam. Never use Vedic terms or concepts: Lagna, graha, bhava, nakshatra, pada, dasha, Mahadasha, Antardasha, Rahu, Ketu, dharma as a technical framework, karma, yoga, drishti, dispositor, sidereal, ayanamsha. Never mention transits; they have their own page.",
+"",
+"GROUNDING. You interpret; you never calculate. Every placement, house, angle, ruler, element or modality balance or other chart condition you refer to must be in the evidence block, and only the evidence block: nothing that is absent, marked unavailable, or not supplied (in particular, no aspects unless the evidence lists aspects). Never invent a position, house, aspect, orb, chart ruler, angle contact, dominance, dignity or condition. If a factor you would want is absent, omit the claim rather than fill the gap with plausible astrology. The chart ruler is the traditional ruler of the rising sign; where a modern co-ruler is listed, it is secondary. Strong personalized paragraphs synthesize at least two supplied factors whenever the section has the evidence for it; a point resting on one factor takes lighter, more tentative language. Do not enumerate placements one by one ('Your Sun means X. Your Moon means Y.'); explain the pattern the factors form together. You know no biography, profession, or life events; never invent any. Specificity comes from the pattern's nature, where it operates, what strengthens or complicates it, and when it tends to become prominent, never from predicting events.",
+"",
+"CONTRADICTIONS. When factors pull in different directions, name the tension instead of averaging it into generic prose: how both sides may coexist and how the person may experience the contrast. Do not manufacture a bridge because two statements sound compatible; a synthesis has to be supported by the supplied factors.",
+"",
+"NAME. If a first name is supplied, use it exactly once in the whole reading: in the first or second sentence of Section 1, and nowhere else, not later in Section 1 and not in Sections 2 to 6. If no name is supplied, use none.",
+"",
+"SECTION 1, At Your Core: the fundamental personality pattern, from the Ascendant, the chart ruler and its placement, the Sun, the Moon, bodies on the Ascendant, and the element and modality balance where it is meaningful. Explain outward manner, central motivations, emotional temperament, how the parts cooperate or conflict, and the traits most recognizable to the person and to others. One synthesized portrait, not three descriptions. Do not turn this into a Rising sign reading; that page already exists.",
+"",
+"SECTION 2, Love, Desire & Creativity: relationship style, attraction, affection, desire and creative expression, from Venus, Mars, the Moon, the 5th, 7th and 8th houses with their rulers and any bodies or points occupying them, and the Descendant. Describe tendencies, needs, tensions and how the person may approach closeness, pleasure and creative work. Never predict marriage, divorce, sexuality, pregnancy, the number of relationships or a specific partner.",
+"",
+"SECTION 3, Work, Money & Expression: how the chart approaches work, ambition, resources, communication, competence, visibility and material priorities, from Mercury, Saturn, Jupiter, the Midheaven, the 2nd, 3rd, 6th and 10th houses with their rulers and any bodies or points occupying them. Translate patterns into working style, motivations, strengths, friction points and priorities. Kinds of work may be suggested as reasonable fits, never a specific profession, never a promise of wealth, success or failure.",
+"",
+"SECTION 4, Wisdom, Purpose & Legacy: meaning-making, learning, worldview, longer-range direction, contribution and what the person may want their life to stand for, from Jupiter, Saturn, the Midheaven, the 9th, 10th, 11th and 12th houses with their rulers and any bodies or points occupying them, and the nodes. The North Node is the direction of growth this life leans toward; the South Node is what comes easily and can be over-relied on. Western and psychological throughout; never one predetermined life mission, never destiny language.",
+"",
+"SECTION 5, Challenges & Resilience: genuine friction, contradiction or pressure the chart supports, from Saturn, Mars, Pluto and the 6th, 8th and 12th houses with their rulers and any bodies or points occupying them (and the demanding aspects only if aspects are listed in the evidence). For each pressure: where the pattern may become difficult, what tends to trigger it, the constructive expression of the same pattern, and what helps the person work with it more consciously. This is never negative astrology: no diagnoses, no trauma claims, nothing about abuse, addiction, mental illness, illness, death or inevitable hardship. Difficult material is a pull or a current, never darkness, flaw or punishment.",
+"",
+"SECTION 6, Your Essential Takeaway: synthesis of Sections 1 through 5. Pull together the strongest recurring themes, name the central pattern in clear language, and end with one practical direction. A conclusion, not a sixth interpretation: no pile of new chart factors, no repeated sentences, no section-by-section summary. Its trace may cite only factors already cited in Sections 1 to 5.",
+"",
+"LENGTH, strictly enforced. Each of the six sections should target 245 to 290 words and must remain within the hard accepted range of 225 to 310 words. Each section must contain exactly 4 paragraphs. Each paragraph should be approximately 60 to 65 words and 3 sentences. Aim for approximately 250 to 260 words per section. Count as you write. Say less, better: one clear idea per paragraph, no restating. Never pad to reach the count.",
+"",
+"QUALITY. The customer should feel 'that describes a recognizable pattern in how I operate', never 'that is vague enough to describe anyone'.",
+"",
+"INTERNAL TRACE. Every factor line in the evidence block ends with its id in square brackets, for example [body_Sun_Sagittarius_h1]. For every paragraph you write, list the ids of the factors that paragraph rests on. Use only ids that appear in the evidence, and only ids that belong to that section's factor list above (the evidence block repeats each section's allowed ids). A paragraph with no supporting factor is not allowed. The trace is never shown to the customer.",
+"",
+"OUTPUT. Return ONLY a JSON object, no prose before or after, no code fences: {\"at-your-core\": [paragraph strings], \"love-desire-creativity\": [...], \"work-money-expression\": [...], \"wisdom-purpose-legacy\": [...], \"challenges-resilience\": [...], \"essential-takeaway\": [...], \"_trace\": {\"at-your-core\": [[ids for paragraph 1], [ids for paragraph 2], ...], ... one array per section, one inner array per paragraph, same order and count as the paragraphs}}. Each section array holds plain paragraph strings only."
+].join("\n");
+
+/* Evidence selection. Engine facts are read as stamped; the few derivations this page
+   makes (chart ruler and house rulers from the stamped signs, Ascendant contacts, sign
+   and house concentrations, hemispheres) are labelled "derived" in the block and never
+   fill a missing fact: without stamped Placidus cusps the house-ruler evidence is marked
+   unavailable, never approximated. Natal Ascendant contact policy v1 (Sep 24):
+   conjunction to the Ascendant 8 degrees, nodes excluded; the current development rule,
+   not a complete natal-aspect policy, never extended to the other angles. The engine's
+   general natal aspect list is NOT approved for interpretation yet: it is kept in the
+   developer trace (trace.engineAspects) and withheld from the model's evidence until the
+   Western aspect and orb policy is reviewed (flip COZ_TGEN_ASPECTS_APPROVED then). */
+var COZ_TGEN_ASC_POLICY = { version: "tropical natal ascendant contact v1 (development, Sep 24 2026)", ascendantConjunctionOrb: 8, nodesOnAscendant: false };
+var COZ_TGEN_ASPECTS_APPROVED = false;
+/* rulers: traditional ruler first (the chart ruler, matching the Tropical Rising page),
+   modern ruler second where one exists */
+var COZ_TGEN_RULERS = { Aries:["Mars"], Taurus:["Venus"], Gemini:["Mercury"], Cancer:["Moon"], Leo:["Sun"], Virgo:["Mercury"], Libra:["Venus"],
+  Scorpio:["Mars","Pluto"], Sagittarius:["Jupiter"], Capricorn:["Saturn"], Aquarius:["Saturn","Uranus"], Pisces:["Jupiter","Neptune"] };
+function cozTropicalEvidence(t) {
+  var NAME = { sun:"Sun", moon:"Moon", mercury:"Mercury", venus:"Venus", mars:"Mars", jupiter:"Jupiter", saturn:"Saturn", uranus:"Uranus", neptune:"Neptune", pluto:"Pluto", northNode:"North Node", southNode:"South Node" };
+  var PLANETS = ["Sun","Moon","Mercury","Venus","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto"];
+  var ORD = ["1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th","11th","12th"];
+  var factors = [], lines = [], houseRulerBodies = {};
+  function num(x){ return typeof x === "number" && isFinite(x); }
+  function pos(p){ return p && p.sign ? p.sign + " " + (num(p.degree) ? p.degree + "\u00B0" + (num(p.minute) ? (p.minute < 10 ? "0" : "") + p.minute + "\u2032" : "") : "") : "?"; }
+  function house(h){ return (Number.isInteger(h) && h >= 1 && h <= 12) ? ORD[h - 1] + " house" : "house unknown"; }
+  function fid(id){ factors.push(id); return " [" + id + "]"; }
+  var by = {}; (t.bodies || []).forEach(function (b) { if (b && NAME[b.id] && b.position && b.position.sign) by[NAME[b.id]] = b; });
+  var missing = PLANETS.filter(function (n) { return !by[n]; });
+  if (missing.length || !t.angles || !t.angles.ascendant || !t.angles.ascendant.sign) return { ok: false, reason: missing.length ? "natal positions incomplete: " + missing.join(", ") : "angles missing" };
+  var an = t.angles, st = t.settings || {};
+  function bodyId(n){ var b = by[n]; return "body_" + n.replace(/\s/g, "") + "_" + b.position.sign + (Number.isInteger(b.house) ? "_h" + b.house : ""); }
+  function retro(n){ var b = by[n]; return !!b && typeof b.motion === "string" && /retro/i.test(b.motion) && PLANETS.indexOf(n) >= 0; }
+  lines.push("FRAMEWORK: Tropical zodiac; houses " + (st.resolvedHouseSystem || "Placidus") + (st.usedHouseFallback ? " (fallback from " + st.requestedHouseSystem + ")" : "") + "; nodes " + (st.nodeType || "Mean") + ".");
+  lines.push("");
+  lines.push("BODIES (sign, house, motion)");
+  PLANETS.concat(["North Node","South Node"]).forEach(function (n) {
+    var b = by[n]; if (!b) return;
+    lines.push(n + ": " + pos(b.position) + ", " + house(b.house) + fid(bodyId(n)) + (retro(n) ? ", retrograde" + fid("retro_" + n) : ""));
+  });
+  lines.push("");
+  lines.push("ANGLES");
+  var angLine = "Ascendant " + pos(an.ascendant) + fid("asc_" + an.ascendant.sign);
+  if (an.descendant && an.descendant.sign) angLine += "; Descendant " + pos(an.descendant) + fid("desc_" + an.descendant.sign);
+  if (an.midheaven && an.midheaven.sign) angLine += "; Midheaven " + pos(an.midheaven) + fid("mc_" + an.midheaven.sign);
+  if (an.imumCoeli && an.imumCoeli.sign) angLine += "; IC " + pos(an.imumCoeli) + fid("ic_" + an.imumCoeli.sign);
+  lines.push(angLine);
+  lines.push("");
+  lines.push("CHART RULER (derived from the rising sign: the traditional ruler is the chart ruler; a modern co-ruler, where one exists, is secondary)");
+  (COZ_TGEN_RULERS[an.ascendant.sign] || []).forEach(function (r, i) { var b = by[r]; if (!b) return;
+    lines.push((i ? "Modern co-ruler " : "Chart ruler ") + r + ": " + pos(b.position) + ", " + house(b.house) + (retro(r) ? ", retrograde" : "") + fid((i ? "chart_coruler_" : "chart_ruler_") + r + "_" + b.position.sign + (Number.isInteger(b.house) ? "_h" + b.house : "")));
+  });
+  lines.push("");
+  var cusps = (Array.isArray(t.houseCusps) && t.houseCusps.length === 12 && t.houseCusps.every(function (c) { return c && c.position && c.position.sign; })) ? t.houseCusps : null;
+  if (cusps) {
+    lines.push("HOUSE RULERS (derived: the stamped sign on each cusp, then that sign's traditional ruler with its placement; modern co-ruler second where one exists)");
+    for (var h = 1; h <= 12; h++) {
+      var cs = cusps[h - 1].position.sign, rs = COZ_TGEN_RULERS[cs] || [];
+      houseRulerBodies[h] = rs.slice();
+      lines.push(ORD[h - 1] + " house cusp " + cs + ": ruler " + rs.map(function (r, i) { var b = by[r]; return (i ? "modern co-ruler " : "") + r + (b ? " in " + b.position.sign + " " + house(b.house) : ""); }).join("; ") + fid("h" + h + "_cusp_" + cs + "_ruler_" + rs[0]));
+    }
+  } else {
+    lines.push("HOUSE RULERS: unavailable (Placidus house cusps are not stamped in this record; nothing is approximated). Use only the stamped house placements above.");
+  }
+  lines.push("");
+  lines.push("ON THE ASCENDANT (" + COZ_TGEN_ASC_POLICY.version + ": within " + COZ_TGEN_ASC_POLICY.ascendantConjunctionOrb + " degrees, nodes excluded)");
+  var ascLon = an.ascendant.longitude, onAsc = [];
+  if (num(ascLon)) PLANETS.forEach(function (n) { var b = by[n]; if (!num(b.position.longitude)) return;
+    var d = Math.abs(b.position.longitude - ascLon) % 360; if (d > 180) d = 360 - d;
+    if (d <= COZ_TGEN_ASC_POLICY.ascendantConjunctionOrb) onAsc.push(n + " (" + d.toFixed(1) + "\u00B0)" + fid("on_asc_" + n)); });
+  lines.push(onAsc.length ? onAsc.join(", ") : "None.");
+  lines.push("");
+  var engineAspects = (Array.isArray(t.aspects) ? t.aspects : []).filter(function (a) { return a && NAME[a.bodyA] && NAME[a.bodyB] && a.type && num(a.orbDegrees); })
+    .sort(function (a, b) { return a.orbDegrees - b.orbDegrees; })
+    .map(function (a) { return NAME[a.bodyA] + " " + a.type + " " + NAME[a.bodyB] + ", orb " + (a.orbDisplay || a.orbDegrees.toFixed(2) + "\u00B0"); });
+  if (COZ_TGEN_ASPECTS_APPROVED) {
+    lines.push("ASPECTS (engine natal list, approved orb policy, tightest first)");
+    (Array.isArray(t.aspects) ? t.aspects : []).filter(function (a) { return a && NAME[a.bodyA] && NAME[a.bodyB] && a.type && num(a.orbDegrees); }).sort(function (a, b) { return a.orbDegrees - b.orbDegrees; })
+      .forEach(function (a) { lines.push(NAME[a.bodyA] + " " + a.type + " " + NAME[a.bodyB] + ", orb " + (a.orbDisplay || a.orbDegrees.toFixed(2) + "\u00B0") + fid("aspect_" + a.bodyA + "_" + a.type + "_" + a.bodyB)); });
+  } else {
+    lines.push("ASPECTS: none supplied. The natal aspect policy is not yet approved for interpretation; make no aspect-based claims.");
+  }
+  lines.push("");
+  lines.push("BALANCE (engine)");
+  var bal = t.balance || null;
+  function counts(o){ return o && o.counts ? Object.keys(o.counts).map(function (k) { return k + " " + o.counts[k]; }).join(", ") : "not stamped"; }
+  lines.push("Elements: " + (bal && bal.element ? (bal.element.result ? "dominant " + bal.element.result + fid("element_" + bal.element.result) + "; " : "") + counts(bal.element) : "not stamped"));
+  lines.push("Modalities: " + (bal && bal.modality ? (bal.modality.result ? "dominant " + bal.modality.result + fid("modality_" + bal.modality.result) + "; " : "") + counts(bal.modality) : "not stamped"));
+  if (bal && bal.emphasis && Array.isArray(bal.emphasis.labels) && bal.emphasis.labels.length) lines.push("Emphasis: " + bal.emphasis.labels.map(function (l) { return l + fid("emphasis_" + String(l).replace(/\W+/g, "_")); }).join("; "));
+  lines.push("");
+  lines.push("PATTERNS (derived from the stamped houses and signs of the ten planets; a formal stellium rule is not yet approved, these are concentrations only)");
+  var bySign = {}, byHouse = {}, above = 0, east = 0;
+  PLANETS.forEach(function (n) { var b = by[n]; (bySign[b.position.sign] = bySign[b.position.sign] || []).push(n);
+    if (Number.isInteger(b.house)) { (byHouse[b.house] = byHouse[b.house] || []).push(n); if (b.house >= 7) above++; if ([10,11,12,1,2,3].indexOf(b.house) >= 0) east++; } });
+  var conc = [];
+  Object.keys(bySign).forEach(function (s) { if (bySign[s].length >= 3) conc.push("Sign concentration: " + bySign[s].join(", ") + " in " + s + fid("concentration_sign_" + s)); });
+  Object.keys(byHouse).forEach(function (h) { if (byHouse[h].length >= 3) conc.push("House concentration: " + byHouse[h].join(", ") + " in the " + ORD[h - 1] + " house" + fid("concentration_house_" + h)); });
+  lines.push(conc.length ? conc.join("; ") : "No sign or house holds three or more planets.");
+  lines.push("Hemispheres: " + above + " of 10 planets above the horizon (houses 7 to 12)" + fid("hemisphere_above_" + above) + ", " + east + " of 10 in the eastern half (houses 10 to 3)" + fid("hemisphere_east_" + east));
+
+  /* per-section allowed factor ids, from the approved factor map */
+  function has(prefix){ return factors.filter(function (f) { return f.indexOf(prefix) === 0; }); }
+  function bodies(names){ var out = []; names.forEach(function (n) { if (by[n]) { out.push(bodyId(n)); if (retro(n)) out.push("retro_" + n); } }); return out; }
+  /* a section's houses bring their cusp, the cusp ruler, and (1.0.4) every body or point (planets and nodes) stamped in that house; occupant aspects are not added */
+  function houses(list){ var out = []; list.forEach(function (h) { has("h" + h + "_cusp_").forEach(function (f) { out.push(f); }); (houseRulerBodies[h] || []).forEach(function (r) { out = out.concat(bodies([r])); });
+    PLANETS.concat(["North Node","South Node"]).forEach(function (n) { if (by[n] && by[n].house === h) out = out.concat(bodies([n])); }); }); return out; }
+  function uniq(a){ var s = {}; return a.filter(function (x) { if (s[x]) return false; s[x] = 1; return true; }); }
+  /* whole-chart identity context (balance, emphasis, concentrations, hemispheres) belongs to
+     Section 1 only; Sections 2 to 5 may cite nothing beyond their assigned factors */
+  var wholeChart = has("element_").concat(has("modality_"), has("emphasis_"), has("concentration_"), has("hemisphere_"));
+  var allowed = {
+    "at-your-core":           uniq(has("asc_").concat(has("chart_ruler_"), has("chart_coruler_"), has("on_asc_"), bodies(["Sun","Moon"]), houses([1]), wholeChart)),
+    "love-desire-creativity": uniq(bodies(["Venus","Mars","Moon"]).concat(has("desc_"), houses([5,7,8]))),
+    "work-money-expression":  uniq(bodies(["Mercury","Saturn","Jupiter"]).concat(has("mc_"), houses([2,3,6,10]))),
+    "wisdom-purpose-legacy":  uniq(bodies(["Jupiter","Saturn","North Node","South Node"]).concat(has("mc_"), houses([9,10,11,12]))),
+    "challenges-resilience":  uniq(bodies(["Saturn","Mars","Pluto"]).concat(has("aspect_"), houses([6,8,12]))),
+    "essential-takeaway":     null   /* validated as a subset of the ids cited in Sections 1 to 5 */
+  };
+  lines.push("");
+  lines.push("ALLOWED FACTOR IDS PER SECTION (cite only these in the trace)");
+  ["at-your-core","love-desire-creativity","work-money-expression","wisdom-purpose-legacy","challenges-resilience"].forEach(function (id) { lines.push(id + ": " + allowed[id].join(", ")); });
+  lines.push("essential-takeaway: any id already cited in Sections 1 to 5");
+  return { ok: true, text: lines.join("\n"), factors: uniq(factors), allowed: allowed, engineAspects: engineAspects, houseRulersAvailable: !!cusps };
+}
+
+/* T5.1: on-page writer status (he tests on iPhone only, no console). Whichever copy is writing
+   records its phase in localStorage cozTropicalGenStatus; the writing screen shows it live. */
+/* TEST HARNESS: status lives in memory only (no storage write) */
+var COZ_TEST_STATUS = null;
+function cozTgenStatus(hash, phase, detail){ COZ_TEST_STATUS = { hash: hash, phase: phase, detail: detail || "", at: Date.now(), by: "test page" }; }
+function cozTgenReadStatus(){ return COZ_TEST_STATUS; }
+var COZ_TGEN_VEDIC_TERMS = /\b(lagna|graha|bhava|nakshatra|pada|dasha|mahadasha|antardasha|rahu|ketu|drishti|dispositor|sidereal|ayanamsha|yoga|karaka)s?\b/i;
+var COZ_TGEN_BANDS = { soft: [245, 290], hard: [225, 310] };
+function cozTgenHash(s) { var h = 0; for (var i = 0; i < s.length; i++) { h = (h * 31 + s.charCodeAt(i)) | 0; } return (h >>> 0).toString(36); }
+function cozTgenWords(paras) { return (paras || []).join(" ").trim().split(/\s+/).filter(Boolean).length; }
+/* returns { hard: [...], soft: [...], counts } ; any hard entry is a contract violation */
+function cozTgenCheck(out, firstName, ev) {
+  var hard = [], soft = [], counts = {}, sections = out.sections, trace = out.trace, cited15 = {};
+  var nameRe = firstName ? new RegExp("\\b" + firstName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\b", "g") : null;
+  var nameTotal = 0;
+  vedicReadingSections.forEach(function (s) {
+    var arr = sections[s.id];
+    if (!Array.isArray(arr) || !arr.length || !arr.every(function (p) { return typeof p === "string" && p.trim(); })) { hard.push(s.id + " is missing or empty"); return; }
+    if (arr.length !== 4) hard.push(s.id + " has " + arr.length + " paragraphs; exactly 4 are required");
+    var w = counts[s.id] = cozTgenWords(arr);
+    if (w < COZ_TGEN_BANDS.hard[0] || w > COZ_TGEN_BANDS.hard[1]) hard.push(s.id + " was " + w + " words (must be 225 to 310, target 245 to 290)");
+    else if (w < COZ_TGEN_BANDS.soft[0] || w > COZ_TGEN_BANDS.soft[1]) soft.push(s.id + " was " + w + " words (target 245 to 290)");
+    var txt = arr.join(" ");
+    var m = txt.match(COZ_TGEN_VEDIC_TERMS); if (m) hard.push(s.id + " uses a Vedic term: '" + m[0] + "'");
+    if (/\btransit/i.test(txt)) hard.push(s.id + " mentions transits");
+    if (nameRe) { var n = (txt.match(nameRe) || []).length; nameTotal += n; if (s.id !== "at-your-core" && n) hard.push(s.id + " uses the first name (once in the opening of Section 1 only)"); }
+    /* trace: one array per paragraph, every id present in the evidence and allowed for the section */
+    var tr = trace && trace[s.id];
+    if (!Array.isArray(tr) || tr.length !== arr.length) { hard.push(s.id + " trace must have exactly one factor list per paragraph (" + arr.length + " paragraphs)"); return; }
+    var allow = ev.allowed[s.id];
+    tr.forEach(function (ids, i) {
+      if (!Array.isArray(ids) || !ids.length) { hard.push(s.id + " paragraph " + (i + 1) + " cites no factor"); return; }
+      ids.forEach(function (id) {
+        if (ev.factors.indexOf(id) < 0) hard.push(s.id + " paragraph " + (i + 1) + " cites a factor not in the evidence: " + id);
+        else if (allow && allow.indexOf(id) < 0) hard.push(s.id + " paragraph " + (i + 1) + " cites a factor outside its section's list: " + id);
+        else if (!allow && !cited15[id]) hard.push("essential-takeaway paragraph " + (i + 1) + " cites a factor not used in Sections 1 to 5: " + id);
+        if (allow) cited15[id] = 1;
+      });
+    });
+  });
+  if (nameRe) {
+    var s1 = sections["at-your-core"];
+    if (Array.isArray(s1) && s1.length) {
+      var open = (s1[0].match(/[^.!?]+[.!?]+/g) || [s1[0]]).slice(0, 2).join(" ");
+      var inOpen = (open.match(nameRe) || []).length;
+      if (nameTotal !== 1) hard.push("the first name appears " + nameTotal + " times; it must appear exactly once, in the first or second sentence of Section 1");
+      else if (inOpen !== 1) hard.push("the first name must appear in the first or second sentence of Section 1");
+    }
+  }
+  return { hard: hard, soft: soft, counts: counts };
+}
+
+function generateTropicalReading(chart) {
+  var key = null, model = "claude-sonnet-4-6";
+  try { key = localStorage.getItem("cozTestApiKey"); model = localStorage.getItem("cozTestModel") || model; } catch (_) {}
+  if (!key) return Promise.reject(new Error("No API key set. Open test-index.html and enter your test key first."));
+  var ev = cozTropicalEvidence(chart);
+  if (!ev.ok) return Promise.reject(new Error("Tropical evidence refused: " + ev.reason));
+  var cl = chart.client || {};
+  var firstName = String(cl.firstName || cl.displayName || "").trim().split(/\s+/)[0] || "";
+  var run = { runId: chart.run.runId, fingerprint: chart.run.fingerprint };
+  var inputs = { evidence: ev.text, runId: run.runId, fingerprint: run.fingerprint, firstName: firstName, model: model, promptHash: cozTgenHash(COZ_TGEN_SYSTEM), genVersion: COZ_TGEN_VERSION };
+  var inputsHash = cozTgenHash(JSON.stringify(inputs));
+  window.COZ_TROPICAL_ACTIVE_HASH = inputsHash;   /* the generation this page is waiting for; the status line shows only this hash */
+
+  /* already written for exactly these inputs: reuse, never a second request */
+  function storedNow(){ try { var c = JSON.parse(localStorage.getItem("cozTropicalReadingTEST") || "null"); return c && c.trace && c.trace.inputsHash === inputsHash && !c.fixture && !c.sample ? c : null; } catch (e) { return null; } }
+  var hit = storedNow(); if (hit) { hit.trace.fromCache = true; return Promise.resolve(hit); }
+
+  /* T5.1: a matching recorded failure (same inputsHash) is surfaced, never re-run; a failure
+     recorded for other inputs is ignored */
+  var priorStatus = cozTgenReadStatus();
+  if (priorStatus && priorStatus.hash === inputsHash && priorStatus.phase === "failed") {
+    var priorFailure = new Error("The hidden pre-write failed: " + priorStatus.detail);
+    priorFailure.kind = "contract";
+    return Promise.reject(priorFailure);
+  }
+
+  /* the same writing may already be running in the hidden pre-write: wait for it */
+  /* TEST HARNESS: in-flight marker in memory only (one page, no hidden writer, no storage write) */
+  var FLIGHT_MS = 240000;
+  function flightActive(){ var m = window.COZ_TEST_FLIGHT; return !!(m && m.hash === inputsHash && Date.now() - m.at < FLIGHT_MS); }
+  function markFlight(on){ window.COZ_TEST_FLIGHT = on ? { hash: inputsHash, at: Date.now() } : null; }
+  if (flightActive()) {
+    try { console.log("[TROPICAL READING] the reading is already being written; waiting for that result"); } catch (e) {}
+    return new Promise(function (resolve) { (function poll(){ var c = storedNow(); if (c) { c.trace.fromCache = true; return resolve(c); } if (!flightActive()) return resolve(null); setTimeout(poll, 1200); })(); })
+      .then(function (c) {
+        if (c) return c;
+        var st = cozTgenReadStatus();
+        if (st && st.hash === inputsHash && st.phase === "failed") { var f = new Error("The hidden pre-write failed: " + st.detail); f.kind = "contract"; throw f; }
+        return generateTropicalReading(chart);
+      });
+  }
+
+  var userMsg = [
+    "First name for the reading: " + (firstName || "(none; use no name)") + ".",
+    "Birth (display only, no biography): " + [cl.birthDate, cl.birthTime, cl.locationLabel].filter(Boolean).join(", "),
+    "",
+    "EVIDENCE",
+    ev.text,
+    "",
+    "Write all six sections now, with the _trace. JSON only."
+  ].join("\n");
+
+  function post(body){
+    return fetch("https://api.anthropic.com/v1/messages", { method: "POST",
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
+      body: JSON.stringify(body) });
+  }
+  function request(msg, netRetried){
+    var body = { model: model, max_tokens: 7000, system: COZ_TGEN_SYSTEM, messages: [{ role: "user", content: msg }] };
+    /* one retry on a genuine connection failure (Safari "Load failed", "Failed to fetch"); API responses are never retried here */
+    return post(body).catch(function (e) {
+      if (e && e.name === "TypeError" && e.kind !== "saved_no_regen" && !netRetried) { try { console.log("[TROPICAL READING] connection failed, trying once more"); } catch (_) {}
+        return new Promise(function (res) { setTimeout(res, 2500); }).then(function(){ return post(body); }); }
+      throw e;
+    }).then(function (r) { return r.text().then(function (t) { if (!r.ok) throw new Error("API " + r.status + ": " + t.slice(0, 300)); return JSON.parse(t); }); });
+  }
+  /* returns { sections, trace, raw, usage } or { error, raw, usage } (never throws on model content) */
+  function parse(data){
+    var text = (data.content || []).filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("\n");
+    var clean = text.replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/, "").trim();
+    var s = clean.indexOf("{"), e = clean.lastIndexOf("}"), obj = null;
+    if (s >= 0 && e > s) { try { obj = JSON.parse(clean.slice(s, e + 1)); } catch (pe) { obj = null; } }
+    if (!obj || typeof obj !== "object") return { error: "Model did not return valid JSON", raw: text, usage: data.usage || null };
+    var out = {};
+    vedicReadingSections.forEach(function (sec) { out[sec.id] = Array.isArray(obj[sec.id]) ? obj[sec.id].map(function (p) { return String(p).replace(/\s+/g, " ").trim(); }).filter(Boolean) : []; });
+    return { sections: out, trace: (obj._trace && typeof obj._trace === "object") ? obj._trace : null, raw: text, usage: data.usage || null };
+  }
+  function check(r){ if (r.error) return { hard: [r.error], soft: [], counts: {} }; return cozTgenCheck(r, firstName, ev); }
+
+  window.COZ_TROPICAL_GEN_PENDING = true;
+  markFlight(true);
+  cozTgenStatus(inputsHash, "request 1 sent", "waiting for the model");
+  var requests = 0, attempts = [];
+  return request(userMsg, false).then(function (data) {
+    requests++;
+    var r = parse(data), chk = check(r);
+    attempts.push({ counts: chk.counts, hard: chk.hard, soft: chk.soft, raw: r.raw });
+    if (!chk.hard.length) return { r: r, chk: chk, repaired: false };
+    /* one corrective request naming every hard failure; the reading is never accepted with one remaining */
+    cozTgenStatus(inputsHash, "repair sent", chk.hard.join("; "));
+    var adj = Object.keys(chk.counts || {}).map(function (k) { var w = chk.counts[k];
+      return w > COZ_TGEN_BANDS.soft[1] ? k + ": cut about " + (w - 260) + " words (now " + w + ", aim for about 260)" : w < COZ_TGEN_BANDS.soft[0] ? k + ": add about " + (260 - w) + " words (now " + w + ", aim for about 260)" : null; }).filter(Boolean);
+    var note = "Your previous attempt broke these rules: " + chk.hard.join("; ") + "." + (adj.length ? " Length fixes required, section by section: " + adj.join("; ") + ". Keep exactly 4 paragraphs of about 60 to 65 words and 3 sentences each; shorten by removing restatement, not substance." : "") +
+      " Keep the same substance and voice; fix only what is named. Return the full JSON again, including _trace (one factor list per paragraph).";
+    return request(userMsg + "\n\n" + note, false).then(function (data2) {
+      requests++;
+      var r2 = parse(data2), chk2 = check(r2);
+      attempts.push({ counts: chk2.counts, hard: chk2.hard, soft: chk2.soft, raw: r2.raw });
+      if (chk2.hard.length) { var f = new Error("Contract violations remained after the single repair: " + chk2.hard.join("; ")); f.kind = "contract"; f.attempts = attempts; f.requests = requests; throw f; }
+      return { r: r2, chk: chk2, repaired: true };
+    });
+  }).then(function (res) {
+    markFlight(false); window.COZ_TROPICAL_GEN_PENDING = false;
+    var u = res.r.usage || {}, inTok = u.input_tokens || 0, outTok = u.output_tokens || 0;
+    var PRICE = { input: 3.00, output: 15.00 }, cost = inTok / 1e6 * PRICE.input + outTok / 1e6 * PRICE.output;
+    var wc = {}; vedicReadingSections.forEach(function (s) { var w = cozTgenWords(res.r.sections[s.id]); wc[s.id] = { words: w, band: "245-290", inBand: w >= COZ_TGEN_BANDS.soft[0] && w <= COZ_TGEN_BANDS.soft[1] }; });
+    var reading = { system: "tropical", title: "Your Tropical Reading", subtitle: "Your Outer Expression", run: run,
+      sections: vedicReadingSections.map(function (s) {
+        var per = res.r.trace[s.id], union = []; per.forEach(function (ids) { ids.forEach(function (id) { if (union.indexOf(id) < 0) union.push(id); }); });
+        return { id: s.id, number: s.number, title: s.title, body: res.r.sections[s.id], sourceFactors: union };   /* section-level union; paragraph-level in trace.paragraphFactors; never rendered */
+      }),
+      generatedAt: new Date().toISOString(), genVersion: COZ_TGEN_VERSION,
+      trace: { model: model, inputsHash: inputsHash, promptHash: inputs.promptHash, requests: requests, repaired: res.repaired, attempts: attempts, soft: res.chk.soft,
+               inputTokens: inTok, outputTokens: outTok, estimatedCostUSD: Math.round(cost * 10000) / 10000, sectionWordCounts: wc,
+               evidence: ev.text, evidenceFactors: ev.factors, allowedFactors: ev.allowed, paragraphFactors: res.r.trace, houseRulersAvailable: ev.houseRulersAvailable,
+               engineAspects: ev.engineAspects, aspectsUsedInEvidence: COZ_TGEN_ASPECTS_APPROVED, ascPolicy: COZ_TGEN_ASC_POLICY,
+               systemPrompt: COZ_TGEN_SYSTEM, userMessage: userMsg, rawResponse: res.r.raw, fromCache: false } };
+    try { localStorage.setItem("cozTropicalReadingTEST", JSON.stringify(reading)); } catch (_) { reading.trace.testSaveFailed = true; }
+    cozTgenStatus(inputsHash, "done", requests + " request" + (requests > 1 ? "s" : ""));
+    return reading;
+  }, function (e) {
+    markFlight(false); window.COZ_TROPICAL_GEN_PENDING = false;
+    cozTgenStatus(inputsHash, "failed", (e && e.message) || String(e));
+    if (e && e.kind === "contract") { window.COZ_TROPICAL_GEN_FAILED_TRACE = { reason: e.message, attempts: e.attempts, requests: e.requests, evidence: ev.text }; try { console.warn("[TROPICAL READING] failed closed:", JSON.stringify(window.COZ_TROPICAL_GEN_FAILED_TRACE)); } catch (_) {} }
+    throw e;
+  });
+}
+
+
+/* ===== end of preserved writer ===== */
+
+/* ===== TEST HARNESS: page logic ===== */
+function lsGet(k){ try { return localStorage.getItem(k); } catch (e) { return null; } }
+function lsJSON(k){ try { return JSON.parse(lsGet(k) || "null"); } catch (e) { return null; } }
+function currentRunT(){ try { return window.COZ_ASC && COZ_ASC.currentRun ? COZ_ASC.currentRun() : null; } catch (e) { return null; } }
+function chartNow(){
+  var run = currentRunT(), rec = lsJSON("cozTropicalChartJSON");
+  var ok = !!(rec && rec.run && run && rec.run.runId === run.runId && rec.run.fingerprint === run.fingerprint && rec.run.engineVersion);
+  return { run: run, rec: rec, ok: ok };
+}
+function restored(){ var r = lsGet("cozRestoredRunId"), bd = lsJSON("emergeBirthData"); return !!(r && bd && bd.runId === r); }
+function esc(x){ return String(x).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+var writing = false, t0 = 0, lastReading = null, lastError = "";
+
+function paintInfo(){
+  var c = chartNow(), key = !!lsGet("cozTestApiKey"), model = lsGet("cozTestModel") || "claude-sonnet-4-6";
+  var cl = (c.rec && c.rec.client) || {};
+  var lines = [
+    "writer: " + COZ_TGEN_VERSION + " (preserved TG1.0.4)",
+    "current chart run: " + (c.run ? c.run.runId : "none found"),
+    "Tropical chart for this run: " + (c.ok ? "verified" : "NOT available (run a chart through the Tropical result first)"),
+    "ascendant: " + (c.ok && c.rec.angles && c.rec.angles.ascendant ? c.rec.angles.ascendant.sign : "?") + " · first name used: " + (c.ok ? (String(cl.firstName || cl.displayName || "").trim().split(/\s+/)[0] || "(none)") : "?"),
+    "saved chart reopened: " + (restored() ? "YES (writing is blocked: saved charts never call the model)" : "no"),
+    "test API key on this device: " + (key ? "present" : "MISSING (enter it on test-index.html)") + " · model: " + model,
+    "stored test reading: " + (lsGet("cozTropicalReadingTEST") ? describeStored(c) : "none")
+  ];
+  document.getElementById("info").textContent = lines.join("\n");
+  document.getElementById("writeBtn").disabled = writing || !c.ok || !key || restored();
+}
+function describeStored(c){
+  var r = lsJSON("cozTropicalReadingTEST"); if (!r) return "unreadable";
+  return (r.run && c.run && r.run.runId === c.run.runId ? "for this chart" : "for a DIFFERENT chart run") + ", written " + String(r.generatedAt || "?").slice(0, 19) + ", " + (r.genVersion || "?");
+}
+function paintStatus(){
+  var el = document.getElementById("status"), st = COZ_TEST_STATUS;
+  if (writing) el.textContent = "Status: writing… " + Math.round((Date.now() - t0) / 1000) + " s" + (st ? " · " + st.phase + (st.detail ? " (" + st.detail + ")" : "") : "");
+  else if (lastError) { el.innerHTML = '<span class="bad">Status: FAILED · ' + esc(lastError) + "</span>"; }
+  else if (lastReading) el.innerHTML = '<span class="ok">Status: ' + (lastReading.trace.fromCache ? "shown from the stored test reading (no request)" : "PASSED · reading written and saved to the test key") + "</span>";
+  else el.textContent = "Status: idle";
+}
+setInterval(function(){ if (writing) paintStatus(); }, 1000);
+
+function paintReading(r){
+  var t = r.trace || {};
+  var lines = [
+    "requests " + (t.requests == null ? "?" : t.requests) + (t.repaired ? " · one repair was needed" : " · no repair") + (t.fromCache ? " · from stored test reading" : ""),
+    "model " + (t.model || "?") + " · input tokens " + (t.inputTokens || "?") + " · output tokens " + (t.outputTokens || "?") + " · est. $" + (t.estimatedCostUSD != null ? t.estimatedCostUSD : "?"),
+    "soft flags: " + ((t.soft && t.soft.length) ? t.soft.join("; ") : "none"),
+    "house rulers available: " + t.houseRulersAvailable + " · general aspects sent to model: " + t.aspectsUsedInEvidence,
+    "test save: " + (t.testSaveFailed ? "FAILED (reading shown from memory only)" : "saved to cozTropicalReadingTEST")
+  ];
+  (t.attempts || []).forEach(function(a, i){ lines.push("attempt " + (i + 1) + ": hard " + (a.hard && a.hard.length ? a.hard.join("; ") : "none") + " | soft " + (a.soft && a.soft.length ? a.soft.join("; ") : "none")); });
+  if (t.sectionWordCounts) Object.keys(t.sectionWordCounts).forEach(function(k){ var w = t.sectionWordCounts[k]; lines.push(k + ": " + w.words + " words" + (w.inBand ? "" : " (outside 245-290)")); });
+  if (t.engineAspects && t.engineAspects.length) lines.push("engine aspects WITHHELD from the model: " + t.engineAspects.join("; "));
+  document.getElementById("checks").textContent = lines.join("\n");
+  var pf = t.paragraphFactors || {}, html = "";
+  (r.sections || []).forEach(function(s){
+    html += "<h3>" + s.number + ". " + esc(s.title) + "</h3>";
+    (s.body || []).forEach(function(p, i){ html += '<p class="para">' + esc(p) + '</p><div class="ids">\u2192 ' + esc(((pf[s.id] || [])[i] || ["(no trace)"]).join(", ")) + "</div>"; });
+  });
+  document.getElementById("reading").innerHTML = html || "no sections";
+  document.getElementById("evidence").textContent = t.evidence || "not recorded";
+}
+function paintFailure(){
+  var f = window.COZ_TROPICAL_GEN_FAILED_TRACE;
+  if (!f) { document.getElementById("checks").textContent = lastError; return; }
+  document.getElementById("checks").textContent = ["failed closed after " + f.requests + " request(s)", f.reason].concat((f.attempts || []).map(function(a, i){ return "attempt " + (i + 1) + ": hard " + ((a.hard || []).join("; ") || "none") + " | soft " + ((a.soft || []).join("; ") || "none"); })).join("\n");
+  document.getElementById("evidence").textContent = f.evidence || "not recorded";
+}
+
+document.getElementById("writeBtn").addEventListener("click", function(){
+  var c = chartNow(); if (!c.ok || restored() || writing) return;
+  writing = true; t0 = Date.now(); lastError = ""; lastReading = null; COZ_TEST_STATUS = null; window.COZ_TROPICAL_GEN_FAILED_TRACE = null;
+  paintInfo(); paintStatus();
+  generateTropicalReading(c.rec).then(function(r){ writing = false; lastReading = r; paintReading(r); paintStatus(); paintInfo(); },
+    function(e){ writing = false; lastError = (e && e.message) || String(e); paintFailure(); paintStatus(); paintInfo(); });
+});
+document.getElementById("discardBtn").addEventListener("click", function(){
+  if (!lsGet("cozTropicalReadingTEST")) return;
+  if (!confirm("Discard the stored test reading? Only cozTropicalReadingTEST is removed.")) return;
+  try { localStorage.removeItem("cozTropicalReadingTEST"); } catch (e) {}
+  lastReading = null; document.getElementById("reading").textContent = "no reading yet"; document.getElementById("checks").textContent = "no reading yet"; paintInfo(); paintStatus();
+});
+document.getElementById("copyBtn").addEventListener("click", function(){
+  var b = document.getElementById("copyBtn");
+  var text = ["COZALYZE TROPICAL WRITER TEST TWT1.0", document.getElementById("info").textContent, "", document.getElementById("status").textContent,
+    "", "REQUESTS", document.getElementById("reqs").textContent, "", "CHECKS", document.getElementById("checks").textContent, "", "READING",
+    document.getElementById("reading").innerText, "", "EVIDENCE", document.getElementById("evidence").textContent].join("\n");
+  function say(m){ b.textContent = m; setTimeout(function(){ b.textContent = "Copy report"; }, 3000); }
+  function fallback(){ var ta = document.createElement("textarea"); ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta); ta.focus(); ta.select(); var ok = false; try { ok = document.execCommand("copy"); } catch (e) {} ta.remove(); say(ok ? "Copied" : "Copy failed"); }
+  try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ say("Copied"); }, fallback); else fallback(); } catch (e) { fallback(); }
+});
+
+/* on load: read only. Show the stored test reading if it belongs to this chart run. */
+(function(){
+  paintInfo();
+  var c = chartNow(), r = lsJSON("cozTropicalReadingTEST");
+  if (r && r.run && c.run && r.run.runId === c.run.runId) { r.trace = r.trace || {}; r.trace.fromCache = true; lastReading = r; paintReading(r); }
+  paintStatus();
+})();
+</script>
+</body>
+</html>
