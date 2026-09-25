@@ -3,15 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CozAlyze storage cleanup (dry run)</title>
+<title>CozAlyze storage cleanup SC1.1</title>
 <!--
-  COZALYZE · STORAGE CLEANUP · SC1.0 DRY RUN (Sep 25 2026) · DEVELOPMENT DIAGNOSTIC · READ-ONLY
-  Works out what a cleanup WOULD remove, using the storage actually on this device, and deletes
-  nothing: this version has no deletion control and never writes, removes or clears storage.
-  Each candidate is classed SAFE DUPLICATE (old run, identical copy inside a saved-chart
-  snapshot), OLD UNSAVED ARTIFACT (old run, no identical snapshot copy), UNRESOLVED (run
-  cannot be established) or CURRENT / PROTECTED. No network calls, no other scripts, no stored
-  values printed. Sizes are estimated at 2 bytes per character. Not linked from the application.
+  COZALYZE · STORAGE CLEANUP · SC1.1 (Sep 25 2026) · DEVELOPMENT TOOL
+  Opens as the SC1.0 dry run (same classification and protection rules). Two explicit actions
+  can then remove verified candidates, each only after a confirmation:
+    Level 1 · SAFE DUPLICATE keys (identical copy inside a saved-chart snapshot)
+    Level 2 · SAFE DUPLICATE + OLD UNSAVED ARTIFACT keys, EXCEPT any key of a run that is in the
+              saved charts library (e.g. the saved Compare run's Vedic Ascendant reading, whose
+              copy is not in its snapshot)
+  UNRESOLVED keys are never removed; there is no level 3. Before removing, the page re-reads
+  storage, aborts if the current run changed, re-classifies, and removes a key only if it is
+  still in the chosen level with exactly the value shown in the preview; everything else is
+  skipped and reported. The only storage write in this file is localStorage.removeItem on
+  those verified keys: never clear(), never setItem, never a rewrite of surviving records.
+  No network, model, generator or coordinator calls. No stored values are printed.
+  Sizes are estimated at 2 bytes per character. Not linked from the application.
 -->
 <style>
   html,body{margin:0;background:#050a14;color:#e5d4c5}
@@ -20,21 +27,26 @@
   p.note{margin:0 0 10px;color:#b9a58c;font-size:12px}
   .row{display:flex;gap:8px;margin:0 0 10px}
   button{flex:1;padding:12px;background:#1a2233;color:#e5d4c5;border:1px solid #6b5a3e;border-radius:8px;font:15px -apple-system,system-ui,sans-serif}
-  textarea{width:100%;box-sizing:border-box;height:calc(100vh - 170px);min-height:320px;background:#000;color:#e5d4c5;border:1px solid #333;border-radius:8px;padding:8px;font:11px/1.45 Menlo,monospace;white-space:pre;overflow:auto}
+  textarea{width:100%;box-sizing:border-box;height:calc(100vh - 230px);min-height:320px;background:#000;color:#e5d4c5;border:1px solid #333;border-radius:8px;padding:8px;font:11px/1.45 Menlo,monospace;white-space:pre;overflow:auto}
 </style>
 </head>
 <body>
-<h1>CozAlyze storage cleanup · SC1.0 · dry run</h1>
-<p class="note">Dry run only. This page deletes nothing and changes nothing. No stored values are shown.</p>
+<h1>CozAlyze storage cleanup · SC1.1</h1>
+<p class="note">Opens as a dry run. Nothing is removed unless you tap a Level button and confirm. No stored values are shown.</p>
 <div class="row">
-  <button type="button" id="copyBtn">Copy cleanup report</button>
-  <button type="button" id="refreshBtn">Refresh</button>
+  <button type="button" id="copyBtn">Copy report</button>
+  <button type="button" id="refreshBtn">Refresh preview</button>
+</div>
+<div class="row">
+  <button type="button" id="l1Btn">Level 1</button>
+  <button type="button" id="l2Btn">Level 2</button>
 </div>
 <textarea id="out" readonly></textarea>
 <script>
 (function(){
   "use strict";
-  /* ---- reads only: getItem, key, length. This file never writes, removes or clears storage. ---- */
+  /* reads: getItem, key, length. The ONLY write anywhere in this file is LS.removeItem(k) inside
+     runLevel(), on keys that passed every check below. No clear(), no setItem. */
   var LS = window.localStorage;
   function rd(k){ try { return LS.getItem(k); } catch (e) { return null; } }
   function readAll(){
@@ -50,7 +62,6 @@
   function lpad(s, n){ s = String(s); return s.length >= n ? s : new Array(n - s.length + 1).join(" ") + s; }
   function parse(v){ try { return { ok: true, o: JSON.parse(v) }; } catch (e) { return { ok: false }; } }
 
-  /* the only key families a cleanup could ever consider; everything else is protected */
   var CANDIDATES = [
     ["Vedic sections 3-6 drafts",  function(k){ return k.indexOf("cozGenDraft:") === 0; }],
     ["Ascendant readings",         function(k){ return k.indexOf("cozAscReading:") === 0; }],
@@ -63,21 +74,16 @@
   function runIn(o){ return o && typeof o === "object" ? ((o.run && o.run.runId) || o.runId || (o.inputs && o.inputs.runId) || (o.pair && o.pair.runId) || null) : null; }
   function runOfKey(k){ var m = k.match(/run-[a-z0-9]+-[a-z0-9]+/); return m ? m[0] : null; }
 
-  function build(){
-    var t0 = Date.now(), rows = readAll(), L = [];
-    L.push("COZALYZE STORAGE CLEANUP SC1.0 · DRY RUN (nothing deleted, nothing changed)");
-    L.push("built " + new Date().toISOString() + " · " + location.host + location.pathname.replace(/[^/]*$/, ""));
-    if (!rows) { L.push("localStorage unavailable"); return L.join("\n"); }
+  /* SC1.0 classification, unchanged, plus: level 2 excludes every key of a run that is saved */
+  function classify(){
+    var rows = readAll(); if (!rows) return null;
     var cur = null; try { var bd = JSON.parse(rd("emergeBirthData") || "null"); cur = bd && typeof bd.runId === "string" ? bd.runId : null; } catch (e) {}
-    L.push("current chart run: " + (cur || "none found (every run-owned entry is then treated as protected)"));
-
-    /* saved-chart snapshots: which keys they hold, with an identical-value check */
-    var snapKeys = {}, savedRuns = {}, scNote = "";
+    var snapKeys = {}, savedRuns = {}, savedCount = null, scNote = "";
     var sc = rd("cozSavedCharts");
     if (sc == null) scNote = "saved charts library not present";
     else { var ps = parse(sc);
       if (!ps.ok || !ps.o || !Array.isArray(ps.o.records)) scNote = "saved charts library could not be read; NO entry is treated as a safe duplicate";
-      else { scNote = "saved charts library: " + ps.o.records.length + " records";
+      else { savedCount = ps.o.records.length; scNote = "saved charts library: " + savedCount + " records";
         ps.o.records.forEach(function (rec) {
           if (rec && rec.runId) savedRuns[rec.runId] = true;
           var snap = rec && rec.snapshot && typeof rec.snapshot === "object" ? rec.snapshot : {};
@@ -85,73 +91,127 @@
         });
       }
     }
-    L.push(scNote);
-
-    var total = 0, cats = { SAFE: [], OLD: [], UNRES: [], PROT: [] };
+    var total = 0, cats = { SAFE: [], OLD: [], UNRES: [], PROT: [] }, byKey = {};
     rows.forEach(function (r) {
       var b = bytes(r.key, r.value); total += b;
       var g = candidateGroup(r.key);
-      var item = { key: r.key, b: b, g: g || "protected family", run: null, copy: "n/a", note: "" };
+      var item = { key: r.key, value: r.value, b: b, g: g || "protected family", run: null, copy: "n/a", note: "", cat: "PROT", level2: false };
+      byKey[r.key] = item;
       if (!g) { item.note = "not a cleanup family"; cats.PROT.push(item); return; }
-      var p = parse(r.value);
-      var run = runOfKey(r.key) || (p.ok ? runIn(p.o) : null);
-      /* in-flight markers name their reading inside the key: take the run from there */
+      var p = parse(r.value), run = runOfKey(r.key) || (p.ok ? runIn(p.o) : null);
       item.run = run || "unresolved";
       var copies = snapKeys[r.key] || [];
       item.copy = !copies.length ? "none" : (copies.some(function (v) { return v === r.value; }) ? "identical" : "same key, different content");
       if (!cur) { item.note = "no current run found"; cats.PROT.push(item); return; }
-      if (run === cur || (r.key.indexOf(cur) >= 0)) { item.note = "current run"; cats.PROT.push(item); return; }
-      if (!run) { item.note = "run cannot be established" + (item.copy === "identical" ? " (an identical snapshot copy exists, but ownership is still unproven)" : ""); cats.UNRES.push(item); return; }
-      if (item.copy === "identical") { item.note = "identical copy in a saved-chart snapshot"; cats.SAFE.push(item); return; }
+      if (run === cur || r.key.indexOf(cur) >= 0) { item.note = "current run"; cats.PROT.push(item); return; }
+      if (!run) { item.cat = "UNRES"; item.note = "run cannot be established" + (item.copy === "identical" ? " (an identical snapshot copy exists, but ownership is still unproven)" : ""); cats.UNRES.push(item); return; }
+      if (item.copy === "identical") { item.cat = "SAFE"; item.level2 = true; item.note = "identical copy in a saved-chart snapshot"; cats.SAFE.push(item); return; }
+      item.cat = "OLD";
       item.note = item.copy === "same key, different content" ? "a saved snapshot holds a DIFFERENT version under this key" : (savedRuns[run] ? "run is saved, but this key is not in its snapshot" : "run was never saved");
+      item.level2 = !savedRuns[run];                                  /* SC1.1: keys of saved runs are kept */
+      if (!item.level2) item.note += " · KEPT: its run is in the saved charts library";
       cats.OLD.push(item);
     });
-    function sum(a){ return a.reduce(function (s, x) { return s + x.b; }, 0); }
-    var S = sum(cats.SAFE), O = sum(cats.OLD), U = sum(cats.UNRES), P = sum(cats.PROT);
-    L.push("keys " + rows.length + " · total in use " + both(total) + " · categories reconcile: " + (S + O + U + P === total ? "yes" : "NO"));
+    return { rows: rows, cur: cur, cats: cats, byKey: byKey, total: total, savedCount: savedCount, scNote: scNote };
+  }
+  function sum(a){ return a.reduce(function (s, x) { return s + x.b; }, 0); }
+  function level1(C){ return C.cats.SAFE.slice(); }
+  function level2(C){ return C.cats.SAFE.concat(C.cats.OLD.filter(function (x) { return x.level2; })); }
+
+  function previewText(C){
+    var L = [];
+    L.push("COZALYZE STORAGE CLEANUP SC1.1 · PREVIEW (nothing removed yet)");
+    L.push("built " + new Date().toISOString() + " · " + location.host + location.pathname.replace(/[^/]*$/, ""));
+    L.push("current chart run: " + (C.cur || "none found (every run-owned entry is then treated as protected)"));
+    L.push(C.scNote);
+    var S = sum(C.cats.SAFE), O = sum(C.cats.OLD), U = sum(C.cats.UNRES), P = sum(C.cats.PROT);
+    var kept = C.cats.OLD.filter(function (x) { return !x.level2; }), K = sum(kept);
+    L.push("keys " + C.rows.length + " · total in use " + both(C.total) + " · categories reconcile: " + (S + O + U + P === C.total ? "yes" : "NO"));
     L.push("");
     L.push("CATEGORY                     keys   size");
-    L.push(pad("SAFE DUPLICATE", 28) + lpad(cats.SAFE.length, 4) + "   " + both(S));
-    L.push(pad("OLD UNSAVED ARTIFACT", 28) + lpad(cats.OLD.length, 4) + "   " + both(O));
-    L.push(pad("UNRESOLVED", 28) + lpad(cats.UNRES.length, 4) + "   " + both(U));
-    L.push(pad("CURRENT / PROTECTED", 28) + lpad(cats.PROT.length, 4) + "   " + both(P));
+    L.push(pad("SAFE DUPLICATE", 28) + lpad(C.cats.SAFE.length, 4) + "   " + both(S));
+    L.push(pad("OLD UNSAVED ARTIFACT", 28) + lpad(C.cats.OLD.length, 4) + "   " + both(O) + (kept.length ? "  (" + kept.length + " kept: saved run)" : ""));
+    L.push(pad("UNRESOLVED (never removed)", 28) + lpad(C.cats.UNRES.length, 4) + "   " + both(U));
+    L.push(pad("CURRENT / PROTECTED", 28) + lpad(C.cats.PROT.length, 4) + "   " + both(P));
     L.push("");
-    L.push("CLEANUP LEVELS (what storage would be after each, if a later version deletes)");
-    L.push("  level 1 · confirmed saved-chart duplicates only: frees " + both(S) + " -> " + both(total - S));
-    L.push("  level 2 · plus old unsaved artifacts:           frees " + both(O) + " more -> " + both(total - S - O));
-    L.push("  unresolved, reported only, in no level:           " + both(U) + " (would leave " + both(total - S - O - U) + " if ever cleared)");
+    var l1 = level1(C), l2 = level2(C);
+    L.push("LEVEL 1 would remove " + l1.length + " keys, " + both(sum(l1)) + " -> " + both(C.total - sum(l1)));
+    L.push("LEVEL 2 would remove " + l2.length + " keys, " + both(sum(l2)) + " -> " + both(C.total - sum(l2)));
+    if (kept.length) { L.push("Kept from level 2 because their run is saved:"); kept.forEach(function (x) { L.push("  " + pad(kb(x.b), 9) + " " + x.key); }); }
     L.push("");
-    function byGroup(list){ var g = {}; list.forEach(function (x) { (g[x.g] = g[x.g] || { n: 0, b: 0 }); g[x.g].n++; g[x.g].b += x.b; }); return g; }
-    [["SAFE DUPLICATE", cats.SAFE], ["OLD UNSAVED ARTIFACT", cats.OLD], ["UNRESOLVED", cats.UNRES]].forEach(function (c) {
-      L.push(c[0] + " by group:"); var g = byGroup(c[1]);
-      if (!c[1].length) L.push("  none");
-      Object.keys(g).sort(function (a, b) { return g[b].b - g[a].b; }).forEach(function (k) { L.push("  " + pad(k, 38) + lpad(g[k].n, 4) + "  " + kb(g[k].b)); });
-    });
-    L.push("");
-    [["SAFE DUPLICATE", cats.SAFE], ["OLD UNSAVED ARTIFACT", cats.OLD], ["UNRESOLVED", cats.UNRES]].forEach(function (c) {
+    [["SAFE DUPLICATE", C.cats.SAFE], ["OLD UNSAVED ARTIFACT", C.cats.OLD], ["UNRESOLVED", C.cats.UNRES]].forEach(function (c) {
       L.push("EVERY " + c[0] + " KEY (largest first)   size · group · run · snapshot copy · note");
       if (!c[1].length) L.push("  none");
-      c[1].slice().sort(function (a, b) { return b.b - a.b; }).forEach(function (x) {
-        L.push("  " + pad(kb(x.b), 9) + " " + x.key + "  [" + x.g + " · " + x.run + " · copy: " + x.copy + " · " + x.note + "]");
-      });
+      c[1].slice().sort(function (a, b) { return b.b - a.b; }).forEach(function (x) { L.push("  " + pad(kb(x.b), 9) + " " + x.key + "  [" + x.g + " · " + x.run + " · copy: " + x.copy + " · " + x.note + "]"); });
       L.push("");
     });
-    var pg = {}; cats.PROT.forEach(function (x) { var k = x.note === "current run" ? "current run: " + x.g : x.key.indexOf("cozSavedCharts") === 0 ? "saved charts library" : "other protected keys"; (pg[k] = pg[k] || { n: 0, b: 0 }); pg[k].n++; pg[k].b += x.b; });
-    L.push("CURRENT / PROTECTED summary:");
-    Object.keys(pg).sort(function (a, b) { return pg[b].b - pg[a].b; }).forEach(function (k) { L.push("  " + pad(k, 44) + lpad(pg[k].n, 4) + "  " + kb(pg[k].b)); });
-    L.push("");
-    L.push("Always protected: cozSavedCharts, the current run, cozTestApiKey, model and settings, interface flags, chart records, coordinator state, generator logs, and the VD1.2 diagnostic.");
-    L.push("report built in " + (Date.now() - t0) + " ms");
+    L.push("Always protected: cozSavedCharts and every saved record, the current run, keys of saved runs, chart records, cozTestApiKey, model and settings, coordinator state, logs, the VD1.2 diagnostic, interface flags, and all UNRESOLVED keys.");
     return L.join("\n");
   }
 
-  var out = document.getElementById("out"), copyBtn = document.getElementById("copyBtn");
-  function refresh(){ try { out.value = build(); } catch (e) { out.value = "report failed (" + (e && e.name) + "); nothing was changed"; } }
+  var preview = null, lastReport = "";
+  var out = document.getElementById("out"), copyBtn = document.getElementById("copyBtn"), l1Btn = document.getElementById("l1Btn"), l2Btn = document.getElementById("l2Btn");
+  function show(t){ lastReport = t; out.value = t; }
+  function refresh(){
+    try {
+      var C = classify(); if (!C) { show("localStorage unavailable; nothing was changed"); l1Btn.disabled = l2Btn.disabled = true; return; }
+      preview = { cur: C.cur, total: C.total, savedCount: C.savedCount, byKey: C.byKey,
+                  l1: level1(C).map(function (x) { return { key: x.key, value: x.value, b: x.b }; }),
+                  l2: level2(C).map(function (x) { return { key: x.key, value: x.value, b: x.b }; }),
+                  keep: C.cats.PROT.concat(C.cats.UNRES, C.cats.OLD.filter(function (x) { return !x.level2; })).map(function (x) { return { key: x.key, value: x.value }; }) };
+      l1Btn.textContent = "Level 1 · remove " + preview.l1.length + " keys (" + kb(sum(preview.l1)) + ")";
+      l2Btn.textContent = "Level 2 · remove " + preview.l2.length + " keys (" + kb(sum(preview.l2)) + ")";
+      l1Btn.disabled = !C.cur || !preview.l1.length; l2Btn.disabled = !C.cur || !preview.l2.length;
+      show(previewText(C));
+    } catch (e) { show("preview failed (" + (e && e.name) + "); nothing was changed"); l1Btn.disabled = l2Btn.disabled = true; }
+  }
+
+  function runLevel(level){
+    if (!preview) return;
+    var list = level === 1 ? preview.l1 : preview.l2;
+    var msg = level === 1
+      ? "Remove " + list.length + " saved-chart duplicate entries (" + kb(sum(list)) + ") from this browser? Each has an identical copy inside a saved chart."
+      : "Remove " + list.length + " entries (" + kb(sum(list)) + ") from this browser?\n\nThis PERMANENTLY removes unsaved outputs from superseded development runs, plus saved-chart duplicates. Saved charts, the current run, keys of saved runs and unresolved entries are kept.";
+    if (!window.confirm(msg)) { show("Level " + level + " cancelled; nothing was changed.\n\n" + lastReport); return; }
+    l1Btn.disabled = l2Btn.disabled = true;
+    var R = ["COZALYZE STORAGE CLEANUP SC1.1 · LEVEL " + level + " VERIFICATION REPORT", "run at " + new Date().toISOString()];
+    var fresh = classify();
+    if (!fresh) { R.push("ABORTED: storage could not be read. Nothing was removed."); show(R.join("\n")); return; }
+    R.push("current run at preview: " + preview.cur + " · now: " + fresh.cur);
+    if (fresh.cur !== preview.cur) { R.push("ABORTED: the current run changed since the preview. Nothing was removed. Refresh the preview and decide again."); show(R.join("\n")); return; }
+    var allowed = level === 1 ? level1(fresh) : level2(fresh), ok = {}; allowed.forEach(function (x) { ok[x.key] = true; });
+    var removed = [], skipped = [], failed = [], freed = 0;
+    list.forEach(function (p) {
+      var now = rd(p.key);
+      if (now === null) { skipped.push(p.key + " · already gone"); return; }
+      if (now !== p.value) { skipped.push(p.key + " · value changed since the preview"); return; }
+      if (!ok[p.key]) { var it = fresh.byKey[p.key]; skipped.push(p.key + " · no longer in level " + level + " (now " + (it ? it.cat : "?") + ")"); return; }
+      try { LS.removeItem(p.key); } catch (e) { failed.push(p.key + " · removeItem failed (" + (e && e.name) + ")"); return; }
+      if (rd(p.key) === null) { removed.push(p); freed += p.b; } else failed.push(p.key + " · still present after removal");
+    });
+    var after = classify(), keepLost = [], keepChanged = [];
+    preview.keep.forEach(function (k) { var v = rd(k.key); if (v === null) keepLost.push(k.key); else if (v !== k.value) keepChanged.push(k.key); });
+    R.push("storage before: " + both(preview.total) + " · after: " + (after ? both(after.total) : "unreadable") + " · reclaimed by this action: " + both(freed));
+    R.push("keys removed " + removed.length + " of " + list.length + " planned · skipped " + skipped.length + " · failed " + failed.length);
+    R.push("current run after: " + (after ? after.cur : "?") + (after && after.cur === preview.cur ? " (unchanged)" : " (CHANGED)"));
+    R.push("saved chart records before: " + preview.savedCount + " · after: " + (after ? after.savedCount : "?") + (after && after.savedCount === preview.savedCount ? " (unchanged)" : " (CHANGED)"));
+    R.push("protected, kept and unresolved entries: " + preview.keep.length + " checked · missing " + keepLost.length + " · changed by something else " + keepChanged.length);
+    if (keepLost.length) { R.push("MISSING:"); keepLost.forEach(function (k) { R.push("  " + k); }); }
+    if (keepChanged.length) { R.push("changed during the run (not by this page, which only removes):"); keepChanged.forEach(function (k) { R.push("  " + k); }); }
+    if (skipped.length) { R.push(""); R.push("SKIPPED"); skipped.forEach(function (s) { R.push("  " + s); }); }
+    if (failed.length) { R.push(""); R.push("FAILED"); failed.forEach(function (s) { R.push("  " + s); }); }
+    R.push(""); R.push("REMOVED"); removed.forEach(function (p) { R.push("  " + pad(kb(p.b), 9) + " " + p.key); });
+    show(R.join("\n"));
+    try { var C2 = classify(); preview = null; l1Btn.textContent = "Level 1"; l2Btn.textContent = "Level 2"; if (C2) { /* buttons stay off until Refresh preview */ } } catch (e) {}
+  }
+
   document.getElementById("refreshBtn").addEventListener("click", refresh);
+  l1Btn.addEventListener("click", function(){ runLevel(1); });
+  l2Btn.addEventListener("click", function(){ runLevel(2); });
   copyBtn.addEventListener("click", function(){
-    var text = ""; try { text = build(); out.value = text; } catch (e) { text = out.value; }
-    function say(m){ copyBtn.textContent = m; setTimeout(function(){ copyBtn.textContent = "Copy cleanup report"; }, 3000); }
-    function fallback(){ var ok = false; try { out.focus(); out.select(); out.setSelectionRange(0, text.length); ok = document.execCommand("copy"); } catch (e) { ok = false; } say(ok ? "Copied" : "Copy failed: select the text and copy it"); }
+    var text = lastReport || out.value;
+    function say(m){ copyBtn.textContent = m; setTimeout(function(){ copyBtn.textContent = "Copy report"; }, 3000); }
+    function fallback(){ var ok = false; try { out.value = text; out.focus(); out.select(); out.setSelectionRange(0, text.length); ok = document.execCommand("copy"); } catch (e) { ok = false; } say(ok ? "Copied" : "Copy failed: select the text and copy it"); }
     try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ say("Copied"); }, fallback); else fallback(); } catch (e) { fallback(); }
   });
   refresh();
