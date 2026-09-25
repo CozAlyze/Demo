@@ -840,7 +840,7 @@ const WRITING_NOTE = "Writing your Tropical reading for this chart. This takes a
    Validation fails closed: after the single repair any remaining hard
    violation leaves the reading unavailable and stores nothing.
    ============================================================ */
-var COZ_TGEN_VERSION = "tropical-gen 1.0.2";
+var COZ_TGEN_VERSION = "tropical-gen 1.0.3";
 var COZ_TGEN_SYSTEM = [
 "You write Your Tropical Reading for CozAlyze: six sections of one continuous Western Tropical reading, from the chart evidence given to you. Customer-facing identity: Western Tropical astrology, the person's outer expression, outward personality, psychological expression, relational style, motivations, creative drives, ambitions and the ways they tend to engage with life.",
 "",
@@ -866,7 +866,7 @@ var COZ_TGEN_SYSTEM = [
 "",
 "SECTION 6, Your Essential Takeaway: synthesis of Sections 1 through 5. Pull together the strongest recurring themes, name the central pattern in clear language, and end with one practical direction. A conclusion, not a sixth interpretation: no pile of new chart factors, no repeated sentences, no section-by-section summary. Its trace may cite only factors already cited in Sections 1 to 5.",
 "",
-"LENGTH. Each of the six sections lands at roughly 245 to 290 words, four to six paragraphs. This is an editorial target, not a reason to pad or distort: supported, specific prose matters more than the exact count.",
+"LENGTH, strictly enforced. Each of the six sections must be 245 to 290 words; anything over 310 words is rejected. Write exactly four paragraphs per section, each 60 to 70 words (three or four sentences). Count as you write. Say less, better: one clear idea per paragraph, no restating. Never pad to reach the count.",
 "",
 "QUALITY. The customer should feel 'that describes a recognizable pattern in how I operate', never 'that is vague enough to describe anyone'.",
 "",
@@ -1014,6 +1014,7 @@ function cozTgenCheck(out, firstName, ev) {
   vedicReadingSections.forEach(function (s) {
     var arr = sections[s.id];
     if (!Array.isArray(arr) || !arr.length || !arr.every(function (p) { return typeof p === "string" && p.trim(); })) { hard.push(s.id + " is missing or empty"); return; }
+    if (arr.length !== 4) hard.push(s.id + " has " + arr.length + " paragraphs; exactly 4 are required");
     var w = counts[s.id] = cozTgenWords(arr);
     if (w < COZ_TGEN_BANDS.hard[0] || w > COZ_TGEN_BANDS.hard[1]) hard.push(s.id + " was " + w + " words (must be 225 to 310, target 245 to 290)");
     else if (w < COZ_TGEN_BANDS.soft[0] || w > COZ_TGEN_BANDS.soft[1]) soft.push(s.id + " was " + w + " words (target 245 to 290)");
@@ -1135,8 +1136,11 @@ function generateTropicalReading(chart) {
     attempts.push({ counts: chk.counts, hard: chk.hard, soft: chk.soft, raw: r.raw });
     if (!chk.hard.length) return { r: r, chk: chk, repaired: false };
     /* one corrective request naming every hard failure; the reading is never accepted with one remaining */
-    cozTgenStatus(inputsHash, "repair sent", chk.hard.slice(0, 3).join("; ") + (chk.hard.length > 3 ? " (+" + (chk.hard.length - 3) + " more)" : ""));
-    var note = "Your previous attempt broke these rules: " + chk.hard.join("; ") + ". Keep the same substance and voice; fix only what is named. Return the full JSON again, including _trace.";
+    cozTgenStatus(inputsHash, "repair sent", chk.hard.join("; "));
+    var adj = Object.keys(chk.counts || {}).map(function (k) { var w = chk.counts[k];
+      return w > COZ_TGEN_BANDS.soft[1] ? k + ": cut about " + (w - 268) + " words (now " + w + ", aim for about 268)" : w < COZ_TGEN_BANDS.soft[0] ? k + ": add about " + (268 - w) + " words (now " + w + ", aim for about 268)" : null; }).filter(Boolean);
+    var note = "Your previous attempt broke these rules: " + chk.hard.join("; ") + "." + (adj.length ? " Length fixes required, section by section: " + adj.join("; ") + ". Keep exactly four paragraphs of 60 to 70 words each; shorten by removing restatement, not substance." : "") +
+      " Keep the same substance and voice; fix only what is named. Return the full JSON again, including _trace (one factor list per paragraph).";
     return request(userMsg + "\n\n" + note, false).then(function (data2) {
       requests++;
       var r2 = parse(data2), chk2 = check(r2);
