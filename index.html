@@ -3041,7 +3041,7 @@ document.querySelectorAll('.syscard').forEach(card => {
   function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('could not load ' + src)); }; document.head.appendChild(s); }); }
   function loadGen(){
     var chain = Promise.resolve();
-    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=9'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
+    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=10'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
     return chain;
   }
   /* background writing never starts while a page is changing (or 15 s at most) */

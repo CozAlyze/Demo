@@ -1,4 +1,7 @@
-/* COZALYZE · COMBINED READING GENERATOR · CG0.6 (v9 · CR3.3) · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
+/* COZALYZE · COMBINED READING GENERATOR · CG0.7 (v10 · CR3.4) · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
+   CR3.4 (Sep 25): step 2 sees each Section I and II paragraph labelled with the accepted step 1
+   entry ids that cover it, and a buildsOn repair restates the exact valid entry list. Nothing
+   else changes: validator, budget, retries, timeouts, checkpoint and step 1 are as before.
    INPUT: the validated chart-run pair + the Compare evidence manifest (compare-evidence.js).
      Vedic   = only claims that pass the CE1.2 eligibility gate (developmentEligible records,
                no BLOCKED/GAP/PROHIBITED status, sourced, claimConditions satisfied).
@@ -17,7 +20,7 @@
      step 2 rules retires every finished reading written under the old rules, and nothing
      else. Bump STEP1_VERSION only when the step 1 prompt or its output shape changes. */
   var STEP1_VERSION = "cmp-step1 cr3.3-one-theme";   /* CR3.3: step 1 reminder also fixes the one-theme-key rule */
-  var STEP2_VERSION = "cmp-step2 cr3.1-repair";
+  var STEP2_VERSION = "cmp-step2 cr3.4-labelled-entries";   /* CR3.4: new step 2 prompt; step 1 checkpoint unaffected */
   var PROMPT_VERSION = STEP1_VERSION + " + " + STEP2_VERSION;
   var WESTERN_CLAIM_SYSTEM = "none";                     // bump when the Tropical claim system exists
   /* agreed Combined Reading size (Sep 22): about 150 / 200 / 120 words, ~470 total */
@@ -191,10 +194,16 @@
     if (/paragraph/.test(h)) return " Rule: keep the paragraph count for that section.";
     return "";
   }
-  function repairList(v){
+  function repairList(v, validEntries){
     var lines = (v.details || []).map(function(d, i){ return (i + 1) + ". Sentence: \"" + d.sentence + "\"  Rule broken: " + d.rule + ". " + (RULE_TEXT[d.rule] || ""); });
     var other = v.hard.filter(function(h){ return !(v.details || []).some(function(d){ return h.indexOf(d.rule) >= 0 && h.indexOf(d.section) === 0; }); });
-    other.forEach(function(h){ lines.push((lines.length + 1) + ". " + h + "." + plainRule(h)); });
+    other.forEach(function(h){
+      /* CR3.4: an unknown buildsOn entry is answered with the complete valid list for THIS accepted step 1 */
+      var extra = (validEntries && / buildsOn unknown entry /.test(h))
+        ? " Rule: every buildsOn value must be copied exactly from this list, the entries that exist in Sections I and II: " + (validEntries.join(", ") || "(none)") + ". No other entry exists."
+        : plainRule(h);
+      lines.push((lines.length + 1) + ". " + h + "." + extra);
+    });
     return lines.join("\n");
   }
   var STEP1_REMINDER = "\n\nRULE REMINDER FOR sharedThemes AND differentEmphases. " + RULE_TEXT["outcome or identity-essence inference"] +
@@ -228,6 +237,24 @@
     });
     return { factors: Object.keys(f), claims: Object.keys(c), themes: Object.keys(t), entryIds: ids };
   }
+  /* CR3.4: every id below is read from the accepted step 1 object; nothing is hard-coded */
+  function labelledParagraphs(sct){
+    var ps = (sct && sct.paragraphs) || [], ev = (sct && sct.evidence) || [];
+    return ps.map(function(p, i){
+      var n = i + 1, by = ev.filter(function(e){ return e && e.id && (e.paragraphs || []).map(Number).indexOf(n) >= 0; }).map(function(e){ return e.id; });
+      return "[Paragraph " + n + " \u00b7 entries: " + (by.join(", ") || "none") + "] " + p;
+    }).join("\n\n");
+  }
+  function entryList(part1){
+    var L = [];
+    ["sharedThemes", "differentEmphases"].forEach(function(k){
+      ((part1 && part1[k] && part1[k].evidence) || []).forEach(function(e){
+        if (!e || !e.id) return;
+        L.push("  " + e.id + " (" + (k === "sharedThemes" ? "Section I" : "Section II") + ", theme " + (e.theme || "?") + ", paragraphs " + ((e.paragraphs || []).join(", ") || "none") + ")");
+      });
+    });
+    return L.join("\n") || "  (none)";
+  }
   function stage2Message(user, part1, man, pair, sup){
     var u = idsUsed(part1);
     /* v5: step 2 is built from the two written sections plus ONLY the evidence they used.
@@ -259,11 +286,14 @@
       "",
       "STEP 2 of 2. Sections I and II are already written and are shown below. Write ONLY integratedView now.",
       "",
-      "SECTION I (sharedThemes), as written:",
-      (part1.sharedThemes.paragraphs || []).join("\n\n"),
+      "SECTION I (sharedThemes), as written, each paragraph labelled with the evidence entries that support it:",
+      labelledParagraphs(part1.sharedThemes),
       "",
-      "SECTION II (differentEmphases), as written:",
-      (part1.differentEmphases.paragraphs || []).join("\n\n"),
+      "SECTION II (differentEmphases), as written, each paragraph labelled with the evidence entries that support it:",
+      labelledParagraphs(part1.differentEmphases),
+      "",
+      "EVIDENCE ENTRIES FROM SECTIONS I AND II (these are the only entries that exist):",
+      entryList(part1),
       "",
       "HARD LIMIT. integratedView may use ONLY these ids, and no others:",
       "  Western factors allowed: " + (u.factors.join(", ") || "(none)"),
@@ -406,7 +436,7 @@
           if (stage === 2)
             /* repair, not regenerate: the writer gets its own Integrated View back with the
                exact sentences and the exact rules they broke */
-            fix = msg + "\n\nREPAIR. Your previous integratedView broke these rules:\n" + repairList(v) +
+            fix = msg + "\n\nREPAIR. Your previous integratedView broke these rules:\n" + repairList(v, idsUsed(base).entryIds) +
                   "\n\nFix EVERY item listed in this one reply. For a sentence item, rewrite only that sentence so it keeps its meaning without breaking the rule. For any other item, change only what that item needs. Keep everything else exactly as written. The whole Integrated View is checked again against every rule after this. Return the JSON with integratedView only.\n\nYOUR PREVIOUS integratedView:\n" + JSON.stringify(out.integratedView);
           else
             /* CR3.3: step 1 is repaired the same way, from its own draft */
