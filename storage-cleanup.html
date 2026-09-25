@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CozAlyze storage cleanup (dry run)</title>
+<!--
+  COZALYZE · STORAGE CLEANUP · SC1.0 DRY RUN (Sep 25 2026) · DEVELOPMENT DIAGNOSTIC · READ-ONLY
+  Works out what a cleanup WOULD remove, using the storage actually on this device, and deletes
+  nothing: this version has no deletion control and never writes, removes or clears storage.
+  Each candidate is classed SAFE DUPLICATE (old run, identical copy inside a saved-chart
+  snapshot), OLD UNSAVED ARTIFACT (old run, no identical snapshot copy), UNRESOLVED (run
+  cannot be established) or CURRENT / PROTECTED. No network calls, no other scripts, no stored
+  values printed. Sizes are estimated at 2 bytes per character. Not linked from the application.
+-->
+<style>
+  html,body{margin:0;background:#050a14;color:#e5d4c5}
+  body{padding:calc(env(safe-area-inset-top,0px) + 12px) 12px calc(env(safe-area-inset-bottom,0px) + 12px);font:14px/1.4 -apple-system,system-ui,sans-serif}
+  h1{font-size:17px;margin:0 0 4px}
+  p.note{margin:0 0 10px;color:#b9a58c;font-size:12px}
+  .row{display:flex;gap:8px;margin:0 0 10px}
+  button{flex:1;padding:12px;background:#1a2233;color:#e5d4c5;border:1px solid #6b5a3e;border-radius:8px;font:15px -apple-system,system-ui,sans-serif}
+  textarea{width:100%;box-sizing:border-box;height:calc(100vh - 170px);min-height:320px;background:#000;color:#e5d4c5;border:1px solid #333;border-radius:8px;padding:8px;font:11px/1.45 Menlo,monospace;white-space:pre;overflow:auto}
+</style>
+</head>
+<body>
+<h1>CozAlyze storage cleanup · SC1.0 · dry run</h1>
+<p class="note">Dry run only. This page deletes nothing and changes nothing. No stored values are shown.</p>
+<div class="row">
+  <button type="button" id="copyBtn">Copy cleanup report</button>
+  <button type="button" id="refreshBtn">Refresh</button>
+</div>
+<textarea id="out" readonly></textarea>
+<script>
+(function(){
+  "use strict";
+  /* ---- reads only: getItem, key, length. This file never writes, removes or clears storage. ---- */
+  var LS = window.localStorage;
+  function rd(k){ try { return LS.getItem(k); } catch (e) { return null; } }
+  function readAll(){
+    var rows = [], n = 0; try { n = LS.length; } catch (e) { return null; }
+    for (var i = 0; i < n; i++) { var k = null; try { k = LS.key(i); } catch (e) {} if (k != null) rows.push({ key: k, value: rd(k) }); }
+    return rows;
+  }
+  function bytes(k, v){ return ((k ? k.length : 0) + (typeof v === "string" ? v.length : 0)) * 2; }
+  function kb(b){ return (b / 1024).toFixed(1) + " KB"; }
+  function mb(b){ return (b / 1048576).toFixed(3) + " MB"; }
+  function both(b){ return kb(b) + " (" + mb(b) + ")"; }
+  function pad(s, n){ s = String(s); return s.length >= n ? s : s + new Array(n - s.length + 1).join(" "); }
+  function lpad(s, n){ s = String(s); return s.length >= n ? s : new Array(n - s.length + 1).join(" ") + s; }
+  function parse(v){ try { return { ok: true, o: JSON.parse(v) }; } catch (e) { return { ok: false }; } }
+
+  /* the only key families a cleanup could ever consider; everything else is protected */
+  var CANDIDATES = [
+    ["Vedic sections 3-6 drafts",  function(k){ return k.indexOf("cozGenDraft:") === 0; }],
+    ["Ascendant readings",         function(k){ return k.indexOf("cozAscReading:") === 0; }],
+    ["Combined readings",          function(k){ return k.indexOf("cozCombinedReadingDEV:") === 0; }],
+    ["Combined step 1 checkpoints",function(k){ return k.indexOf("cozCombinedStep1DEV:") === 0; }],
+    ["Ascendant in-flight markers",function(k){ return k.indexOf("cozAscInFlight:") === 0; }],
+    ["rolled-back Tropical writer leftovers", function(k){ return k === "cozTropicalGenStatus" || k === "cozTropicalGenInFlight"; }]
+  ];
+  function candidateGroup(k){ for (var i = 0; i < CANDIDATES.length; i++) if (CANDIDATES[i][1](k)) return CANDIDATES[i][0]; return null; }
+  function runIn(o){ return o && typeof o === "object" ? ((o.run && o.run.runId) || o.runId || (o.inputs && o.inputs.runId) || (o.pair && o.pair.runId) || null) : null; }
+  function runOfKey(k){ var m = k.match(/run-[a-z0-9]+-[a-z0-9]+/); return m ? m[0] : null; }
+
+  function build(){
+    var t0 = Date.now(), rows = readAll(), L = [];
+    L.push("COZALYZE STORAGE CLEANUP SC1.0 · DRY RUN (nothing deleted, nothing changed)");
+    L.push("built " + new Date().toISOString() + " · " + location.host + location.pathname.replace(/[^/]*$/, ""));
+    if (!rows) { L.push("localStorage unavailable"); return L.join("\n"); }
+    var cur = null; try { var bd = JSON.parse(rd("emergeBirthData") || "null"); cur = bd && typeof bd.runId === "string" ? bd.runId : null; } catch (e) {}
+    L.push("current chart run: " + (cur || "none found (every run-owned entry is then treated as protected)"));
+
+    /* saved-chart snapshots: which keys they hold, with an identical-value check */
+    var snapKeys = {}, savedRuns = {}, scNote = "";
+    var sc = rd("cozSavedCharts");
+    if (sc == null) scNote = "saved charts library not present";
+    else { var ps = parse(sc);
+      if (!ps.ok || !ps.o || !Array.isArray(ps.o.records)) scNote = "saved charts library could not be read; NO entry is treated as a safe duplicate";
+      else { scNote = "saved charts library: " + ps.o.records.length + " records";
+        ps.o.records.forEach(function (rec) {
+          if (rec && rec.runId) savedRuns[rec.runId] = true;
+          var snap = rec && rec.snapshot && typeof rec.snapshot === "object" ? rec.snapshot : {};
+          Object.keys(snap).forEach(function (k) { (snapKeys[k] = snapKeys[k] || []).push(typeof snap[k] === "string" ? snap[k] : JSON.stringify(snap[k])); });
+        });
+      }
+    }
+    L.push(scNote);
+
+    var total = 0, cats = { SAFE: [], OLD: [], UNRES: [], PROT: [] };
+    rows.forEach(function (r) {
+      var b = bytes(r.key, r.value); total += b;
+      var g = candidateGroup(r.key);
+      var item = { key: r.key, b: b, g: g || "protected family", run: null, copy: "n/a", note: "" };
+      if (!g) { item.note = "not a cleanup family"; cats.PROT.push(item); return; }
+      var p = parse(r.value);
+      var run = runOfKey(r.key) || (p.ok ? runIn(p.o) : null);
+      /* in-flight markers name their reading inside the key: take the run from there */
+      item.run = run || "unresolved";
+      var copies = snapKeys[r.key] || [];
+      item.copy = !copies.length ? "none" : (copies.some(function (v) { return v === r.value; }) ? "identical" : "same key, different content");
+      if (!cur) { item.note = "no current run found"; cats.PROT.push(item); return; }
+      if (run === cur || (r.key.indexOf(cur) >= 0)) { item.note = "current run"; cats.PROT.push(item); return; }
+      if (!run) { item.note = "run cannot be established" + (item.copy === "identical" ? " (an identical snapshot copy exists, but ownership is still unproven)" : ""); cats.UNRES.push(item); return; }
+      if (item.copy === "identical") { item.note = "identical copy in a saved-chart snapshot"; cats.SAFE.push(item); return; }
+      item.note = item.copy === "same key, different content" ? "a saved snapshot holds a DIFFERENT version under this key" : (savedRuns[run] ? "run is saved, but this key is not in its snapshot" : "run was never saved");
+      cats.OLD.push(item);
+    });
+    function sum(a){ return a.reduce(function (s, x) { return s + x.b; }, 0); }
+    var S = sum(cats.SAFE), O = sum(cats.OLD), U = sum(cats.UNRES), P = sum(cats.PROT);
+    L.push("keys " + rows.length + " · total in use " + both(total) + " · categories reconcile: " + (S + O + U + P === total ? "yes" : "NO"));
+    L.push("");
+    L.push("CATEGORY                     keys   size");
+    L.push(pad("SAFE DUPLICATE", 28) + lpad(cats.SAFE.length, 4) + "   " + both(S));
+    L.push(pad("OLD UNSAVED ARTIFACT", 28) + lpad(cats.OLD.length, 4) + "   " + both(O));
+    L.push(pad("UNRESOLVED", 28) + lpad(cats.UNRES.length, 4) + "   " + both(U));
+    L.push(pad("CURRENT / PROTECTED", 28) + lpad(cats.PROT.length, 4) + "   " + both(P));
+    L.push("");
+    L.push("CLEANUP LEVELS (what storage would be after each, if a later version deletes)");
+    L.push("  level 1 · confirmed saved-chart duplicates only: frees " + both(S) + " -> " + both(total - S));
+    L.push("  level 2 · plus old unsaved artifacts:           frees " + both(O) + " more -> " + both(total - S - O));
+    L.push("  unresolved, reported only, in no level:           " + both(U) + " (would leave " + both(total - S - O - U) + " if ever cleared)");
+    L.push("");
+    function byGroup(list){ var g = {}; list.forEach(function (x) { (g[x.g] = g[x.g] || { n: 0, b: 0 }); g[x.g].n++; g[x.g].b += x.b; }); return g; }
+    [["SAFE DUPLICATE", cats.SAFE], ["OLD UNSAVED ARTIFACT", cats.OLD], ["UNRESOLVED", cats.UNRES]].forEach(function (c) {
+      L.push(c[0] + " by group:"); var g = byGroup(c[1]);
+      if (!c[1].length) L.push("  none");
+      Object.keys(g).sort(function (a, b) { return g[b].b - g[a].b; }).forEach(function (k) { L.push("  " + pad(k, 38) + lpad(g[k].n, 4) + "  " + kb(g[k].b)); });
+    });
+    L.push("");
+    [["SAFE DUPLICATE", cats.SAFE], ["OLD UNSAVED ARTIFACT", cats.OLD], ["UNRESOLVED", cats.UNRES]].forEach(function (c) {
+      L.push("EVERY " + c[0] + " KEY (largest first)   size · group · run · snapshot copy · note");
+      if (!c[1].length) L.push("  none");
+      c[1].slice().sort(function (a, b) { return b.b - a.b; }).forEach(function (x) {
+        L.push("  " + pad(kb(x.b), 9) + " " + x.key + "  [" + x.g + " · " + x.run + " · copy: " + x.copy + " · " + x.note + "]");
+      });
+      L.push("");
+    });
+    var pg = {}; cats.PROT.forEach(function (x) { var k = x.note === "current run" ? "current run: " + x.g : x.key.indexOf("cozSavedCharts") === 0 ? "saved charts library" : "other protected keys"; (pg[k] = pg[k] || { n: 0, b: 0 }); pg[k].n++; pg[k].b += x.b; });
+    L.push("CURRENT / PROTECTED summary:");
+    Object.keys(pg).sort(function (a, b) { return pg[b].b - pg[a].b; }).forEach(function (k) { L.push("  " + pad(k, 44) + lpad(pg[k].n, 4) + "  " + kb(pg[k].b)); });
+    L.push("");
+    L.push("Always protected: cozSavedCharts, the current run, cozTestApiKey, model and settings, interface flags, chart records, coordinator state, generator logs, and the VD1.2 diagnostic.");
+    L.push("report built in " + (Date.now() - t0) + " ms");
+    return L.join("\n");
+  }
+
+  var out = document.getElementById("out"), copyBtn = document.getElementById("copyBtn");
+  function refresh(){ try { out.value = build(); } catch (e) { out.value = "report failed (" + (e && e.name) + "); nothing was changed"; } }
+  document.getElementById("refreshBtn").addEventListener("click", refresh);
+  copyBtn.addEventListener("click", function(){
+    var text = ""; try { text = build(); out.value = text; } catch (e) { text = out.value; }
+    function say(m){ copyBtn.textContent = m; setTimeout(function(){ copyBtn.textContent = "Copy cleanup report"; }, 3000); }
+    function fallback(){ var ok = false; try { out.focus(); out.select(); out.setSelectionRange(0, text.length); ok = document.execCommand("copy"); } catch (e) { ok = false; } say(ok ? "Copied" : "Copy failed: select the text and copy it"); }
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function(){ say("Copied"); }, fallback); else fallback(); } catch (e) { fallback(); }
+  });
+  refresh();
+})();
+</script>
+</body>
+</html>
