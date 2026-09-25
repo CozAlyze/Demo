@@ -2935,7 +2935,7 @@ document.querySelectorAll('.syscard').forEach(card => {
        page opens on time. The three reading pages carry no audio of their own. */
     var COZ_WARM = {
       GOTO_VEDIC:    ['vedic-dash.jpg', 'vedic-reading-reveal.mp4', 'vedic-moon-bg.png', 'vedic-logo.png'],
-      GOTO_TROPICAL: ['tropical-dash.jpg?v=10', 'tropical-reading-reveal-full.mp4?v=1080', 'vedic-moon-bg.png', 'vedic-logo.png'],   /* Sep 24: the exact assets tropical-reading.html T5.0 requests */
+      GOTO_TROPICAL: ['tropical-dash.jpg', 'tropical-reading-reveal-repaired.mp4', 'vedic-moon-bg.png', 'vedic-logo.png'],
       GOTO_COMPARE:  ['compare-dash.jpg', 'compare-reading-reveal.mp4', 'compare-moon-bg.png', 'vedic-logo.png']
     };
     window.addEventListener('message', function(ev){
@@ -2966,14 +2966,12 @@ document.querySelectorAll('.syscard').forEach(card => {
    own a request that a page change could kill.
    - One model job at a time for the whole app, in one queue:
        vedic36 (Vedic Sections 3-6) > combined > ascTropical > ascVedic > ascCombined
-       tropical16 (Sep 24, TG1.0): the six-section Tropical reading, written in a hidden copy of
-       tropical-reading.html; queued only by a TROPICAL purchase, urgent (starts at the tap)
    - Compare priority: when the Compare dashboard or the Combined Reading page asks, the
      Combined job moves to the front. It starts as soon as the job running now finishes.
    - Ascendant jobs never start while Combined is running (the queue is serial), and if
      Combined is being written by another live owner the queue waits for it.
    - Per-job state per chart run in localStorage "cozGenJobs":
-       { runId: { updatedAt, jobs: { vedic36|tropical16|combined|ascTropical|ascVedic|ascCombined:
+       { runId: { updatedAt, jobs: { vedic36|combined|ascTropical|ascVedic|ascCombined:
          { state: queued|running|part1_complete|complete|failed, owner, queuedAt, startedAt,
            endedAt, beat, requests, stage, validationAttempt, checkpoint:{step1}, error } } } }
    - A failed job is never latched: the next request queues it again.
@@ -2990,7 +2988,7 @@ document.querySelectorAll('.syscard').forEach(card => {
   var ORDERS = {
     COMPARE:  ["combined", "ascTropical", "ascVedic", "ascCombined", "vedic36"],
     VEDIC:    ["vedic36"],          /* his ruling: a Vedic purchase writes Vedic content only */
-    TROPICAL: ["tropical16"]        /* Sep 24: a Tropical purchase writes the Tropical reading only */
+    TROPICAL: []
   };
   var held = null;   /* the chart run waiting for its purchase choice */
   var ASC = { ascTropical: "tropical", ascVedic: "vedic", ascCombined: "combined" };
@@ -3043,7 +3041,7 @@ document.querySelectorAll('.syscard').forEach(card => {
   function cozLoadScript(src){ return new Promise(function(res, rej){ if (document.querySelector('script[data-coz-src="' + src + '"]')) return res(); var s = document.createElement('script'); s.src = src; s.setAttribute('data-coz-src', src); s.onload = res; s.onerror = function(){ rej(new Error('could not load ' + src)); }; document.head.appendChild(s); }); }
   function loadGen(){
     var chain = Promise.resolve();
-    ['ascendant-library.js?v=6', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=9'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
+    ['ascendant-library.js?v=5', 'dev-review-engine.js?v=8', 'compare-evidence.js?v=3', 'compare-generator.js?v=9'].forEach(function(u){ chain = chain.then(function(){ return cozLoadScript(u); }); });
     return chain;
   }
   /* background writing never starts while a page is changing (or 15 s at most) */
@@ -3108,7 +3106,6 @@ document.querySelectorAll('.syscard').forEach(card => {
 
   function runJob(c){
     if (c.job === "vedic36") return runVedic36(c.runId);
-    if (c.job === "tropical16") return runTropical16(c.runId);
     if (c.job === "combined") return runCombined(c.runId);
     return pairFor(c.runId).then(function(res){
       return window.COZ_ASC.getReading(ASC[c.job], res).then(function(r){ return { fromCache: !!(r && r.fromCache) }; });
@@ -3137,10 +3134,7 @@ document.querySelectorAll('.syscard').forEach(card => {
     /* CR3.1: the hidden page writes for whatever chart is current, so an old queued job
        must never start once a newer chart has replaced its run */
     if (currentRunId() !== runId) { var st = new Error("DEV: this chart run has been replaced by a newer one"); st.kind = "stale_run"; return Promise.reject(st); }
-    /* Sep 25: both saved charts must exist for this run BEFORE the hidden writer opens; a
-       purchase from the other system's result has never run this engine. pairFor exports the
-       missing side here, on the visible page, where the engine can actually run. */
-    return pairFor(runId).then(function(){ return new Promise(function(resolve, reject){
+    return new Promise(function(resolve, reject){
       var fr = document.createElement('iframe');
       fr.setAttribute('aria-hidden', 'true'); fr.title = 'preparing';
       fr.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;top:0';
@@ -3156,30 +3150,7 @@ document.querySelectorAll('.syscard').forEach(card => {
       window.addEventListener('message', onDone);
       var t = setTimeout(function(){ finish(false, 'DEV: Vedic Sections 3-6 took longer than 240 s'); }, 240000);
       document.body.appendChild(fr);
-    }); });
-  }
-
-  /* the six-section Tropical reading, written in a hidden copy of the Tropical reading page (TG1.0) */
-  function runTropical16(runId){
-    if (currentRunId() !== runId) { var st = new Error("DEV: this chart run has been replaced by a newer one"); st.kind = "stale_run"; return Promise.reject(st); }
-    /* Sep 25: same rule as vedic36, both charts exist for this run before the hidden writer opens */
-    return pairFor(runId).then(function(){ return new Promise(function(resolve, reject){
-      var fr = document.createElement('iframe');
-      fr.setAttribute('aria-hidden', 'true'); fr.title = 'preparing';
-      fr.style.cssText = 'position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;left:-9999px;top:0';
-      fr.src = 'tropical-reading.html?pregen=1';
-      var done = false;
-      function finish(ok, why){
-        if (done) return; done = true;
-        window.removeEventListener('message', onDone); clearTimeout(t);
-        try { fr.remove(); } catch (e) {}
-        if (ok) resolve({}); else { var e = new Error(why); e.kind = why.indexOf('240') >= 0 ? 'timeout' : 'error'; reject(e); }
-      }
-      function onDone(ev){ var d = ev && ev.data; if (d && d.coz === 'COZ_TROPICAL_PREGEN_DONE') finish(!!d.ok, 'DEV: the Tropical reading did not finish'); }
-      window.addEventListener('message', onDone);
-      var t = setTimeout(function(){ finish(false, 'DEV: the Tropical reading took longer than 240 s'); }, 240000);
-      document.body.appendChild(fr);
-    }); });
+    });
   }
 
   function currentRunId(){ var run = lsJSON('emergeBirthData', null); return run && run.runId; }
@@ -3197,16 +3168,12 @@ document.querySelectorAll('.syscard').forEach(card => {
   }
   function release(product){
     var h = held;
-    if (!h) {
-      if (product === "COMPARE") onCompare(null);                                   /* no held run: Compare still goes first */
-      if (product === "TROPICAL" && currentRunId()) { console.log('[COZ GEN] purchase TROPICAL · tropical16 starts now'); enqueue(currentRunId(), "tropical16", false, true); }   /* the Tropical path holds no run; the tap is the authorization */
-      return;
-    }
+    if (!h) { if (product === "COMPARE") onCompare(null); return; }   /* no held run (for example the Tropical path): Compare still goes first */
     held = null;
     var order = ORDERS[product];
     if (!order) { console.log('[COZ GEN] unknown purchase ' + product + ' · nothing queued'); return; }
     console.log('[COZ GEN] purchase ' + product + ' · order: ' + (order.join(', ') || 'nothing to write'));
-    order.forEach(function(j){ enqueue(h.runId, j, false, (product === "VEDIC" && j === "vedic36") || (product === "TROPICAL" && j === "tropical16")); });
+    order.forEach(function(j){ enqueue(h.runId, j, false, product === "VEDIC" && j === "vedic36"); });
     var A = readAll(), R = A[h.runId] || (A[h.runId] = { jobs: {} }); R.product = product; R.updatedAt = Date.now(); writeAll(A);
   }
   /* Compare opened, or the Combined Reading page asked: Combined goes next */
