@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CozAlyze Tropical writer test TWT1.3.3</title>
+<title>CozAlyze Tropical writer test TWT1.3.4</title>
 <!--
-  COZALYZE · TROPICAL WRITER TEST · TWT1.3.3 SINGLE-CALL STREAMING (Sep 26 2026) · DEVELOPMENT WORKBENCH · STANDALONE
+  COZALYZE · TROPICAL WRITER TEST · TWT1.3.4 SINGLE-CALL STREAMING (Sep 26 2026) · DEVELOPMENT WORKBENCH · STANDALONE
   ONE streamed model request writes the whole six-section reading. Each section is shown and saved
   the moment it has fully arrived and passed the unchanged TG1.0.4 checker (cozTgenCheck), with the
   preserved TG1.0.4 system prompt, evidence selection and factor map. The only addition to the
@@ -26,6 +26,8 @@
   TWT1.3.2: the existing name rule restated in the delivery note; fact checks for concentration
   placement ("Gemini concentration in the 4th house") and "at home" dignity wording.
   TWT1.3.3: the existing section-scope rule for trace ids restated in the delivery note.
+  TWT1.3.4: second-person voice as a hard rule; Ascendant-contact claims checked; concentration ids do
+  not license member planets; Section 4 kept off Section 3's career ground; dropped-stream cost estimate.
   Output ONLY under localStorage "cozTropicalReadingTEST". Reads (never writes) emergeBirthData,
   cozTropicalChartJSON, cozTestApiKey, cozTestModel, cozRestoredRunId. Nothing runs until
   "Write reading". Not linked from the application. The API key is never displayed or copied.
@@ -45,7 +47,7 @@
 </style>
 </head>
 <body>
-<h1>Tropical writer test · TWT1.3.3 single-call streaming</h1>
+<h1>Tropical writer test · TWT1.3.4 single-call streaming</h1>
 <p class="note">Workbench only. Writes nothing until you tap Write reading, then one streamed call, only to the test key. TG1.0.4 rules and checker unchanged, plus partial fact checks. Passing checks is not a review of the astrology.</p>
 <div class="box mono" id="info">loading…</div>
 <div class="row">
@@ -421,8 +423,11 @@ var FC_SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpi
 function fcOrd(n){ var s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
 var FC_ORD = { "1st":1,"2nd":2,"3rd":3,"4th":4,"5th":5,"6th":6,"7th":7,"8th":8,"9th":9,"10th":10,"11th":11,"12th":12, first:1, second:2, third:3, fourth:4, fifth:5, sixth:6, seventh:7, eighth:8, ninth:9, tenth:10, eleventh:11, twelfth:12 };
 function stFacts(evText){
-  var f = { body: {}, cusp: {}, chartRuler: null, chartCoRuler: null, asc: null, mc: null, signConc: {}, houseConc: {} };
+  var f = { body: {}, cusp: {}, chartRuler: null, chartCoRuler: null, asc: null, mc: null, signConc: {}, houseConc: {}, onAsc: [], onAscKnown: false }, ascNext = false;
   evText.split("\n").forEach(function (ln) {
+    /* TWT1.3.4: the Ascendant-contact list, exactly as the evidence states it (the line after the heading) */
+    if (ascNext) { ascNext = false; f.onAscKnown = true; var cm, cre = /on_asc_([A-Za-z]+)/g; while ((cm = cre.exec(ln))) f.onAsc.push(cm[1]); }
+    if (/^ON THE ASCENDANT/.test(ln)) ascNext = true;
     var m = /^(Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto|North Node|South Node): (\w+) [^,]*, (\d+)(?:st|nd|rd|th) house/.exec(ln);
     if (m) f.body[m[1]] = { sign: m[2], house: +m[3] };
     m = /^(\d+)(?:st|nd|rd|th) house cusp (\w+): ruler (\w+)(?:[^;]*; modern co-ruler (\w+))?/.exec(ln);
@@ -493,6 +498,18 @@ function stFactCheck(p, ctx){
       }
     }
   });
+  /* TWT1.3.4: a planet described as on, conjunct or right on the Ascendant must be in the evidence's
+     Ascendant-contact list (development policy: within 8 degrees, nodes excluded) */
+  if (F.onAscKnown) sentences.forEach(function (sn) {
+    var re3 = /\b(?:right on|sits? on|sitting on|placed on|on|conjunct(?:s|ing)?|conjoin(?:s|ing)?|close to|near|rising with)\s+(?:the\s+|your\s+|her\s+|his\s+)?(?:Ascendant|rising degree)\b/gi, m3;
+    while ((m3 = re3.exec(sn))) {
+      var before = sn.slice(0, m3.index), prevWord = (before.match(/(\w+)\s*$/) || [])[1];
+      if (prevWord && FC_SIGNS.indexOf(prevWord) >= 0) continue;          /* "Libra on the Ascendant" names the rising sign */
+      var who = null, best = -1;
+      FC_BODIES.forEach(function (bn) { var k = before.lastIndexOf(bn); if (k > best) { best = k; who = bn; } });
+      if (who && F.onAsc.indexOf(who.replace(/\s+/g, "")) < 0) out.push("says " + who + " is " + m3[0].toLowerCase() + ", but the evidence lists " + (F.onAsc.length ? "only " + F.onAsc.join(", ") : "no planet") + " on the Ascendant");
+    }
+  });
   /* dignity or condition language: the evidence supplies none */
   var dg = /\b(domicile|exalt(?:ed|ation)|detriment|debilitat\w*|dignit(?:y|ies|ied)|peregrine|in (?:its )?fall|its own sign|at home in|sign it rules|(?:sign|place|position) it (?:handles|works|does|functions|operates) best|most comfortable (?:sign|place|position)|(?:strongest|weakest) (?:sign|placement|position))\b/i.exec(p);
   if (!dg && new RegExp("\\b(" + B + ")\\b").test(p)) dg = /\bat home\b|\bat ease in\b|\bcomfortable in (?:this|its|the) sign\b/i.exec(p);   /* TWT1.3.2: "at home here" etc. in a paragraph about a body */
@@ -514,6 +531,10 @@ function stFactCheck(p, ctx){
    first clean phone run); fact checks add concentration placement and "at home" dignity wording.
    TWT1.3.3: the existing section-scope rule for trace ids is restated in the delivery note (it drove
    all 4 repairs in the second clean phone run). Lists, checker and limits are unchanged.
+   TWT1.3.4 (content policy, delivery frozen): second-person voice enforced as a hard rule; Ascendant
+   contact claims checked against the evidence; concentration ids do not license member planets;
+   Section 4 may use Midheaven/10th factors only for new longer-range points; dropped-stream cost
+   estimated from characters received. Factor map, limits and delivery unchanged.
    ONE streamed request writes the whole reading. The TG1.0.4 system prompt is sent unchanged;
    the user message adds only a delivery-framing note, so each finished section can be picked out
    of the stream before the response ends:
@@ -525,7 +546,7 @@ function stFactCheck(p, ctx){
    Exception-only extra calls: a section that breaks a hard rule gets ONE targeted repair of that
    section alone; if the stream drops, ONE recovery call asks only for the sections not yet
    received. Sections that passed are never regenerated. */
-var ST_VERSION = "tropical-gen 1.3.3-stream (TG1.0.4 rules)";
+var ST_VERSION = "tropical-gen 1.3.4-stream (TG1.0.4 rules)";
 var ST_KEY = "cozTropicalReadingTEST", ST_IDLE_MS = 45000, ST_TOTAL_MS = 240000, ST_REPAIR_MS = 90000;
 var ST = null;
 var ST_PRICE = { input: 3.00, output: 15.00 };   /* USD per million tokens, the estimate the writers already use */
@@ -558,6 +579,9 @@ function stFraming(ids, firstName){
     "TRACE SCOPE RULE (restating the rule above): every id in a block's _trace must appear in THAT section's list under ALLOWED FACTOR IDS PER SECTION in the evidence; check each id against that list before writing it. " +
     "Chart-ruler ids (chart_ruler_..., chart_coruler_...) and whole-chart ids (element_..., modality_..., emphasis_..., concentration_..., hemisphere_...) belong only to at-your-core; in any other section, when you discuss that planet, cite the planet's own body_... id if it is on that section's list. " +
     "essential-takeaway may cite only ids that Sections 1 to 5 actually cited in their traces. " +
+    "A concentration_... id supports a statement about the concentration as a pattern only; interpreting one of its member planets individually needs that planet's own id on the same section's list. " +
+    "VOICE RULE (restating the rule above): second person throughout. After the first name's single use, address the reader only as you and your; never he, she, him, her, his or hers, for the reader or for anyone else (say a partner, people close to you). " +
+    "SECTION DIVISION: work-money-expression owns the Midheaven and the 10th house as career and public-role evidence. In wisdom-purpose-legacy, use Midheaven or 10th-house factors only when they add a genuinely new longer-range contribution or legacy point not already made in work-money-expression; do not repeat its career, ambition, visibility, reputation or professional-direction interpretation. The centre of wisdom-purpose-legacy is the 9th, 11th and 12th houses, Jupiter, Saturn and the Nodes. " +
     "If a point needs an id that is not on the section's list, reword the point so it rests on allowed ids, or leave it out; never relabel it with a different id while keeping the same claim. " +
     "Each section is exactly 4 paragraphs; each paragraph is a list of exactly 3 sentences; each sentence about 20 words and never more than 25. That structure is how the length rule above is met: 4 x 3 sentences of about 20 words is about 250 words. The JSON inside each block must be complete and valid on its own." +
     (!firstName ? "" : ids.indexOf("at-your-core") >= 0 ?
@@ -584,6 +608,10 @@ function stCheck(id, cand, ctx){
   var mine = function (m) { return m.indexOf(id + " ") === 0 || (sec.number === 1 && /^the first name /.test(m)); };
   var hard = r.hard.filter(mine), soft = r.soft.filter(mine);
   cand.body.forEach(function (p, i) { stFactCheck(p, ctx).forEach(function (f) { hard.push(id + " paragraph " + (i + 1) + " fact check: " + f); }); });
+  /* TWT1.3.4: second person, as the system prompt already requires; no he/she/him/her for anyone */
+  cand.body.forEach(function (p, i) { var pv = /\b(he|she|him|her|his|hers|himself|herself)\b/i.exec(p); if (pv) hard.push(id + " paragraph " + (i + 1) + " voice rule: uses third person ('" + pv[0] + "'); address the reader as you and your"); });
+  /* TWT1.3.4: soft note when Wisdom leans on the Midheaven or 10th house, so repetition of Work can be reviewed */
+  if (id === "wisdom-purpose-legacy" && (cand.trace || []).some(function (a) { return (a || []).some(function (x) { return /^mc_|^h10_cusp_/.test(x); }); })) soft.push(id + " uses Midheaven or 10th-house factors; review that it adds a longer-range point not already made in Work, Money & Expression");
   (cand.sentenceCounts || []).forEach(function (n, i) { if (n !== 3) soft.push(id + " paragraph " + (i + 1) + (n == null ? " was not sent as a sentence list" : " has " + n + " sentences (3 asked)")); });
   return { hard: hard, soft: soft, words: r.counts[id] };
 }
@@ -645,6 +673,7 @@ function stStream(ctx, kind, msg, onBlock){
           rec.ended = rec.ended || (e && e.kind === "api" ? e.message : "failed at stage '" + rec.stage + "': " + rec.errName + ": " + rec.errMsg);
           if (e && e.kind === "api") rec.apiError = true; })
   .then(function () { clearTimeout(idle); clearTimeout(total); rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1); rec.chars = text.length;
+    if (!rec.outTokens && text.length) { rec.outTokens = Math.round(text.length / 4); rec.outEstimated = true; }   /* TWT1.3.4: no usage total arrived; about 4 characters per token */
     ST.tokens.input += rec.inTokens; ST.tokens.output += rec.outTokens; rec.receivedIds = Object.keys(seen); paintST(); return rec; });
 }
 
@@ -658,10 +687,11 @@ function stRepair(ctx, id, reason, previous){
   var paraCounts = previous && previous.body ? previous.body.map(function (p, i) { var w = cozTgenWords([p]); return "paragraph " + (i + 1) + " is " + w + " words" + (w > 66 ? ", cut to about 62" : w < 58 ? ", bring to about 62" : ""); }).join("; ") : "";
   var scope = /outside its section's list|not used in Sections 1 to 5|not in the evidence/.test(reason) ?
     " Factor ids allowed in this section: " + ((ctx.ev.allowed[id] || []).join(", ") || "any id already cited in Sections 1 to 5") + ". Where a claim needs an id that is not allowed here, change or drop the claim; never swap in another id while keeping the claim." : "";
+  var voice = /voice rule:/.test(reason) ? " A voice rule failed: write in the second person, you and your, and never he, she, him, her, his or hers for anyone." : "";
   var facts = /fact check:/.test(reason) ? " A fact check failed: state rulers, signs, houses and angles exactly as the evidence gives them, and make no dignity or condition claim the evidence does not supply." : "";
   var msg = stBaseMsg(ctx) + stContext(id) +
     (previous && previous.body && previous.body.length ? "\nYOUR PREVIOUS VERSION OF " + sec.title.toUpperCase() + ":\n" + previous.body.join("\n\n") + "\n" : "") +
-    "\nREPAIR. That section broke these rules: " + reason + "." + fix + (paraCounts ? " Paragraph lengths now: " + paraCounts + "." : "") + scope + facts + " Keep exactly 4 paragraphs of 3 sentences each, about 20 words per sentence. Keep the same substance and voice; fix only what is named.\n\n" +
+    "\nREPAIR. That section broke these rules: " + reason + "." + fix + (paraCounts ? " Paragraph lengths now: " + paraCounts + "." : "") + scope + facts + voice + " Keep exactly 4 paragraphs of 3 sentences each, about 20 words per sentence. Keep the same substance and voice; fix only what is named.\n\n" +
     stFraming([id], ctx.firstName);
   var ctl = new AbortController(), tm = setTimeout(function () { ctl.abort(); }, ST_REPAIR_MS);
   return fetch("https://api.anthropic.com/v1/messages", { method: "POST", signal: ctl.signal,
@@ -788,7 +818,7 @@ function storedFor(c){ var st = lsJSON(ST_KEY); return st && st.mode === "stream
 function paintInfo(){
   var c = chartNow(), key = !!lsGet("cozTestApiKey"), model = lsGet("cozTestModel") || "claude-sonnet-4-6", cl = (c.rec && c.rec.client) || {};
   var raw = lsJSON(ST_KEY), mine = storedFor(c), passedN = mine ? Object.keys(mine.sections || {}).filter(function(k){ return mine.sections[k].state === "passed"; }).length : 0;
-  var stored = !raw ? "none" : mine ? "TWT1.3.3 reading for this chart, " + passedN + " of 6 sections passed checks" : (raw.mode === "stream" && raw.genVersion === ST_VERSION) ? "TWT1.3.3 reading for a DIFFERENT chart run" : "an older test version (" + (raw.genVersion || raw.mode || "unknown") + "; not used by TWT1.3.3, Discard it first)";
+  var stored = !raw ? "none" : mine ? "TWT1.3.4 reading for this chart, " + passedN + " of 6 sections passed checks" : (raw.mode === "stream" && raw.genVersion === ST_VERSION) ? "TWT1.3.4 reading for a DIFFERENT chart run" : "an older test version (" + (raw.genVersion || raw.mode || "unknown") + "; not used by TWT1.3.4, Discard it first)";
   document.getElementById("info").textContent = [
     "writer: " + ST_VERSION,
     "current chart run: " + (c.run ? c.run.runId : "none found"),
@@ -806,7 +836,7 @@ function paintST(){
   if (!ST) return;
   document.getElementById("reqs").textContent = ST.calls.length ? ST.calls.map(function (r) {
     return "#" + r.n + " " + r.kind + (r.forSection ? " (" + r.forSection + ")" : "") + " · " + r.status + (r.secs ? " after " + r.secs + " s" : (r.chars ? " · receiving, " + r.chars + " characters so far" : "")) +
-      " · stop_reason " + r.stopReason + " · tokens in " + r.inTokens + " / out " + r.outTokens + " · request-id " + r.requestId + (r.ended ? " · " + r.ended : "") +
+      " · stop_reason " + r.stopReason + " · tokens in " + r.inTokens + " / out " + r.outTokens + (r.outEstimated ? " (estimated from characters received)" : "") + " · request-id " + r.requestId + (r.ended ? " · " + r.ended : "") +
       (r.kind !== "repair" ? " · first byte " + (r.firstByteMs == null ? "never" : (r.firstByteMs / 1000).toFixed(1) + " s") + " · characters " + (r.chars || 0) + " · stream events " + (r.events || 0) + (r.badEvents ? " (" + r.badEvents + " unreadable)" : "") + " · last event " + (r.lastEvent || "none") + " · message_stop " + (r.sawStop ? "yes" : "no") : "") +
       (r.blockErrors && r.blockErrors.length ? " · section processing errors: " + r.blockErrors.join("; ") : "") +
       (r.receivedIds ? " · complete sections received: " + (r.receivedIds.join(", ") || "none") : "");
@@ -850,7 +880,7 @@ document.getElementById("discardBtn").addEventListener("click", function(){
 });
 document.getElementById("copyBtn").addEventListener("click", function(){
   var b = document.getElementById("copyBtn");
-  var text = ["COZALYZE TROPICAL WRITER TEST TWT1.3.3 SINGLE-CALL STREAMING", document.getElementById("info").textContent, "", document.getElementById("status").textContent,
+  var text = ["COZALYZE TROPICAL WRITER TEST TWT1.3.4 SINGLE-CALL STREAMING", document.getElementById("info").textContent, "", document.getElementById("status").textContent,
     "", "CALLS", document.getElementById("reqs").textContent, "", "READING, SECTION BY SECTION", document.getElementById("reading").innerText, "",
     "ENGINE ASPECTS WITHHELD FROM THE MODEL", (ST && ST.engineAspects || []).join("; ") || "none", "", "EVIDENCE", document.getElementById("evidence").textContent].join("\n");
   function say(m){ b.textContent = m; setTimeout(function(){ b.textContent = "Copy report"; }, 3000); }
