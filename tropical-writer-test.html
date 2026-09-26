@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CozAlyze Tropical writer test TWT1.2</title>
+<title>CozAlyze Tropical writer test TWT1.3.1</title>
 <!--
-  COZALYZE · TROPICAL WRITER TEST · TWT1.2 SINGLE-CALL STREAMING (Sep 25 2026) · DEVELOPMENT WORKBENCH · STANDALONE
+  COZALYZE · TROPICAL WRITER TEST · TWT1.3.1 SINGLE-CALL STREAMING (Sep 26 2026) · DEVELOPMENT WORKBENCH · STANDALONE
   ONE streamed model request writes the whole six-section reading. Each section is shown and saved
   the moment it has fully arrived and passed the unchanged TG1.0.4 checker (cozTgenCheck), with the
   preserved TG1.0.4 system prompt, evidence selection and factor map. The only addition to the
@@ -13,6 +13,16 @@
   mid-stream; a partial or malformed block is never accepted. Extra calls are exception-only: one
   targeted repair for a section that breaks a hard rule, and one recovery call for sections a
   dropped stream never delivered. Passed sections are never regenerated.
+  TWT1.3: stage-level stream diagnostics; paragraphs sent as 3-sentence lists and joined before the
+  unchanged checker; repairs start as soon as a section fails, carry per-paragraph word counts and,
+  for scope failures, the section's allowed ids; deterministic partial fact checks (body signs and
+  houses, Ascendant, Midheaven, house-cusp rulers, chart ruler, dignity language) as hard rules.
+  Limits unchanged: 4 paragraphs, 245-290 preferred, 225-310 hard. "Passed checks" is NOT a
+  content review of the astrology.
+  TWT1.3.1: recovery requests only sections never delivered, and never regenerates a section whose
+  single repair was judged and failed; a repair request that itself failed is retried once; the
+  traditional ruler is the chart ruler and house ruler, a modern co-ruler passes only when named
+  as one; a repair interrupted by closing the page is re-sent on resume.
   Output ONLY under localStorage "cozTropicalReadingTEST". Reads (never writes) emergeBirthData,
   cozTropicalChartJSON, cozTestApiKey, cozTestModel, cozRestoredRunId. Nothing runs until
   "Write reading". Not linked from the application. The API key is never displayed or copied.
@@ -32,8 +42,8 @@
 </style>
 </head>
 <body>
-<h1>Tropical writer test · TWT1.2 single-call streaming</h1>
-<p class="note">Workbench only. Writes nothing until you tap Write reading, then one streamed call, only to the test key. TG1.0.4 rules and checker unchanged.</p>
+<h1>Tropical writer test · TWT1.3.1 single-call streaming</h1>
+<p class="note">Workbench only. Writes nothing until you tap Write reading, then one streamed call, only to the test key. TG1.0.4 rules and checker unchanged, plus partial fact checks. Passing checks is not a review of the astrology.</p>
 <div class="box mono" id="info">loading…</div>
 <div class="row">
   <button type="button" id="writeBtn">Write reading</button>
@@ -398,7 +408,85 @@ function generateTropicalReading(chart) {
 
 
 /* ===== end of preserved writer ===== */
-/* ===== TWT1.2 SINGLE-CALL STREAMING DELIVERY (test harness) =====
+/* ===== TWT1.3 deterministic fact checks (partial) =====
+   Checked against the evidence block itself, the same facts the model was given:
+   body signs and houses, Ascendant and Midheaven signs, house-cusp rulers, the chart ruler,
+   and dignity or condition language the evidence never supplies. These catch specific,
+   checkable false statements. They do NOT validate the interpretation. */
+var FC_BODIES = ["Sun","Moon","Mercury","Venus","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto","North Node","South Node"];
+var FC_SIGNS = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"];
+function fcOrd(n){ var s = ["th","st","nd","rd"], v = n % 100; return n + (s[(v - 20) % 10] || s[v] || s[0]); }
+var FC_ORD = { "1st":1,"2nd":2,"3rd":3,"4th":4,"5th":5,"6th":6,"7th":7,"8th":8,"9th":9,"10th":10,"11th":11,"12th":12, first:1, second:2, third:3, fourth:4, fifth:5, sixth:6, seventh:7, eighth:8, ninth:9, tenth:10, eleventh:11, twelfth:12 };
+function stFacts(evText){
+  var f = { body: {}, cusp: {}, chartRuler: null, chartCoRuler: null, asc: null, mc: null };
+  evText.split("\n").forEach(function (ln) {
+    var m = /^(Sun|Moon|Mercury|Venus|Mars|Jupiter|Saturn|Uranus|Neptune|Pluto|North Node|South Node): (\w+) [^,]*, (\d+)(?:st|nd|rd|th) house/.exec(ln);
+    if (m) f.body[m[1]] = { sign: m[2], house: +m[3] };
+    m = /^(\d+)(?:st|nd|rd|th) house cusp (\w+): ruler (\w+)(?:[^;]*; modern co-ruler (\w+))?/.exec(ln);
+    if (m) f.cusp[+m[1]] = { sign: m[2], ruler: m[3], coRuler: m[4] || null };
+    /* TWT1.3.1: the traditional ruler is THE chart ruler; a modern co-ruler is secondary */
+    m = /^Chart ruler (\w+):/.exec(ln); if (m) f.chartRuler = m[1];
+    m = /^Modern co-ruler (\w+):/.exec(ln); if (m) f.chartCoRuler = m[1];
+    m = /Ascendant (\w+) \d/.exec(ln); if (m && /^Ascendant|; Descendant|^ANGLES/.test(ln) || (m && /Ascendant \w+ \d+°/.test(ln) && !f.asc)) f.asc = m[1];
+    m = /Midheaven (\w+) \d/.exec(ln); if (m) f.mc = m[1];
+  });
+  return f;
+}
+function fcNamesCoRuler(sn){ return /\bco-?ruler\b|\bmodern ruler\b|\bmodern rulership\b/i.test(sn); }
+/* the traditional ruler is the ruler; a modern co-ruler passes only when the sentence calls it a co-ruler */
+function fcRulerProblem(body, cusp, sn){
+  if (body === cusp.ruler) return null;
+  if (cusp.coRuler && body === cusp.coRuler) return fcNamesCoRuler(sn) ? null : "only its modern co-ruler; its ruler is " + cusp.ruler;
+  return "not its ruler; its ruler is " + cusp.ruler + (cusp.coRuler ? " (modern co-ruler " + cusp.coRuler + ")" : "");
+}
+function stFactCheck(p, ctx){
+  var F = ctx.facts, out = [], B = FC_BODIES.join("|"), S = FC_SIGNS.join("|"), O = Object.keys(FC_ORD).join("|");
+  var sentences = p.match(/[^.!?]+[.!?]*/g) || [p], m, re;
+  sentences.forEach(function (sn) {
+    /* body in sign / body (in sign) in the Nth house */
+    re = new RegExp("\\b(" + B + ")\\s+in\\s+(" + S + ")\\b", "g");
+    while ((m = re.exec(sn))) { var b = F.body[m[1]]; if (b && b.sign !== m[2]) out.push(m[1] + " is in " + b.sign + ", not " + m[2]); }
+    re = new RegExp("\\b(" + B + ")\\s+(?:in\\s+(?:" + S + ")\\s+)?in\\s+the\\s+(" + O + ")(?:\\s+house)?\\b", "gi");
+    while ((m = re.exec(sn))) { var b2 = F.body[m[1]], h = FC_ORD[m[2].toLowerCase()]; if (b2 && h && b2.house !== h) out.push(m[1] + " is in the " + fcOrd(b2.house) + " house, not the " + fcOrd(h)); }
+    /* angles */
+    if (F.asc && (m = new RegExp("\\b(" + S + ")\\s+(?:Ascendant|Rising)\\b|\\b(?:Ascendant|Rising sign)\\s+(?:is\\s+|in\\s+|sits in\\s+)?(" + S + ")\\b").exec(sn))) { var a = m[1] || m[2]; if (a !== F.asc) out.push("the Ascendant is " + F.asc + ", not " + a); }
+    if (F.mc && (m = new RegExp("\\b(" + S + ")\\s+Midheaven\\b|\\bMidheaven\\s+(?:is\\s+|in\\s+|sits in\\s+|falls in\\s+)?(" + S + ")\\b").exec(sn))) { var mc = m[1] || m[2]; if (mc !== F.mc) out.push("the Midheaven is " + F.mc + ", not " + mc); }
+    /* "X ... rules the Nth (house|cusp)": the nearest body named before "rules" */
+    re = new RegExp("\\brules\\s+the\\s+(" + O + ")(?:[- ]house)?(?:\\s+cusp)?\\b", "gi");
+    while ((m = re.exec(sn))) {
+      var h2 = FC_ORD[m[1].toLowerCase()], before = sn.slice(0, m.index), who = null, best = -1;
+      FC_BODIES.forEach(function (bn) { var k = before.lastIndexOf(bn); if (k > best) { best = k; who = bn; } });
+      if (who && F.cusp[h2]) { var bad = fcRulerProblem(who, F.cusp[h2], sn); if (bad) out.push("the " + m[1] + " house (cusp " + F.cusp[h2].sign + "): " + who + " is " + bad); }
+    }
+    /* "the Nth house ruler, X" / "ruler of the Nth, X" / "the Nth house ... ruled by X" */
+    re = new RegExp("\\b(?:the\\s+)?(" + O + ")(?:[- ]house)?(?:\\s+cusp)?(?:'s)?\\s+ruler,?\\s+(" + B + ")\\b|\\bruler\\s+of\\s+the\\s+(" + O + ")(?:[- ]house)?(?:\\s+cusp)?,?\\s+(" + B + ")\\b|\\b(" + O + ")(?:[- ]house)?(?:\\s+cusp)?[^.,;]{0,25}\\bruled\\s+by\\s+(" + B + ")\\b", "gi");
+    while ((m = re.exec(sn))) {
+      var hh = FC_ORD[(m[1] || m[3] || m[5]).toLowerCase()], rb = m[2] || m[4] || m[6];
+      if (F.cusp[hh]) { var bad2 = fcRulerProblem(rb, F.cusp[hh], sn); if (bad2) out.push("the " + (m[1] || m[3] || m[5]) + " house (cusp " + F.cusp[hh].sign + "): " + rb + " is " + bad2); }
+    }
+    /* chart ruler */
+    re = new RegExp("\\bchart\\s+ruler,?\\s+(?:is\\s+)?(" + B + ")\\b|\\b(" + B + ")\\b[^.;]{0,30}\\b(?:is|as)\\s+(?:the\\s+)?chart\\s+ruler\\b|\\b(" + B + ")\\s+rules\\s+the\\s+(?:whole\\s+)?chart\\b", "gi");
+    while ((m = re.exec(sn))) { var cr = m[1] || m[2] || m[3];
+      if (!F.chartRuler || cr === F.chartRuler) continue;
+      if (cr === F.chartCoRuler && fcNamesCoRuler(sn)) continue;
+      out.push(cr === F.chartCoRuler ? cr + " is the modern co-ruler, not the chart ruler; the chart ruler is " + F.chartRuler : cr + " is not the chart ruler; the chart ruler is " + F.chartRuler); }
+  });
+  /* dignity or condition language: the evidence supplies none */
+  var dg = /\b(domicile|exalt(?:ed|ation)|detriment|debilitat\w*|dignit(?:y|ies|ied)|peregrine|in (?:its )?fall|its own sign|at home in|sign it rules|(?:sign|place|position) it (?:handles|works|does|functions|operates) best|most comfortable (?:sign|place|position)|(?:strongest|weakest) (?:sign|placement|position))\b/i.exec(p);
+  if (dg) out.push("makes a dignity or condition claim the evidence does not supply ('" + dg[0] + "')");
+  return out;
+}
+/* ===== TWT1.3 SINGLE-CALL STREAMING DELIVERY (test harness) =====
+   TWT1.3 over TWT1.2: stage-level stream diagnostics; block handling isolated from the stream;
+   targeted repairs start as soon as a section fails; paragraphs delivered as 3-sentence lists and
+   joined before the unchanged checker; per-paragraph counts and allowed ids in repairs;
+   deterministic, partial fact checks (placements, angles, rulers, dignity language).
+   TWT1.3.1: (a) recovery asks only for sections never delivered; a section whose single repair
+   was judged and still failed is final and is never regenerated by recovery or resume; a repair
+   whose request itself failed (network, timeout, API error, no block) is retried once, since no
+   repaired prose was ever judged; (b) the traditional ruler is the ruler, a modern co-ruler passes
+   only when named as one; (c) a repair interrupted by closing the page is re-sent on resume from
+   the saved failed version, and a held Section 6 is kept for resume.
    ONE streamed request writes the whole reading. The TG1.0.4 system prompt is sent unchanged;
    the user message adds only a delivery-framing note, so each finished section can be picked out
    of the stream before the response ends:
@@ -410,7 +498,7 @@ function generateTropicalReading(chart) {
    Exception-only extra calls: a section that breaks a hard rule gets ONE targeted repair of that
    section alone; if the stream drops, ONE recovery call asks only for the sections not yet
    received. Sections that passed are never regenerated. */
-var ST_VERSION = "tropical-gen 1.2-stream (TG1.0.4 rules)";
+var ST_VERSION = "tropical-gen 1.3.1-stream (TG1.0.4 rules)";
 var ST_KEY = "cozTropicalReadingTEST", ST_IDLE_MS = 45000, ST_TOTAL_MS = 240000, ST_REPAIR_MS = 90000;
 var ST = null;
 var ST_PRICE = { input: 3.00, output: 15.00 };   /* USD per million tokens, the estimate the writers already use */
@@ -427,6 +515,8 @@ function stLoad(chart, ev){
   return null;
 }
 function stSave(){ try { var copy = JSON.parse(JSON.stringify(ST)); delete copy.evidence; localStorage.setItem(ST_KEY, JSON.stringify(copy)); ST.saveFailed = false; } catch (e) { ST.saveFailed = true; } }
+/* delivered = a complete block arrived and was processed; only undelivered sections go to recovery */
+function stDelivered(id){ var s = ST.sections[id]; return !!(s && s.receivedAtMs != null && s.state && s.state !== "processing error" && s.state !== "not delivered"); }
 function stSecById(id){ return vedicReadingSections.filter(function (s) { return s.id === id; })[0]; }
 function stPassed(id){ var s = ST.sections[id]; return !!(s && s.state === "passed"); }
 function stCost(){ return Math.round((ST.tokens.input / 1e6 * ST_PRICE.input + ST.tokens.output / 1e6 * ST_PRICE.output) * 10000) / 10000; }
@@ -436,8 +526,8 @@ function stFraming(ids, firstName){
   return "DELIVERY FORMAT FOR THIS REQUEST (replaces only the OUTPUT format above; every other rule above applies unchanged). " +
     "Write " + (ids.length === 6 ? "all six sections" : "only these sections: " + ids.join(", ")) + ", in this order: " + ids.join(", ") + ". " +
     "Emit each section as its own block, exactly like this, one block after another, with nothing before, between or after the blocks:\n" +
-    "<<<SECTION section-id>>>\n{\"section-id\": [\"paragraph 1\", \"paragraph 2\", \"paragraph 3\", \"paragraph 4\"], \"_trace\": {\"section-id\": [[ids for paragraph 1], [ids for paragraph 2], [ids for paragraph 3], [ids for paragraph 4]]}}\n<<<END section-id>>>\n" +
-    "Use the real section id in place of section-id. The JSON inside each block must be complete and valid on its own." +
+    "<<<SECTION section-id>>>\n{\"section-id\": [[\"sentence 1\", \"sentence 2\", \"sentence 3\"], [\"sentence 1\", \"sentence 2\", \"sentence 3\"], [\"sentence 1\", \"sentence 2\", \"sentence 3\"], [\"sentence 1\", \"sentence 2\", \"sentence 3\"]], \"_trace\": {\"section-id\": [[ids for paragraph 1], [ids for paragraph 2], [ids for paragraph 3], [ids for paragraph 4]]}}\n<<<END section-id>>>\n" +
+    "Use the real section id in place of section-id. Each section is exactly 4 paragraphs; each paragraph is a list of exactly 3 sentences; each sentence about 20 words and never more than 25. That structure is how the length rule above is met: 4 x 3 sentences of about 20 words is about 250 words. The JSON inside each block must be complete and valid on its own." +
     (ids.indexOf("at-your-core") < 0 && firstName ? " The first name is already used in Section 1; do not use it in these sections." : "");
 }
 function stBaseMsg(ctx){
@@ -458,55 +548,69 @@ function stCheck(id, cand, ctx){
   sections[id] = cand.body; trace[id] = cand.trace;
   var r = cozTgenCheck({ sections: sections, trace: trace }, ctx.firstName, ctx.ev);
   var mine = function (m) { return m.indexOf(id + " ") === 0 || (sec.number === 1 && /^the first name /.test(m)); };
-  return { hard: r.hard.filter(mine), soft: r.soft.filter(mine), words: r.counts[id] };
+  var hard = r.hard.filter(mine), soft = r.soft.filter(mine);
+  cand.body.forEach(function (p, i) { stFactCheck(p, ctx).forEach(function (f) { hard.push(id + " paragraph " + (i + 1) + " fact check: " + f); }); });
+  (cand.sentenceCounts || []).forEach(function (n, i) { if (n !== 3) soft.push(id + " paragraph " + (i + 1) + (n == null ? " was not sent as a sentence list" : " has " + n + " sentences (3 asked)")); });
+  return { hard: hard, soft: soft, words: r.counts[id] };
 }
 function stParseBlock(id, inner){
   var obj = null; try { obj = JSON.parse(inner.trim()); } catch (e) { return { error: id + ": block JSON did not parse" }; }
-  var body = obj && Array.isArray(obj[id]) ? obj[id].map(function (p) { return String(p).replace(/\s+/g, " ").trim(); }).filter(Boolean) : [];
+  var raw = obj && Array.isArray(obj[id]) ? obj[id] : [], sentenceCounts = [];
+  var body = raw.map(function (p) {
+    if (Array.isArray(p)) { var ss = p.map(function (x) { return String(x).replace(/\s+/g, " ").trim(); }).filter(Boolean); sentenceCounts.push(ss.length); return ss.join(" "); }
+    sentenceCounts.push(null); return String(p).replace(/\s+/g, " ").trim();
+  }).filter(Boolean);
   var tr = obj && obj._trace && Array.isArray(obj._trace[id]) ? obj._trace[id] : null;
-  return { body: body, trace: tr };
+  return { body: body, trace: tr, sentenceCounts: sentenceCounts };
 }
 
 /* one streamed call; onBlock(id, innerText) fires for each COMPLETE block, in arrival order */
 function stStream(ctx, kind, msg, onBlock){
-  var rec = { kind: kind, n: ST.calls.length + 1, sentAt: Date.now(), status: "pending", requestId: "unavailable", stopReason: "unavailable", inTokens: 0, outTokens: 0, ended: "" };
+  var rec = { kind: kind, n: ST.calls.length + 1, sentAt: Date.now(), status: "pending", requestId: "unavailable", stopReason: "unavailable", inTokens: 0, outTokens: 0, ended: "",
+              stage: "fetch", firstByteMs: null, chars: 0, events: 0, badEvents: 0, lastEvent: "none", sawStop: false, blockErrors: [] };
   ST.calls.push(rec); ST.counts[kind]++; paintST();
   var ctl = new AbortController(), buf = "", text = "", seen = {}, idle = null, total = setTimeout(function () { rec.ended = "total time limit"; ctl.abort(); }, ST_TOTAL_MS);
   function poke(){ clearTimeout(idle); idle = setTimeout(function () { rec.ended = "no data for " + (ST_IDLE_MS / 1000) + " s"; ctl.abort(); }, ST_IDLE_MS); }
   function scan(){
     var re = /<<<SECTION ([a-z-]+)>>>([\s\S]*?)<<<END \1>>>/g, m;
-    while ((m = re.exec(text))) { if (!seen[m[1]]) { seen[m[1]] = true; onBlock(m[1], m[2], Date.now()); } }
+    while ((m = re.exec(text))) { if (!seen[m[1]]) { seen[m[1]] = true;
+      /* TWT1.3: a processing error is recorded against its section and never stops the stream */
+      try { onBlock(m[1], m[2], Date.now()); } catch (err) { rec.blockErrors.push(m[1] + ": " + ((err && err.name) || "Error") + ": " + ((err && err.message) || String(err))); } } }
   }
   poke();
   return fetch("https://api.anthropic.com/v1/messages", { method: "POST", signal: ctl.signal,
     headers: { "x-api-key": ctx.key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
     body: JSON.stringify({ model: ctx.model, max_tokens: 7000, stream: true, system: COZ_TGEN_SYSTEM, messages: [{ role: "user", content: msg }] }) })
   .then(function (res) {
-    rec.status = "HTTP " + res.status; try { rec.requestId = res.headers.get("request-id") || "unavailable"; } catch (e) {}
+    rec.status = "HTTP " + res.status; rec.stage = "response read"; try { rec.requestId = res.headers.get("request-id") || "unavailable"; } catch (e) {}
     if (!res.ok) return res.text().then(function (t) { var e = new Error("API " + res.status + (/"type":"([a-z_]+)"/.exec(t) ? " (" + /"type":"([a-z_]+)"/.exec(t)[1] + ")" : "")); e.kind = "api"; throw e; });
     if (!res.body || !res.body.getReader) { var e2 = new Error("this browser cannot read a streamed response"); e2.kind = "transport"; throw e2; }
     var reader = res.body.getReader(), dec = new TextDecoder();
     function pump(){
       return reader.read().then(function (r) {
-        if (r.done) return;
-        poke(); buf += dec.decode(r.value, { stream: true });
+        if (r.done) { rec.stage = "response read (ended)"; return; }
+        if (rec.firstByteMs == null) rec.firstByteMs = Date.now() - rec.sentAt;
+        poke(); rec.stage = "stream-event parsing"; buf += dec.decode(r.value, { stream: true });
         var lines = buf.split("\n"); buf = lines.pop();
         lines.forEach(function (ln) {
           if (ln.indexOf("data:") !== 0) return;
-          var ev = null; try { ev = JSON.parse(ln.slice(5).trim()); } catch (e) { return; }
+          var ev = null; try { ev = JSON.parse(ln.slice(5).trim()); } catch (e) { rec.badEvents++; return; }
+          rec.events++; rec.lastEvent = ev.type || "unknown"; if (ev.type === "message_stop") rec.sawStop = true;
           if (ev.type === "message_start" && ev.message && ev.message.usage) { rec.inTokens = ev.message.usage.input_tokens || 0; }
           else if (ev.type === "content_block_delta" && ev.delta && ev.delta.type === "text_delta") { text += ev.delta.text; rec.chars = text.length; scan(); }
           else if (ev.type === "message_delta") { if (ev.delta && ev.delta.stop_reason) rec.stopReason = ev.delta.stop_reason; if (ev.usage && ev.usage.output_tokens != null) rec.outTokens = ev.usage.output_tokens; }
           else if (ev.type === "error") { rec.ended = "stream error " + ((ev.error && ev.error.type) || ""); }
         });
-        return pump();
+        rec.stage = "response read"; return pump();
       });
     }
     return pump();
   })
   .then(function () { rec.ended = rec.ended || (rec.stopReason === "end_turn" ? "completed normally" : "ended (" + rec.stopReason + ")"); },
-        function (e) { rec.ended = rec.ended || (e && e.kind === "api" ? e.message : "disconnected (" + ((e && e.name) || "Error") + ")"); if (e && e.kind === "api") rec.apiError = true; })
-  .then(function () { clearTimeout(idle); clearTimeout(total); rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1);
+        function (e) { rec.errName = (e && e.name) || "Error"; rec.errMsg = (e && e.message) || String(e);
+          rec.ended = rec.ended || (e && e.kind === "api" ? e.message : "failed at stage '" + rec.stage + "': " + rec.errName + ": " + rec.errMsg);
+          if (e && e.kind === "api") rec.apiError = true; })
+  .then(function () { clearTimeout(idle); clearTimeout(total); rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1); rec.chars = text.length;
     ST.tokens.input += rec.inTokens; ST.tokens.output += rec.outTokens; rec.receivedIds = Object.keys(seen); paintST(); return rec; });
 }
 
@@ -517,66 +621,86 @@ function stRepair(ctx, id, reason, previous){
   var words = previous && previous.body ? cozTgenWords(previous.body) : 0;
   var fix = words > COZ_TGEN_BANDS.soft[1] ? " Length fix required: cut about " + (words - 260) + " words (now " + words + ", aim for about 260)." :
             (words && words < COZ_TGEN_BANDS.soft[0]) ? " Length fix required: add about " + (260 - words) + " words (now " + words + ", aim for about 260)." : "";
+  var paraCounts = previous && previous.body ? previous.body.map(function (p, i) { var w = cozTgenWords([p]); return "paragraph " + (i + 1) + " is " + w + " words" + (w > 66 ? ", cut to about 62" : w < 58 ? ", bring to about 62" : ""); }).join("; ") : "";
+  var scope = /outside its section's list|not used in Sections 1 to 5|not in the evidence/.test(reason) ?
+    " Factor ids allowed in this section: " + ((ctx.ev.allowed[id] || []).join(", ") || "any id already cited in Sections 1 to 5") + ". Where a claim needs an id that is not allowed here, change or drop the claim; never swap in another id while keeping the claim." : "";
+  var facts = /fact check:/.test(reason) ? " A fact check failed: state rulers, signs, houses and angles exactly as the evidence gives them, and make no dignity or condition claim the evidence does not supply." : "";
   var msg = stBaseMsg(ctx) + stContext(id) +
     (previous && previous.body && previous.body.length ? "\nYOUR PREVIOUS VERSION OF " + sec.title.toUpperCase() + ":\n" + previous.body.join("\n\n") + "\n" : "") +
-    "\nREPAIR. That section broke these rules: " + reason + "." + fix + " Keep exactly 4 paragraphs of about 60 to 65 words and 3 sentences each. Keep the same substance and voice; fix only what is named.\n\n" +
+    "\nREPAIR. That section broke these rules: " + reason + "." + fix + (paraCounts ? " Paragraph lengths now: " + paraCounts + "." : "") + scope + facts + " Keep exactly 4 paragraphs of 3 sentences each, about 20 words per sentence. Keep the same substance and voice; fix only what is named.\n\n" +
     stFraming([id], ctx.firstName);
   var ctl = new AbortController(), tm = setTimeout(function () { ctl.abort(); }, ST_REPAIR_MS);
   return fetch("https://api.anthropic.com/v1/messages", { method: "POST", signal: ctl.signal,
     headers: { "x-api-key": ctx.key, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true", "content-type": "application/json" },
     body: JSON.stringify({ model: ctx.model, max_tokens: 1800, system: COZ_TGEN_SYSTEM, messages: [{ role: "user", content: msg }] }) })
   .then(function (res) { clearTimeout(tm); rec.status = "HTTP " + res.status; try { rec.requestId = res.headers.get("request-id") || "unavailable"; } catch (e) {}
-    return res.text().then(function (t) { if (!res.ok) throw new Error("API " + res.status); var d = JSON.parse(t);
+    return res.text().then(function (t) {
+      if (!res.ok) { var ae = new Error("API " + res.status + (/"type":"([a-z_]+)"/.test(t) ? " (" + /"type":"([a-z_]+)"/.exec(t)[1] + ")" : "")); ae.api = true; throw ae; }
+      var d = JSON.parse(t);
       rec.stopReason = d.stop_reason || "unavailable"; rec.inTokens = (d.usage && d.usage.input_tokens) || 0; rec.outTokens = (d.usage && d.usage.output_tokens) || 0;
       var txt = (d.content || []).filter(function (b) { return b.type === "text"; }).map(function (b) { return b.text; }).join("");
       var m = new RegExp("<<<SECTION " + id + ">>>([\\s\\S]*?)<<<END " + id + ">>>").exec(txt);
-      return m ? stParseBlock(id, m[1]) : { error: id + ": repair did not return a complete block" }; }); },
-    function (e) { clearTimeout(tm); rec.status = e && e.name === "AbortError" ? "timed out" : "network failure"; return { error: id + ": repair request failed (" + rec.status + ")" }; })
+      return m ? stParseBlock(id, m[1]) : { error: id + ": repair did not return a complete block", transport: true }; }); })
+  /* TWT1.3.1: every failure of the repair REQUEST (network, timeout, API status, unreadable body) is caught here,
+     so it can never reject the whole run; it is reported as undelivered, not as judged prose */
+  .catch(function (e) { clearTimeout(tm);
+    rec.status = e && e.name === "AbortError" ? "timed out" : (e && e.api) ? e.message : "request failed (" + ((e && e.name) || "Error") + ": " + ((e && e.message) || "") + ")";
+    return { error: id + ": repair request failed (" + rec.status + ")", transport: true }; })
   .then(function (r) { rec.secs = ((Date.now() - rec.sentAt) / 1000).toFixed(1); ST.tokens.input += rec.inTokens; ST.tokens.output += rec.outTokens; paintST(); return r; });
 }
 
 function stAccept(id, cand, source, ctx, t){
   var S = ST.sections[id] || (ST.sections[id] = {});
   S.state = "passed"; S.body = cand.body; S.trace = cand.trace; S.words = cozTgenWords(cand.body); S.source = source;
-  S.atMs = t - ctx.t0; stSave(); paintST();
+  S.atMs = Date.now() - ctx.t0; stSave(); paintST();
 }
 /* check a received block; failures wait for their single targeted repair */
 function stConsider(id, inner, source, ctx, t){
-  if (!stSecById(id) || stPassed(id)) return;
-  var S = ST.sections[id] = ST.sections[id] || {}; S.receivedAtMs = t - ctx.t0; S.attempts = S.attempts || [];
+  if (!stSecById(id) || stDelivered(id)) return;
+  var S = ST.sections[id] = ST.sections[id] || {}; S.receivedAtMs = t - ctx.t0; S.attempts = S.attempts || []; S.state = "received";
   var cand = stParseBlock(id, inner);
   if (id === "essential-takeaway" && !vedicReadingSections.slice(0, 5).every(function (s) { return stPassed(s.id); })) {
-    S.state = "held"; S.held = { cand: cand, source: source, t: t }; S.note = "received; checked once Sections 1 to 5 are final"; paintST(); return;
+    S.state = "held"; S.held = { cand: cand, source: source, t: t }; S.note = "received; checked once Sections 1 to 5 are final"; stSave(); paintST(); return;
   }
   var chk = cand.error ? { hard: [cand.error], soft: [] } : stCheck(id, cand, ctx);
+  S.checkedAtMs = Date.now() - ctx.t0;
   S.attempts.push({ source: source, hard: chk.hard, soft: chk.soft, words: chk.words });
   if (!chk.hard.length) { S.soft = chk.soft; stAccept(id, cand, source, ctx, t); return; }
-  S.state = "needs repair"; S.failedCand = cand; S.failReason = chk.hard.join("; "); paintST();
+  S.state = "needs repair"; S.failedCand = cand; S.failReason = chk.hard.join("; "); stSave(); paintST();
+  /* TWT1.3: the single targeted repair starts now, while the stream continues */
+  stRepairOne(ctx, id);
+}
+function stRepairOne(ctx, id){
+  var S = ST.sections[id];
+  if (!S || S.state !== "needs repair" || S.repairUsed) return ctx.repairs[id] || Promise.resolve();
+  S.repairUsed = true; S.state = "repairing"; stSave(); paintST();
+  function send(){ return stRepair(ctx, id, S.failReason, S.failedCand).then(function (r) {
+    if (r.error && r.transport && !S.repairRetried) { S.repairRetried = true; S.attempts.push({ source: "repair", hard: [r.error + " (no repaired text was received; the repair request is sent once more)"], soft: [] }); paintST(); return send(); }
+    return r; }); }
+  return (ctx.repairs[id] = send().then(function (r) {
+    var chk = r.error ? { hard: [r.error], soft: [] } : stCheck(id, r, ctx);
+    S.attempts.push({ source: "repair", hard: chk.hard, soft: chk.soft, words: chk.words });
+    if (!chk.hard.length) { S.soft = chk.soft; stAccept(id, r, "repair", ctx, Date.now()); }
+    else if (r.error && r.transport) { S.state = "failed"; S.repairUndelivered = true; S.error = "the repair could not be delivered: " + r.error + " (Resume re-sends it)"; stSave(); paintST(); }
+    else { S.state = "failed"; S.error = "rules still broken after the single repair: " + chk.hard.join("; "); stSave(); paintST(); }
+  }));
 }
 function stRepairPending(ctx){
-  var chain = Promise.resolve();
-  vedicReadingSections.forEach(function (sec) {
-    chain = chain.then(function () {
-      var S = ST.sections[sec.id];
-      if (sec.id === "essential-takeaway" && S && S.state === "held") {
-        var h = S.held; delete S.held;
-        if (!vedicReadingSections.slice(0, 5).every(function (s) { return stPassed(s.id); })) { S.state = "not checked"; S.note = "Sections 1 to 5 did not all pass"; paintST(); return; }
-        var hc = h.cand.error ? { hard: [h.cand.error], soft: [] } : stCheck(sec.id, h.cand, ctx);
-        S.attempts = S.attempts || []; S.attempts.push({ source: h.source, hard: hc.hard, soft: hc.soft, words: hc.words }); S.note = "";
-        if (!hc.hard.length) { S.soft = hc.soft; stAccept(sec.id, h.cand, h.source, ctx, h.t); return; }
-        S.state = "needs repair"; S.failedCand = h.cand; S.failReason = hc.hard.join("; ");
-      }
-      if (!S || S.state !== "needs repair" || S.repairUsed) return;
-      S.repairUsed = true; S.state = "repairing"; paintST();
-      return stRepair(ctx, sec.id, S.failReason, S.failedCand).then(function (r) {
-        var chk = r.error ? { hard: [r.error], soft: [] } : stCheck(sec.id, r, ctx);
-        S.attempts.push({ source: "repair", hard: chk.hard, soft: chk.soft, words: chk.words });
-        if (!chk.hard.length) { S.soft = chk.soft; stAccept(sec.id, r, "repair", ctx, Date.now()); }
-        else { S.state = "failed"; S.error = "rules still broken after the single repair: " + chk.hard.join("; "); stSave(); paintST(); }
-      });
-    });
+  var inflight = Object.keys(ctx.repairs).map(function (k) { return ctx.repairs[k]; });
+  return Promise.all(inflight).then(function () {
+    /* Sections 1 to 5 that still need their repair (none normally: repairs start on failure) */
+    return Promise.all(vedicReadingSections.slice(0, 5).map(function (sec) { return stRepairOne(ctx, sec.id); }));
+  }).then(function () {
+    var id = "essential-takeaway", S = ST.sections[id];
+    if (!S || !S.held) return stRepairOne(ctx, id);
+    if (!vedicReadingSections.slice(0, 5).every(function (s) { return stPassed(s.id); })) { S.state = "not checked"; S.note = "received; Sections 1 to 5 did not all pass, so it is kept unchecked"; paintST(); return; }
+    var h = S.held; delete S.held;
+    var hc = h.cand.error ? { hard: [h.cand.error], soft: [] } : stCheck(id, h.cand, ctx);
+    S.checkedAtMs = Date.now() - ctx.t0; S.attempts = S.attempts || []; S.attempts.push({ source: h.source, hard: hc.hard, soft: hc.soft, words: hc.words }); S.note = "";
+    if (!hc.hard.length) { S.soft = hc.soft; stAccept(id, h.cand, h.source, ctx, h.t); return; }
+    S.state = "needs repair"; S.failedCand = h.cand; S.failReason = hc.hard.join("; ");
+    return stRepairOne(ctx, id);
   });
-  return chain;
 }
 function stRun(chart){
   var key = null, model = "claude-sonnet-4-6";
@@ -585,24 +709,34 @@ function stRun(chart){
   var cl = chart.client || {}, firstName = String(cl.firstName || cl.displayName || "").trim().split(/\s+/)[0] || "";
   ST = stLoad(chart, ev) || stBlank(chart, firstName, ev);
   ST.evidence = ev.text; ST.engineAspects = ev.engineAspects; ST.model = model;
-  var ctx = { key: key, model: model, ev: ev, cl: cl, firstName: firstName, t0: Date.now() };
+  var ctx = { key: key, model: model, ev: ev, cl: cl, firstName: firstName, t0: Date.now(), repairs: {}, facts: stFacts(ev.text) };
   ST.runT0 = ctx.t0;
   var all = vedicReadingSections.map(function (s) { return s.id; });
-  var missing = function () { return all.filter(function (id) { var s = ST.sections[id]; return !(s && (s.state === "passed" || s.state === "needs repair" || s.state === "held" || s.state === "repairing")); }); };
+  /* resume after an interruption: a repair that was in flight when the page closed never returned
+     judged text, so it is re-sent from the saved failed version (still one repair); a failed repair
+     that never delivered text gets its single delivery retry again */
+  all.forEach(function (id) { var s = ST.sections[id]; if (!s) return;
+    if (s.state === "repairing") { s.state = "needs repair"; s.repairUsed = false; s.note = "repair was interrupted; re-sent on resume"; }
+    if (s.state === "failed" && s.repairUndelivered) { s.state = "needs repair"; s.repairUsed = false; s.repairRetried = false; s.note = "repair never delivered text; re-sent on resume"; delete s.error; }
+    if (s.state === "not checked" && s.held) { s.state = "held"; } });
+  var missing = function () { return all.filter(function (id) { return !stDelivered(id); }); };
+  var onBlockFor = function (kind, allowed) { return function (id, inner, t) {
+    if (allowed.indexOf(id) < 0) return;
+    try { stConsider(id, inner, kind, ctx, t); }
+    catch (err) { var S = ST.sections[id] = ST.sections[id] || {}; S.state = "processing error"; S.error = "section processing error: " + ((err && err.message) || String(err)); paintST(); throw err; } }; };
   var todo = missing(), kind = todo.length === 6 ? "primary" : "recovery";
-  var first = todo.length ? stStream(ctx, kind, stBaseMsg(ctx) + (kind === "recovery" ? stContext(null) : "") + "\n" + stFraming(todo, firstName), function (id, inner, t) {
-      if (todo.indexOf(id) >= 0) stConsider(id, inner, kind, ctx, t); }) : Promise.resolve(null);
+  var first = todo.length ? stStream(ctx, kind, stBaseMsg(ctx) + (kind === "recovery" ? stContext(null) : "") + "\n" + stFraming(todo, firstName), onBlockFor(kind, todo)) : Promise.resolve(null);
   return first.then(function (rec) {
     if (rec) ST.stream[kind] = rec.ended;
     /* one recovery call, only if the primary stream ended before every section arrived */
     var left = missing();
     if (rec && kind === "primary" && left.length && !rec.apiError) {
-      return stStream(ctx, "recovery", stBaseMsg(ctx) + stContext(null) + "\n" + stFraming(left, firstName), function (id, inner, t) { if (left.indexOf(id) >= 0) stConsider(id, inner, "recovery", ctx, t); })
+      return stStream(ctx, "recovery", stBaseMsg(ctx) + stContext(null) + "\n" + stFraming(left, firstName), onBlockFor("recovery", left))
         .then(function (r2) { ST.stream.recovery = r2.ended; });
     }
   }).then(function () { return stRepairPending(ctx); })
     .then(function () {
-      all.forEach(function (id) { var s = ST.sections[id]; if (!s || !s.state) ST.sections[id] = { state: "not received", note: "not delivered by the stream" }; });
+      all.forEach(function (id) { var s = ST.sections[id]; if (!s || !s.state) ST.sections[id] = { state: "not delivered", note: "not delivered by the stream; Resume asks for it" }; });
       ST.finishedAt = new Date().toISOString(); ST.totalMs = Date.now() - ctx.t0; stSave(); paintST();
     });
 }
@@ -616,11 +750,11 @@ function chartNow(){ var run = currentRunT(), rec = lsJSON("cozTropicalChartJSON
 function restored(){ var r = lsGet("cozRestoredRunId"), bd = lsJSON("emergeBirthData"); return !!(r && bd && bd.runId === r); }
 function esc(x){ return String(x).replace(/[&<>"]/g, function(c){ return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 var running = false, runT0 = 0;
-function storedFor(c){ var st = lsJSON(ST_KEY); return st && st.mode === "stream" && c.run && st.run && st.run.runId === c.run.runId ? st : null; }
+function storedFor(c){ var st = lsJSON(ST_KEY); return st && st.mode === "stream" && st.genVersion === ST_VERSION && c.run && st.run && st.run.runId === c.run.runId ? st : null; }
 function paintInfo(){
   var c = chartNow(), key = !!lsGet("cozTestApiKey"), model = lsGet("cozTestModel") || "claude-sonnet-4-6", cl = (c.rec && c.rec.client) || {};
   var raw = lsJSON(ST_KEY), mine = storedFor(c), passedN = mine ? Object.keys(mine.sections || {}).filter(function(k){ return mine.sections[k].state === "passed"; }).length : 0;
-  var stored = !raw ? "none" : mine ? "streamed reading for this chart, " + passedN + " of 6 sections passed" : raw.mode === "stream" ? "streamed reading for a DIFFERENT chart run" : "an older test format (not used by TWT1.2; Discard it first)";
+  var stored = !raw ? "none" : mine ? "TWT1.3.1 reading for this chart, " + passedN + " of 6 sections passed checks" : (raw.mode === "stream" && raw.genVersion === ST_VERSION) ? "TWT1.3.1 reading for a DIFFERENT chart run" : "an older test version (" + (raw.genVersion || raw.mode || "unknown") + "; not used by TWT1.3.1, Discard it first)";
   document.getElementById("info").textContent = [
     "writer: " + ST_VERSION,
     "current chart run: " + (c.run ? c.run.runId : "none found"),
@@ -630,7 +764,7 @@ function paintInfo(){
     "test API key on this device: " + (key ? "present" : "MISSING (enter it on test-index.html)") + " · model: " + model,
     "stored test reading: " + stored].join("\n");
   var w = document.getElementById("writeBtn");
-  w.disabled = running || !c.ok || !key || restored() || (raw && !mine && raw.mode !== "stream");
+  w.disabled = running || !c.ok || !key || restored() || (raw && !mine && !(raw.mode === "stream" && raw.genVersion === ST_VERSION));
   w.textContent = mine && passedN < 6 ? "Resume (request only what is missing)" : mine ? "Written (Discard to test again)" : "Write reading";
   if (mine && passedN === 6) w.disabled = true;
 }
@@ -638,14 +772,19 @@ function paintST(){
   if (!ST) return;
   document.getElementById("reqs").textContent = ST.calls.length ? ST.calls.map(function (r) {
     return "#" + r.n + " " + r.kind + (r.forSection ? " (" + r.forSection + ")" : "") + " · " + r.status + (r.secs ? " after " + r.secs + " s" : (r.chars ? " · receiving, " + r.chars + " characters so far" : "")) +
-      " · stop_reason " + r.stopReason + " · tokens in " + r.inTokens + " / out " + r.outTokens + " · request-id " + r.requestId + (r.ended ? " · " + r.ended : "") + (r.receivedIds ? " · complete sections received: " + (r.receivedIds.join(", ") || "none") : "");
+      " · stop_reason " + r.stopReason + " · tokens in " + r.inTokens + " / out " + r.outTokens + " · request-id " + r.requestId + (r.ended ? " · " + r.ended : "") +
+      (r.kind !== "repair" ? " · first byte " + (r.firstByteMs == null ? "never" : (r.firstByteMs / 1000).toFixed(1) + " s") + " · characters " + (r.chars || 0) + " · stream events " + (r.events || 0) + (r.badEvents ? " (" + r.badEvents + " unreadable)" : "") + " · last event " + (r.lastEvent || "none") + " · message_stop " + (r.sawStop ? "yes" : "no") : "") +
+      (r.blockErrors && r.blockErrors.length ? " · section processing errors: " + r.blockErrors.join("; ") : "") +
+      (r.receivedIds ? " · complete sections received: " + (r.receivedIds.join(", ") || "none") : "");
   }).join("\n") : "none yet";
   var html = "", passed = 0;
   vedicReadingSections.forEach(function (sec) {
     var s = ST.sections[sec.id] || { state: "waiting" };
     if (s.state === "passed") passed++;
-    var meta = [sec.number + ". " + sec.title + " · " + (s.state || "waiting").toUpperCase() +
-      (s.state === "passed" ? " · readable at " + (s.atMs / 1000).toFixed(1) + " s · from " + s.source + " · " + s.words + " words" : "") + (s.note ? " · " + s.note : "")];
+    var tm = function (ms) { return ms == null ? "?" : (ms / 1000).toFixed(1) + " s"; };
+    var meta = [sec.number + ". " + sec.title + " · " + (s.state === "passed" ? "PASSED CHECKS (format, trace, fact checks; not a content review)" : (s.state || "waiting").toUpperCase()) +
+      (s.receivedAtMs != null ? " · arrived " + tm(s.receivedAtMs) : "") + (s.checkedAtMs != null ? " · checked " + tm(s.checkedAtMs) : "") +
+      (s.state === "passed" ? " · readable " + tm(s.atMs) + " · from " + s.source + " · " + s.words + " words" : "") + (s.note ? " · " + s.note : "")];
     (s.attempts || []).forEach(function (a, i) { meta.push("  check " + (i + 1) + " (" + a.source + "): hard " + ((a.hard || []).join("; ") || "none") + " | soft " + ((a.soft || []).join("; ") || "none") + (a.words ? " | " + a.words + " words" : "")); });
     if (s.error) meta.push("  " + s.error);
     html += '<div class="sec"><div class="meta ' + (s.state === "passed" ? "ok" : /fail|not/.test(s.state || "") ? "bad" : "") + '">' + esc(meta.join("\n")) + "</div>";
@@ -656,7 +795,7 @@ function paintST(){
   document.getElementById("reading").innerHTML = html;
   document.getElementById("evidence").textContent = ST.evidence || "not recorded";
   var s1 = ST.sections["at-your-core"], total = ST.counts.primary + ST.counts.repair + ST.counts.recovery;
-  var line = (running ? "writing… " + Math.round((Date.now() - (ST.runT0 || runT0)) / 1000) + " s · " : "") + passed + " of 6 sections passed" +
+  var line = "Automated checks confirm format, citations and specific checkable facts only; the astrology still needs human review. · " + (running ? "writing… " + Math.round((Date.now() - (ST.runT0 || runT0)) / 1000) + " s · " : "") + passed + " of 6 sections passed" +
     (s1 && s1.state === "passed" ? " · Section 1 readable at " + (s1.atMs / 1000).toFixed(1) + " s" : "") + (ST.totalMs ? " · finished at " + (ST.totalMs / 1000).toFixed(1) + " s" : "") +
     " · calls: primary " + ST.counts.primary + ", repair " + ST.counts.repair + ", recovery " + ST.counts.recovery + ", total " + total +
     " · tokens in " + ST.tokens.input + " / out " + ST.tokens.output + " · est. $" + stCost().toFixed(4) +
@@ -677,7 +816,7 @@ document.getElementById("discardBtn").addEventListener("click", function(){
 });
 document.getElementById("copyBtn").addEventListener("click", function(){
   var b = document.getElementById("copyBtn");
-  var text = ["COZALYZE TROPICAL WRITER TEST TWT1.2 SINGLE-CALL STREAMING", document.getElementById("info").textContent, "", document.getElementById("status").textContent,
+  var text = ["COZALYZE TROPICAL WRITER TEST TWT1.3.1 SINGLE-CALL STREAMING", document.getElementById("info").textContent, "", document.getElementById("status").textContent,
     "", "CALLS", document.getElementById("reqs").textContent, "", "READING, SECTION BY SECTION", document.getElementById("reading").innerText, "",
     "ENGINE ASPECTS WITHHELD FROM THE MODEL", (ST && ST.engineAspects || []).join("; ") || "none", "", "EVIDENCE", document.getElementById("evidence").textContent].join("\n");
   function say(m){ b.textContent = m; setTimeout(function(){ b.textContent = "Copy report"; }, 3000); }
