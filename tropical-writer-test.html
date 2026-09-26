@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>CozAlyze Tropical writer test TWT1.3.2</title>
+<title>CozAlyze Tropical writer test TWT1.3.3</title>
 <!--
-  COZALYZE · TROPICAL WRITER TEST · TWT1.3.2 SINGLE-CALL STREAMING (Sep 26 2026) · DEVELOPMENT WORKBENCH · STANDALONE
+  COZALYZE · TROPICAL WRITER TEST · TWT1.3.3 SINGLE-CALL STREAMING (Sep 26 2026) · DEVELOPMENT WORKBENCH · STANDALONE
   ONE streamed model request writes the whole six-section reading. Each section is shown and saved
   the moment it has fully arrived and passed the unchanged TG1.0.4 checker (cozTgenCheck), with the
   preserved TG1.0.4 system prompt, evidence selection and factor map. The only addition to the
@@ -25,6 +25,7 @@
   as one; a repair interrupted by closing the page is re-sent on resume.
   TWT1.3.2: the existing name rule restated in the delivery note; fact checks for concentration
   placement ("Gemini concentration in the 4th house") and "at home" dignity wording.
+  TWT1.3.3: the existing section-scope rule for trace ids restated in the delivery note.
   Output ONLY under localStorage "cozTropicalReadingTEST". Reads (never writes) emergeBirthData,
   cozTropicalChartJSON, cozTestApiKey, cozTestModel, cozRestoredRunId. Nothing runs until
   "Write reading". Not linked from the application. The API key is never displayed or copied.
@@ -44,7 +45,7 @@
 </style>
 </head>
 <body>
-<h1>Tropical writer test · TWT1.3.2 single-call streaming</h1>
+<h1>Tropical writer test · TWT1.3.3 single-call streaming</h1>
 <p class="note">Workbench only. Writes nothing until you tap Write reading, then one streamed call, only to the test key. TG1.0.4 rules and checker unchanged, plus partial fact checks. Passing checks is not a review of the astrology.</p>
 <div class="box mono" id="info">loading…</div>
 <div class="row">
@@ -511,6 +512,8 @@ function stFactCheck(p, ctx){
    the saved failed version, and a held Section 6 is kept for resume.
    TWT1.3.2: the existing name rule is restated in the delivery note (it drove 3 of 4 repairs in the
    first clean phone run); fact checks add concentration placement and "at home" dignity wording.
+   TWT1.3.3: the existing section-scope rule for trace ids is restated in the delivery note (it drove
+   all 4 repairs in the second clean phone run). Lists, checker and limits are unchanged.
    ONE streamed request writes the whole reading. The TG1.0.4 system prompt is sent unchanged;
    the user message adds only a delivery-framing note, so each finished section can be picked out
    of the stream before the response ends:
@@ -522,7 +525,7 @@ function stFactCheck(p, ctx){
    Exception-only extra calls: a section that breaks a hard rule gets ONE targeted repair of that
    section alone; if the stream drops, ONE recovery call asks only for the sections not yet
    received. Sections that passed are never regenerated. */
-var ST_VERSION = "tropical-gen 1.3.2-stream (TG1.0.4 rules)";
+var ST_VERSION = "tropical-gen 1.3.3-stream (TG1.0.4 rules)";
 var ST_KEY = "cozTropicalReadingTEST", ST_IDLE_MS = 45000, ST_TOTAL_MS = 240000, ST_REPAIR_MS = 90000;
 var ST = null;
 var ST_PRICE = { input: 3.00, output: 15.00 };   /* USD per million tokens, the estimate the writers already use */
@@ -551,7 +554,12 @@ function stFraming(ids, firstName){
     "Write " + (ids.length === 6 ? "all six sections" : "only these sections: " + ids.join(", ")) + ", in this order: " + ids.join(", ") + ". " +
     "Emit each section as its own block, exactly like this, one block after another, with nothing before, between or after the blocks:\n" +
     "<<<SECTION section-id>>>\n{\"section-id\": [[\"sentence 1\", \"sentence 2\", \"sentence 3\"], [\"sentence 1\", \"sentence 2\", \"sentence 3\"], [\"sentence 1\", \"sentence 2\", \"sentence 3\"], [\"sentence 1\", \"sentence 2\", \"sentence 3\"]], \"_trace\": {\"section-id\": [[ids for paragraph 1], [ids for paragraph 2], [ids for paragraph 3], [ids for paragraph 4]]}}\n<<<END section-id>>>\n" +
-    "Use the real section id in place of section-id. Each section is exactly 4 paragraphs; each paragraph is a list of exactly 3 sentences; each sentence about 20 words and never more than 25. That structure is how the length rule above is met: 4 x 3 sentences of about 20 words is about 250 words. The JSON inside each block must be complete and valid on its own." +
+    "Use the real section id in place of section-id. " +
+    "TRACE SCOPE RULE (restating the rule above): every id in a block's _trace must appear in THAT section's list under ALLOWED FACTOR IDS PER SECTION in the evidence; check each id against that list before writing it. " +
+    "Chart-ruler ids (chart_ruler_..., chart_coruler_...) and whole-chart ids (element_..., modality_..., emphasis_..., concentration_..., hemisphere_...) belong only to at-your-core; in any other section, when you discuss that planet, cite the planet's own body_... id if it is on that section's list. " +
+    "essential-takeaway may cite only ids that Sections 1 to 5 actually cited in their traces. " +
+    "If a point needs an id that is not on the section's list, reword the point so it rests on allowed ids, or leave it out; never relabel it with a different id while keeping the same claim. " +
+    "Each section is exactly 4 paragraphs; each paragraph is a list of exactly 3 sentences; each sentence about 20 words and never more than 25. That structure is how the length rule above is met: 4 x 3 sentences of about 20 words is about 250 words. The JSON inside each block must be complete and valid on its own." +
     (!firstName ? "" : ids.indexOf("at-your-core") >= 0 ?
       " NAME RULE (restating the rule above): the first name " + firstName + " appears exactly once in the whole reading, in the first sentence of the at-your-core block, and nowhere else: not later in Section 1 and not in any other section. Everywhere else, refer to the person without the name." :
       " NAME RULE: the first name " + firstName + " was already used once in Section 1; do not use it anywhere in these sections.");
@@ -780,7 +788,7 @@ function storedFor(c){ var st = lsJSON(ST_KEY); return st && st.mode === "stream
 function paintInfo(){
   var c = chartNow(), key = !!lsGet("cozTestApiKey"), model = lsGet("cozTestModel") || "claude-sonnet-4-6", cl = (c.rec && c.rec.client) || {};
   var raw = lsJSON(ST_KEY), mine = storedFor(c), passedN = mine ? Object.keys(mine.sections || {}).filter(function(k){ return mine.sections[k].state === "passed"; }).length : 0;
-  var stored = !raw ? "none" : mine ? "TWT1.3.2 reading for this chart, " + passedN + " of 6 sections passed checks" : (raw.mode === "stream" && raw.genVersion === ST_VERSION) ? "TWT1.3.2 reading for a DIFFERENT chart run" : "an older test version (" + (raw.genVersion || raw.mode || "unknown") + "; not used by TWT1.3.2, Discard it first)";
+  var stored = !raw ? "none" : mine ? "TWT1.3.3 reading for this chart, " + passedN + " of 6 sections passed checks" : (raw.mode === "stream" && raw.genVersion === ST_VERSION) ? "TWT1.3.3 reading for a DIFFERENT chart run" : "an older test version (" + (raw.genVersion || raw.mode || "unknown") + "; not used by TWT1.3.3, Discard it first)";
   document.getElementById("info").textContent = [
     "writer: " + ST_VERSION,
     "current chart run: " + (c.run ? c.run.runId : "none found"),
@@ -842,7 +850,7 @@ document.getElementById("discardBtn").addEventListener("click", function(){
 });
 document.getElementById("copyBtn").addEventListener("click", function(){
   var b = document.getElementById("copyBtn");
-  var text = ["COZALYZE TROPICAL WRITER TEST TWT1.3.2 SINGLE-CALL STREAMING", document.getElementById("info").textContent, "", document.getElementById("status").textContent,
+  var text = ["COZALYZE TROPICAL WRITER TEST TWT1.3.3 SINGLE-CALL STREAMING", document.getElementById("info").textContent, "", document.getElementById("status").textContent,
     "", "CALLS", document.getElementById("reqs").textContent, "", "READING, SECTION BY SECTION", document.getElementById("reading").innerText, "",
     "ENGINE ASPECTS WITHHELD FROM THE MODEL", (ST && ST.engineAspects || []).join("; ") || "none", "", "EVIDENCE", document.getElementById("evidence").textContent].join("\n");
   function say(m){ b.textContent = m; setTimeout(function(){ b.textContent = "Copy report"; }, 3000); }
