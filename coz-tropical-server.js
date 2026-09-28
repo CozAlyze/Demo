@@ -1,4 +1,7 @@
-/* COZ TROPICAL SERVER · TSA1.0 (Stage 2A, Sep 27 2026)
+/* COZ TROPICAL SERVER · TSA1.1 (Stage 2A, Sep 27 2026)
+   TSA1.1: a page that is not the poller also checks the saved progress itself on every tick and
+   tells its page when it changed. Safari did not deliver the storage event into the reading page
+   inside index.html's frame, so an open section stayed on "still being written" (first Demo run).
    The Demo's link to the CozAlyze Tropical server (cozalyze-tropical-server.netlify.app).
    Tropical only. Loaded by index.html (starts the job) and tropical-reading.html (shows it).
    Never loaded by Vedic or Compare pages. Never talks to Anthropic; no server secret lives here.
@@ -103,9 +106,12 @@
     lsSet(LOCK, { owner: OWNER, at: now }); return true;
   }
   function done(state){ return state === "complete" || state === "finished" || state === "refused" || state === "access"; }
+  var lastSeen = null;
   function tick(){
     timer = null;
     var j = record();
+    var seen = j ? (j.jobId || "") + "|" + j.state + "|" + (j.updatedAt || "") : "";
+    if (seen !== lastSeen) { lastSeen = seen; notify(); }             /* TSA1.1: progress written by another page */
     if (!j || done(j.state) || restored()) return;
     if (!haveLock()) { timer = setTimeout(tick, POLL_MS); return; }
     if (j.state === "retry" && !j.jobId) { lsSet(JOB, Object.assign(j, { state: "starting" })); restart(); return; }
@@ -128,7 +134,7 @@
       else secs[s.id] = { state: final ? "failed" : "pending" };
     });
     j.sections = secs; j.state = final ? (view.state === "complete" ? "complete" : "finished") : "writing"; j.updatedAt = new Date().toISOString();
-    lsSet(JOB, j);
+    lsSet(JOB, j); lastSeen = (j.jobId || "") + "|" + j.state + "|" + j.updatedAt;
     if (j.state === "complete" && SECTIONS.every(function (s) { return secs[s.id] && secs[s.id].state === "passed"; })) {
       var reading = { system: "tropical", title: "Your Tropical Reading", source: "server", jobId: j.jobId,
         run: { runId: j.runId, fingerprint: j.fingerprint }, generatedAt: new Date().toISOString(),
