@@ -525,6 +525,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
 </style>
 <script src="coz-saved.js?v=3"></script>
 <script src="saved-tropical-library.js?v=1"></script>
+<script src="coz-tropical-server.js?v=1"></script>
 </head>
 <body data-view="dashboard">
 
@@ -598,7 +599,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T4.4 · transits label</div>
+<div class="vedic-stamp" aria-hidden="true">TROPICAL READING · T4.5 · server reading</div>
 
 <script src="ascendant-library.js"></script>
 <script>
@@ -816,6 +817,17 @@ function loadReading() {
   return null;                                                                                               /* normal use: unavailable, never the sample */
 }
 const READING_UNAVAILABLE = "Your personalized Tropical reading is not available yet. It will appear here once it has been prepared for your chart.";
+/* T4.5 Stage 2A: until the complete reading is stored, sections come from the Tropical server job
+   for this run (coz-tropical-server.js): passed sections show their text, the others show the
+   approved status line. No server job for this run = the unavailable line, as before. */
+function serverParagraphs(id) {
+  const v = (window.CozTropicalServer && CozTropicalServer.sectionView) ? CozTropicalServer.sectionView(id) : null;
+  return v ? v.paragraphs : [READING_UNAVAILABLE];
+}
+function serverSignature(id) {
+  const v = (window.CozTropicalServer && CozTropicalServer.sectionView) ? CozTropicalServer.sectionView(id) : null;
+  return (loadReading() ? "final" : (v ? v.state : "none"));
+}
 const SAMPLE_LABEL = "Sample reading for demonstration only. This is not your chart.";
 
 /* ============================================================
@@ -850,7 +862,7 @@ function sectionById(id) { return vedicReadingSections.find(s => s.id === id) ||
 
 function renderSection(section) {
   const loaded = loadReading();
-  const paragraphs = loaded ? loaded.map[section.id] : [READING_UNAVAILABLE];
+  const paragraphs = loaded ? loaded.map[section.id] : serverParagraphs(section.id);
   const sampleLabel = (loaded && loaded.source === "sample") ? `<p class="dev-label">${esc(SAMPLE_LABEL)}</p>` : "";
   const sectionCounter = `${String(section.number).padStart(2, "0")} OF ${SECTION_TOTAL}`;
   const titleClass = section.title.length > 22 ? "vedic-title vedic-title--long" : "vedic-title";
@@ -992,9 +1004,12 @@ paintAscendant(document.getElementById("dashStage"), ASC_SIGN);
 paintAscendant(document.getElementById("revealStage"), ASC_SIGN);
 document.querySelector('[data-dash="ascendant"]').setAttribute("aria-label", ASC_SIGN ? `Your Ascendant, ${ASC_SIGN}` : "Your Ascendant");
 
-/* Reading readiness. The engine sets window.COZ_TROPICAL_READING_STATUS = "preparing"
-   while it works; anything else counts as ready. The reading is never regenerated
-   here, this page only reads what the engine stored. */
+/* Reading readiness. A writer may set window.COZ_TROPICAL_READING_STATUS = "preparing"
+   to hold the reading door closed; anything else counts as ready. T4.5 Stage 2A: the
+   Tropical server adapter (coz-tropical-server.js) deliberately never sets it, so the
+   door stays open while the server writes and each section shows its own state (text,
+   still being written, or could not be completed). The reading is never regenerated
+   here, this page only reads what the server stored. */
 function readingReady() { return window.COZ_TROPICAL_READING_STATUS !== "preparing"; }
 function syncReadyState() {
   const ready = readingReady();
@@ -1123,6 +1138,15 @@ revealVideo.addEventListener("error", () => finishReveal(false));
 /* Section links are plain hash links: every section is its own history entry,
    so the phone's back gesture steps through them, and back past Page 01 lands on the dashboard. */
 window.addEventListener("hashchange", showFromHash);
+/* T4.5 Stage 2A: redraw the open section only when its server state changes (text arrived,
+   finished or could not be completed); the dashboard and other views are never touched */
+let serverShown = null;
+window.addEventListener("COZ_TROPICAL_SERVER_UPDATE", () => {
+  if (document.body.dataset.view !== "reading") return;
+  const id = idFromHash(); if (!id || id === "dashboard" || id === "ascendant") return;
+  const section = sectionById(id), sig = section.id + ":" + serverSignature(section.id);
+  if (sig !== serverShown) { serverShown = sig; renderSection(section); }
+});
 showFromHash();
 
 /* ============================================================
