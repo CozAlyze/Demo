@@ -1,4 +1,12 @@
-/* COZ TROPICAL SERVER · TSA1.1 (Stage 2A, Sep 27 2026)
+/* COZ TROPICAL SERVER · TSA1.2 (Stage 2A, Sep 28 2026)
+   TSA1.2 also: a device can be pointed at the Netlify "test" BRANCH deploy of the same server for free testing, by
+   setting localStorage "cozTropicalServerBase" to https://test--cozalyze-tropical-server.netlify.app (that exact
+   address only, matching index.html's CSP; anything else falls back to production). A job keeps the server it was
+   started on for every request, including a retried start that never got a job id.
+   TSA1.2: a restored (reopened Saved) chart still NEVER starts a job, but it FOLLOWS a job this device already
+   holds for the exact same run (runId + fingerprint): status reads only, never a POST. A completed job whose
+   reading was removed by the restore is written back to cozTropicalReading for that run.
+   TSA1.1 (Sep 27 2026)
    TSA1.1: a page that is not the poller also checks the saved progress itself on every tick and
    tells its page when it changed. Safari did not deliver the storage event into the reading page
    inside index.html's frame, so an open section stayed on "still being written" (first Demo run).
@@ -24,6 +32,10 @@
 (function () {
   if (window.CozTropicalServer) return;
   var BASE = "https://cozalyze-tropical-server.netlify.app/.netlify/functions";
+  function chosenBase(){                                                /* TSA1.2: optional branch-deploy override, this device only */
+    var o = null; try { o = localStorage.getItem("cozTropicalServerBase"); } catch (e) {}
+    return (o === "https://test--cozalyze-tropical-server.netlify.app") ? o + "/.netlify/functions" : BASE;
+  }
   var JOB = "cozTropicalServerJob", KEY = "cozTropicalServerKey", LOCK = "cozTropicalServerPoll";
   var POLL_MS = 4000, LOCK_STALE_MS = 12000;
   var OWNER = "tsa-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 7);
@@ -62,8 +74,9 @@
   }
   function api(path, opt){
     var k = key(false); opt = opt || {};
+    var rec = record(), base = (rec && rec.base) ? rec.base : chosenBase();   /* a job (and any retried start) stays on its own server */
     var h = { "Authorization": "Bearer " + (k || "") }; if (opt.body) h["Content-Type"] = "application/json";
-    return fetch(BASE + path, { method: opt.method || "GET", headers: h, body: opt.body || undefined, cache: "no-store" })
+    return fetch(base + path, { method: opt.method || "GET", headers: h, body: opt.body || undefined, cache: "no-store" })
       .then(function (res) { return res.json().catch(function () { return {}; }).then(function (b) { return { status: res.status, body: b }; }); });
   }
 
@@ -78,7 +91,7 @@
     var chart = chartFor(run);
     if (!chart) { log("no Tropical chart for this run; nothing started"); return; }
     if (!key(true)) { log("no tester key on this device; nothing started"); return; }
-    lsSet(JOB, { v: 1, runId: run.runId, fingerprint: run.fingerprint, jobId: null, state: "starting", sections: {}, startedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+    lsSet(JOB, { v: 1, runId: run.runId, fingerprint: run.fingerprint, jobId: null, state: "starting", sections: {}, base: (rec && rec.base) || chosenBase(), startedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
     notify();
     api("/tropical-start", { method: "POST", body: JSON.stringify({ chart: chart }) }).then(function (r) {
       var j = record(); if (!j) return;
@@ -112,7 +125,9 @@
     var j = record();
     var seen = j ? (j.jobId || "") + "|" + j.state + "|" + (j.updatedAt || "") : "";
     if (seen !== lastSeen) { lastSeen = seen; notify(); }             /* TSA1.1: progress written by another page */
-    if (!j || done(j.state) || restored()) return;
+    if (j && j.state === "complete" && !finalReadingExists(currentRun())) writeFinal(j);   /* TSA1.2: e.g. removed by a restore */
+    if (!j || done(j.state)) return;
+    if (restored() && !j.jobId) return;                              /* TSA1.2: restored never starts or re-starts; it only follows */
     if (!haveLock()) { timer = setTimeout(tick, POLL_MS); return; }
     if (j.state === "retry" && !j.jobId) { lsSet(JOB, Object.assign(j, { state: "starting" })); restart(); return; }
     if (!j.jobId) { timer = setTimeout(tick, POLL_MS); return; }
@@ -135,15 +150,18 @@
     });
     j.sections = secs; j.state = final ? (view.state === "complete" ? "complete" : "finished") : "writing"; j.updatedAt = new Date().toISOString();
     lsSet(JOB, j); lastSeen = (j.jobId || "") + "|" + j.state + "|" + j.updatedAt;
-    if (j.state === "complete" && SECTIONS.every(function (s) { return secs[s.id] && secs[s.id].state === "passed"; })) {
-      var reading = { system: "tropical", title: "Your Tropical Reading", source: "server", jobId: j.jobId,
-        run: { runId: j.runId, fingerprint: j.fingerprint }, generatedAt: new Date().toISOString(),
-        sections: SECTIONS.map(function (s) { return { id: s.id, number: s.number, title: s.title, body: secs[s.id].body }; }) };
-      lsSet("cozTropicalReading", reading);
-      try { window.COZ_TROPICAL_READING = reading; } catch (e) {}
-      log("reading complete; stored for this run");
-    }
+    if (j.state === "complete") writeFinal(j);
     notify();
+  }
+  function writeFinal(j){
+    var secs = j.sections || {};
+    if (!SECTIONS.every(function (s) { return secs[s.id] && secs[s.id].state === "passed" && Array.isArray(secs[s.id].body); })) return;
+    var reading = { system: "tropical", title: "Your Tropical Reading", source: "server", jobId: j.jobId,
+      run: { runId: j.runId, fingerprint: j.fingerprint }, generatedAt: new Date().toISOString(),
+      sections: SECTIONS.map(function (s) { return { id: s.id, number: s.number, title: s.title, body: secs[s.id].body }; }) };
+    lsSet("cozTropicalReading", reading);
+    try { window.COZ_TROPICAL_READING = reading; } catch (e) {}
+    log("reading complete; stored for this run");
   }
 
   /* ---------- what a page shows for one section ---------- */
