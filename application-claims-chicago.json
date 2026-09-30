@@ -20,17 +20,17 @@
         {
           "claimId": "APP-MOON-4-HOME-CONTENTMENT",
           "purposes": ["moon-through-house"],
-          "allowedMeaning": "Emotional well-being may be rooted in the person's private inner foundation: home, belonging and the people who make them feel supported."
+          "allowedMeaning": "Emotional well-being may be rooted in your private inner foundation: home, belonging and the people who make you feel supported."
         },
         {
           "claimId": "APP-MOON-4-DOMESTIC-COMFORT",
           "purposes": ["moon-through-house"],
-          "allowedMeaning": "Internal contentment may depend on having somewhere the person can emotionally settle, not merely a physical home but a place where they feel safe enough to be themselves."
+          "allowedMeaning": "Internal contentment may depend on having somewhere you can emotionally settle, not merely a physical home but a place where you feel safe enough to be yourself."
         },
         {
           "claimId": "APP-MOON-4-KIN-CONNECTION",
           "purposes": ["moon-through-house"],
-          "allowedMeaning": "Family, chosen family or another dependable support system may form an important part of the person's emotional landscape."
+          "allowedMeaning": "Family, chosen family or another dependable support system may form an important part of your emotional landscape."
         },
         {
           "claimId": "APP-MOON-4-MATERNAL-INFLUENCE",
@@ -38,7 +38,7 @@
           "classification": "EDITORIAL_DRAFT_PENDING_EVIDENCE",
           "evidenceStatus": "PENDING_SOURCE_AND_PRACTITIONER_REVIEW",
           "sourceIds": [],
-          "allowedMeaning": "The relationship with the mother or primary maternal figure may significantly shape how the person understands comfort, care and emotional security; the chart does not determine whether that relationship was easy or difficult."
+          "allowedMeaning": "Your relationship with your mother or primary maternal figure may significantly shape how you understand comfort, care and emotional security; the chart does not determine whether that relationship was easy or difficult."
         }
       ],
       "prohibitedExtensions": [

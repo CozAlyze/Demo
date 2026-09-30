@@ -12,7 +12,7 @@
    "selector": { "all": [ { "factId": "graha:mo", "field": "house", "equals": 12 } ] },
    "applicationClaims": [
     { "claimId": "APP-MOON-12-PRIVATE", "allowedMeaning": "Emotional processing may happen privately or beneath what other people immediately see." },
-    { "claimId": "APP-MOON-12-SOLITUDE", "allowedMeaning": "Periods of solitude and reflection may help the person understand accumulated feelings." },
+    { "claimId": "APP-MOON-12-SOLITUDE", "allowedMeaning": "Periods of solitude and reflection may help you understand accumulated feelings." },
     { "claimId": "APP-MOON-12-SUBCONSCIOUS", "allowedMeaning": "Dreams, subtle impressions or quiet reflection may bring subconscious emotional material closer to awareness." },
     { "claimId": "APP-MOON-12-RELEASE", "allowedMeaning": "Emotional development may involve recognizing what should be retained and what is ready to be released." }
    ],
@@ -47,7 +47,7 @@
    "modelId": "NAK-10-MAGHA",
    "applicationClaims": [
     { "claimId": "APP-MAGHA-STEWARDSHIP", "allowedMeaning": "The person may feel emotionally oriented toward lineage, inheritance, stewardship and what deserves to be carried forward." },
-    { "claimId": "APP-MAGHA-CONTINUITY", "allowedMeaning": "Questions of continuity, responsibility and what should continue through the person\u2019s choices may hold emotional significance." },
+    { "claimId": "APP-MAGHA-CONTINUITY", "allowedMeaning": "Questions of continuity, responsibility and what should continue through your choices may hold emotional significance." },
     { "claimId": "APP-MAGHA-DEVOTION", "allowedMeaning": "The person may bring energy and devotion to what feels meaningful and worth preserving." }
    ],
    "customerExcludedLayers": [
