@@ -688,10 +688,11 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write · VD1.2 diagnostic · VW1 waiting</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write · VD1.2 diagnostic · VW1 waiting · VSP1.2 server switch</div>
 
 <script src="ascendant-library.js"></script>
 <script src="dev-review-engine.js?v=6"></script>
+<script src="coz-vedic-server.js?v=1"></script>
 <script>
 /* ============================================================
    SECTION DATA (spec, verbatim)
@@ -1028,6 +1029,43 @@ if (COZ_PREGEN) {
      dashboard art are never shown here, so they are dropped before the browser fetches
      them; only the writing itself runs. */
 }
+/* VSP1 (Sep 29): Vedic server switch, DEFAULT OFF (coz-vedic-server.js). OFF = everything below runs exactly as
+   before. ON (this device only): Sections 1-2 are still assembled here, Sections 3-6 come from the Vedic server
+   and each is shown as soon as it is released. */
+/* VSP1.1: a run that already started on the server stays on the server (pinned), even if the switch is later
+   turned OFF; the switch governs new runs only. */
+function cozVSOn(run) {
+  if (!window.CozVedicServer) return false;
+  if (run && CozVedicServer.pinned(run)) return true;                                   /* already on the server */
+  if (run && window.COZ_VEDIC_BROWSER_RUN &&
+      window.COZ_VEDIC_BROWSER_RUN.runId === run.runId &&
+      window.COZ_VEDIC_BROWSER_RUN.fingerprint === run.fingerprint) return false;       /* VSP1.3: pinned to this chart */
+  return CozVedicServer.enabled();
+}
+/* VSP1.2: a run the browser writer already wrote (a matching cozGenDraft) or is writing right now (a fresh
+   cozVedicGenInFlight marker for the same inputs) stays on the browser path when the switch is turned ON, so no
+   second, server job is paid for. The cache key is computed exactly as generateSections3to6 computes it. */
+function cozBrowserCacheKey(chart, reading12, firstName) {
+  var model = "claude-sonnet-4-6";
+  try { model = localStorage.getItem("cozTestModel") || model; } catch (_) {}
+  var facts = cozGenChartFacts(chart);
+  var GEN_VERSION = "vedic-gen-3to6 1.1";
+  var s12 = JSON.stringify([reading12["essential-nature"] || [], reading12["mind-intuition"] || []]);
+  var inputs = { facts: facts, fingerprint: chart.run && chart.run.fingerprint || "", runId: chart.run && chart.run.runId || "",
+                 s12Hash: cozGenHash(s12), firstName: firstName || "", model: model, promptHash: cozGenHash(COZ_GEN_SYSTEM), genVersion: GEN_VERSION };
+  return { key: "cozGenDraft:" + cozGenHash(JSON.stringify(inputs)), inputs: inputs };
+}
+function cozBrowserPinned(chart, reading12, firstName) {
+  try {
+    var k = cozBrowserCacheKey(chart, reading12, firstName);
+    var c = JSON.parse(localStorage.getItem(k.key) || "null");
+    if (c && c.sections && c.inputs && Object.keys(k.inputs).every(function (x) { return c.inputs[x] === k.inputs[x]; })) return "draft";
+    var m = JSON.parse(localStorage.getItem("cozVedicGenInFlight") || "null");
+    if (m && m.key === k.key && Date.now() - m.at < 240000) return "writing";
+  } catch (e) {}
+  return null;
+}
+window.COZ_PARTIAL_READY = new Promise(function (r) { window.__cozPartialResolve = r; });
 var COZ_READING_READY = requestChartData().then(function (chart) {
   if (!chart || !chart.planets) { window.COZ_VEDIC_READING_UNAVAILABLE = true; window.COZ_VEDIC_DEBUG = "No chart in localStorage.cozChartJSON (got: " + JSON.stringify(chart).slice(0,80) + ")"; return; }
   var SECTION1_FILES = [
@@ -1071,7 +1109,9 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
     if (hasReviewed) { if (result.meta.sections3to6Unverified) result.reading._generated36 = true; result.reading.run = { runId: chart.run.runId, fingerprint: chart.run.fingerprint }; window.COZ_VEDIC_READING = result.reading; return; }
     /* No hand-reviewed draft for this chart: generate Sections 3-6 as unverified
        development copy so every chart produces all six sections. */
-    return generateSections3to6(chart, result.reading, firstName).then(function (gen) {
+    if (window.CozVedicServer && !CozVedicServer.pinned(chart.run) && cozBrowserPinned(chart, result.reading, firstName)) window.COZ_VEDIC_BROWSER_RUN = { runId: chart.run.runId, fingerprint: chart.run.fingerprint };
+    if (cozVSOn(chart.run)) { window.COZ_VEDIC_PARTIAL = Object.assign({}, result.reading, { run: { runId: chart.run.runId, fingerprint: chart.run.fingerprint } }); try { window.__cozPartialResolve(); } catch (e) {} }
+    return (cozVSOn(chart.run) ? CozVedicServer.write(chart, result.reading, firstName) : generateSections3to6(chart, result.reading, firstName)).then(function (gen) {
       try{(window.COZ_DIAG&&COZ_DIAG.log)("sections 3-6",gen && gen.trace && gen.trace.fromCache ? "received (reused text)" : "received (newly written)");}catch(_d){}
       window.COZ_GEN_IN_FLIGHT = false;
       gen.trace.sectionWordCounts = cozWordCountReport(result.reading, gen.sections);
@@ -1104,6 +1144,14 @@ function completeReading(map) {
   return vedicReadingSections.every(sec => Array.isArray(map[sec.id]) && map[sec.id].length > 0 &&
     map[sec.id].every(p => typeof p === "string" && p.trim().length > 0));
 }
+/* VSP1: switch ON only. Sections 1-2 plus whatever the server has released (others show the status line). */
+function partialReading() {
+  if (!cozVSOn(currentRun()) || !window.COZ_VEDIC_PARTIAL || !runMatches(window.COZ_VEDIC_PARTIAL, currentRun())) return null;
+  var p = window.COZ_VEDIC_PARTIAL, run = p.run, m = { run: run };
+  m["essential-nature"] = p["essential-nature"]; m["mind-intuition"] = p["mind-intuition"];
+  ["relationships-karmic", "dharma-direction", "rahu-ketu", "essential-takeaway"].forEach(function (id) { var v = CozVedicServer.sectionView(run, id); m[id] = v ? v.paragraphs : [CozVedicServer.COPY.pending]; });
+  return m;
+}
 function loadReading() {
   const r = window.COZ_VEDIC_READING;
   if (!r || typeof r !== "object") return null;
@@ -1125,8 +1173,13 @@ function goDashboard() {
 }
 
 function finishReading() {
-  try { localStorage.setItem("cozVedicReadingComplete", new Date().toISOString()); } catch (e) {}
-  try { window.dispatchEvent(new CustomEvent("COZ_VEDIC_READING_COMPLETE")); } catch (e) {}
+  /* VSP1.1: the completion flag is set only when all six real sections are present for this run (loadReading
+     requires that); a section still being written or not completed never marks the reading complete. With the
+     switch OFF, Finish is only reachable with a complete reading, so this is unchanged there. */
+  if (loadReading()) {
+    try { localStorage.setItem("cozVedicReadingComplete", new Date().toISOString()); } catch (e) {}
+    try { window.dispatchEvent(new CustomEvent("COZ_VEDIC_READING_COMPLETE")); } catch (e) {}
+  }
   goDashboard();
 }
 
@@ -1145,7 +1198,7 @@ function sectionById(id) { return vedicReadingSections.find(s => s.id === id) ||
 
 function renderSection(section) {
   cozCurrentSectionId = section.id;
-  const reading = loadReading();
+  const reading = loadReading() || partialReading();
   if (!reading) { renderUnavailableNotice(); return; }
   const paragraphs = Array.isArray(reading[section.id]) ? reading[section.id] : [];
   const sectionCounter = `${String(section.number).padStart(2, "0")} OF ${SECTION_TOTAL}`;
@@ -1257,7 +1310,7 @@ function showFromHash() {
      VW1 (Sep 25): the waiting screen now shows whenever the reading is not ready and
      preparation has not settled: claim files loading, this page writing, OR the hidden writer
      writing (before, only this page writing counted, so the other cases left a blank page). */
-  if (!loadReading() && !window.COZ_READING_SETTLED) {
+  if (!loadReading() && !partialReading() && !window.COZ_READING_SETTLED) {
     const old = document.getElementById("vedicContent");
     const fresh = old.cloneNode(false);
     fresh.innerHTML = `<header class="vedic-header"><img class="vedic-logo" src="vedic-logo.png" alt="CozAlyze" width="1000" height="1055"></header>
@@ -1268,7 +1321,7 @@ function showFromHash() {
   }
   const proceed = () => {
     if (myNav !== navGen) return;                       /* the person has navigated on; this callback is stale */
-    if (window.COZ_VEDIC_READING_UNAVAILABLE || !loadReading()) {
+    if (!partialReading() && (window.COZ_VEDIC_READING_UNAVAILABLE || !loadReading())) {
       if (!window.COZ_VEDIC_DEBUG) window.COZ_VEDIC_DEBUG = "Generation finished but no reading was stored (COZ_VEDIC_READING=" + typeof window.COZ_VEDIC_READING + ")";
       history.replaceState({ id: "essential-nature" }, "", "#/essential-nature");
       renderUnavailableNotice();
@@ -1284,9 +1337,19 @@ function showFromHash() {
     try{(window.COZ_DIAG&&COZ_DIAG.log)("display (after render)",(function(){ var el = document.getElementById("vedicContent"); var unavailable = !!document.getElementById("vedicRetry"); var n = el ? el.querySelectorAll(".vedic-body p").length : 0; return (unavailable ? "UNAVAILABLE screen on display" : "reading on display, route " + String(location.hash || "").slice(0, 30) + ", " + n + " paragraphs") + " · complete reading object present: " + !!loadReading(); })());}catch(_d){}
     window.scrollTo({ top: 0, behavior: "instant" });
   };
-  if (COZ_READING_READY && typeof COZ_READING_READY.then === "function") COZ_READING_READY.then(proceed).catch(proceed);
+  const ready = cozVSOn(currentRun()) ? Promise.race([COZ_READING_READY, window.COZ_PARTIAL_READY]) : COZ_READING_READY;
+  if (ready && typeof ready.then === "function") ready.then(proceed).catch(proceed);
   else proceed();
 }
+/* VSP1: switch ON only. Redraw the open Section 3-6 when its server state changes. */
+let cozVSShown = null;
+window.addEventListener("COZ_VEDIC_SERVER_UPDATE", function () {
+  if (!cozVSOn(currentRun()) || document.body.dataset.view !== "reading") return;
+  const id = idFromHash(); if (["relationships-karmic", "dharma-direction", "rahu-ketu", "essential-takeaway"].indexOf(id) < 0) return;
+  const r = loadReading() || partialReading(); if (!r) return;
+  const sig = id + ":" + JSON.stringify(r[id]);
+  if (sig !== cozVSShown) { cozVSShown = sig; renderSection(sectionById(id)); }
+});
 
 document.getElementById("vedicBack").addEventListener("click", goDashboard);
 /* VD1.2 panel: a fixed launcher above the reading footer (works even when the reading area is
