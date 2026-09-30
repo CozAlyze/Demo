@@ -641,7 +641,23 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
     <img class="stage-art" data-src="vedic-dash.jpg?v=24" alt="" width="1068" height="1940">
     <video id="revealVideo" data-src="vedic-reading-reveal-full.mp4?v=1080" muted playsinline preload="auto" aria-hidden="true"></video>
     <script>
-    if (!window.COZ_PREGEN) document.querySelectorAll("[data-src]").forEach(function(e){ e.src = e.getAttribute("data-src"); });
+    if (!window.COZ_PREGEN) {
+      /* DV1: the dashboard art loads first; the 10 MB reveal clip starts once the art has loaded,
+         on the first touch of Your Vedic Reading, or after 4 s at the latest */
+      var cozVids = [];
+      document.querySelectorAll("[data-src]").forEach(function(e){ if (e.tagName === "VIDEO") cozVids.push(e); else e.src = e.getAttribute("data-src"); });
+      var cozStartVids = function(){ cozVids.forEach(function(v){ if (!v.getAttribute("src")) v.src = v.getAttribute("data-src"); }); };
+      var cozArt = document.querySelector("#dashStage .stage-art");
+      if (!cozArt || cozArt.complete) cozStartVids();
+      else { cozArt.addEventListener("load", cozStartVids, { once:true }); cozArt.addEventListener("error", cozStartVids, { once:true }); setTimeout(cozStartVids, 4000); }
+      /* first touch: listened for on the document, so it works whether or not the button is parsed yet */
+      var cozFirstTouch = function(e){
+        if (!e.target || !e.target.closest || !e.target.closest("#hotReading")) return;
+        document.removeEventListener("pointerdown", cozFirstTouch, true); document.removeEventListener("touchstart", cozFirstTouch, true);
+        cozStartVids();
+      };
+      document.addEventListener("pointerdown", cozFirstTouch, true); document.addEventListener("touchstart", cozFirstTouch, true);
+    }
     else document.querySelectorAll("video").forEach(function(v){ v.preload = "none"; });
     </script>
     <div class="asc-patch asc-patch-glyph" aria-hidden="true"></div>
@@ -688,7 +704,7 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write · VD1.2 diagnostic · VW1 waiting · VSP1.2 server switch</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write · VD1.2 diagnostic · VW1 waiting · VSP1.2 server switch · DV1 load order · DV2 tap guard</div>
 
 <script src="ascendant-library.js"></script>
 <script src="dev-review-engine.js?v=6"></script>
@@ -1935,6 +1951,16 @@ const SIGNS = {
     window.addEventListener("COZ_ASQ_ENTER", function(){ if (seen) later(function(){ if (!settled) el.classList.add("on"); }, 1800); });
   })();
   document.getElementById("asqHome").addEventListener("click", function(e){ e.preventDefault(); location.hash = "#/dashboard"; });
+  /* DV2: a link in the Ascendant reading that leaves for another page (Next: Your Current Life Cycle)
+     takes the first tap only; repeat taps while that page loads are ignored instead of restarting
+     the load. The sign clip keeps playing. Reset when the page is shown again (back). */
+  document.addEventListener("click", function(e){
+    const a = e.target.closest && e.target.closest("#asqContent a[href]");
+    if (!a || !/\.html(\?|#|$)/.test(a.getAttribute("href"))) return;
+    if (a.dataset.cozLeaving === "1") { e.preventDefault(); return; }
+    a.dataset.cozLeaving = "1";
+  });
+  window.addEventListener("pageshow", function(){ document.querySelectorAll('#asqContent a[data-coz-leaving="1"]').forEach(function(a){ a.dataset.cozLeaving = ""; }); });
   document.addEventListener("click", function(e){
     const back = e.target.closest && e.target.closest("#asqNavBack");
     if (!back) return;
