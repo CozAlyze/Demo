@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Saved Reading · CozAlyze</title>
 <!--
-  COZALYZE · SAVED TROPICAL DOCUMENT · TD1.1 (Sep 24 2026)
+  COZALYZE · SAVED TROPICAL DOCUMENT · TD1.2 (Oct 1 2026)
+  TD1.2: opened from Compare (from=compare), Back returns to that Compare page
+  (compare-system.html?sys=tropical#reading). Saved Library behavior unchanged.
   One renderer for the Tropical saved-document views:
     saved-tropical-document.html?view=reading&id=<record>     Your Tropical Reading (six sections)
     saved-tropical-document.html?view=ascendant&id=<record>   Your Ascendant (Rising Sign)
@@ -95,6 +97,11 @@
   var lib = window.CozSavedTropical ? window.CozSavedTropical.load() : null;
   if (!lib){ mount.appendChild(empty("It may have been removed from this device.")); return; }
   document.getElementById("backBtn").href = "tropical-birth-chart.html?saved=1&id=" + encodeURIComponent(lib.id);
+  if (qp.get("from") === "compare") {                                  /* opened from Compare: go back there */
+    var bb = document.getElementById("backBtn");
+    bb.href = "compare-system.html?sys=tropical#reading";
+    bb.lastChild.textContent = " Back to Your Tropical Reading";
+  }
   document.title = (TITLES[view] || "Saved Reading") + " \u00B7 CozAlyze";
 
   var paper = el("article","doc-paper"), inner = el("div","doc-inner");
