@@ -9,7 +9,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400;500&family=EB+Garamond:ital@1&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="compare-timing-reading-top.jpg?v=1">
 <style>
-/* COZALYZE · COMPARE · ONE SYSTEM, TWO TABS · CSY1.2 (Oct 1 2026, local build for review)
+/* COZALYZE · COMPARE · ONE SYSTEM, TWO TABS · CSY1.3 (Oct 1 2026, local build for review)
+   CSY1.3 (device test): Print / Save PDF inside a tab opens the print page in THIS tab instead of a
+   new Safari tab, so Safari's Back returns to this page on the same tab.
+   CSY1.3 (device test): the Birth Chart tab frames the chart page only when the chart stored on
+   this device carries THIS chart's run ID + fingerprint (Sep 18 pairing rule). The chart pages read
+   the latest stored chart with no run check, so a previous person's chart could appear here.
+   Otherwise a status line is shown (wording pending Jason). Nothing is calculated or generated.
    CSY1.2 (device test): the framed page can no longer scroll by itself, its full-screen minimum
    heights are released inside the frame, and the frame resizes immediately on any content change
    (plus a steady 0.5 s check). Fixes swipes getting stuck on iPhone while a section opened.
@@ -122,11 +128,19 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
   </nav>
  </div>
 </main>
-<div class="stamp">COMPARE · CSY1.2 · chart + saved reading</div>
+<div class="stamp">COMPARE · CSY1.3 · chart + saved reading</div>
 <script>
 (function(){
-  var SYS = { vedic: { title: "Your Vedic Reading", line: "Vedic (Sidereal)", chart: "vedic-birth-chart.html?from=compare" },
-              tropical: { title: "Your Tropical Reading", line: "Tropical (Western)", chart: "tropical-birth-chart.html?from=compare" } };
+  var SYS = { vedic: { title: "Your Vedic Reading", line: "Vedic (Sidereal)", chart: "vedic-birth-chart.html?from=compare", key: "cozChartJSON", label: "Vedic" },
+              tropical: { title: "Your Tropical Reading", line: "Tropical (Western)", chart: "tropical-birth-chart.html?from=compare", key: "cozTropicalChartJSON", label: "Tropical" } };
+  /* CSY1.3: the stored chart must belong to the chart now on this device (run ID + fingerprint) */
+  function chartIsThisRun(key){
+    try {
+      var bd = JSON.parse(localStorage.getItem("emergeBirthData") || "null"), c = JSON.parse(localStorage.getItem(key) || "null");
+      var r = c && c.run;
+      return !!(bd && bd.runId && bd.fingerprint && r && r.runId === bd.runId && r.fingerprint === bd.fingerprint);
+    } catch (e) { return false; }
+  }
   var sys = new URLSearchParams(location.search).get("sys");
   if (!SYS[sys]) { location.replace("compare-birth-charts.html"); return; }
   var S = SYS[sys], panel = document.getElementById("panel");
@@ -152,6 +166,14 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
         var a = e.target.closest && e.target.closest("a[href]"); if (!a) return;
         var h = a.getAttribute("href"); if (!h || h.charAt(0) === "#") return;
         e.preventDefault(); location.href = a.href;
+      }, true);
+      /* CSY1.3: the embedded page's own print opened a new Safari tab with no way back here;
+         open its print view in this tab instead, so Back returns to this page */
+      d.addEventListener("click", function (e) {
+        var b = e.target.closest && e.target.closest("#printBtn"); if (!b) return;
+        e.preventDefault(); e.stopImmediatePropagation();
+        var u = new URL(fr.contentWindow.location.href); u.searchParams.set("print", "1");
+        location.href = u.href;
       }, true);
     }
     /* CSY1.2: resize the moment the content changes (section opened or closed, chart drawn, image
@@ -180,12 +202,16 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
   function show(tab){
     document.getElementById("tabChart").setAttribute("aria-selected", tab === "chart" ? "true" : "false");
     document.getElementById("tabReading").setAttribute("aria-selected", tab === "reading" ? "true" : "false");
-    if (tab === "chart") return frame(S.chart);
+    if (tab === "chart") {
+      if (chartIsThisRun(S.key)) return frame(S.chart);
+      panel.innerHTML = '<p class="status" data-state="chart-missing">Your ' + S.label + ' birth chart isn\u2019t available for this chart on this device.</p>';
+      return;
+    }
     var r = null; try { r = window.CozCompareSaved && window.CozCompareSaved.status()[sys]; } catch (e) {}
     if (r && r.state === "complete" && r.href) return frame(r.href + "&from=compare");
     var msg = r ? r.message : "No saved " + (sys === "vedic" ? "Vedic" : "Tropical") + " reading is available for this chart.";
     panel.innerHTML = '<p class="status" data-state="' + esc(r ? r.state : "missing") + '">' + esc(msg) + '</p>' +
-      '<p class="status">You can still view your birth chart using the Birth Chart tab above.</p>';
+      (chartIsThisRun(S.key) ? '<p class="status">You can still view your birth chart using the Birth Chart tab above.</p>' : "");
   }
   function route(){ show(location.hash === "#chart" ? "chart" : "reading"); }
   window.addEventListener("hashchange", route);
