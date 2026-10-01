@@ -9,7 +9,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400;500&family=EB+Garamond:ital@1&display=swap" rel="stylesheet">
 <link rel="preload" as="image" href="compare-timing-reading-top.jpg?v=1">
 <style>
-/* COZALYZE · COMPARE · ONE SYSTEM, TWO TABS · CSY1.1 (Oct 1 2026, local build for review)
+/* COZALYZE · COMPARE · ONE SYSTEM, TWO TABS · CSY1.2 (Oct 1 2026, local build for review)
+   CSY1.2 (device test): the framed page can no longer scroll by itself, its full-screen minimum
+   heights are released inside the frame, and the frame resizes immediately on any content change
+   (plus a steady 0.5 s check). Fixes swipes getting stuck on iPhone while a section opened.
    CSY1.1 (Chat): inactive tab brighter (.8); opens on READING; when there is no complete saved
    reading, a second line points to the Birth Chart tab.
    compare-system.html?sys=vedic | ?sys=tropical, opened from Your Birth Charts.
@@ -119,7 +122,7 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
   </nav>
  </div>
 </main>
-<div class="stamp">COMPARE · CSY1.1 · chart + saved reading</div>
+<div class="stamp">COMPARE · CSY1.2 · chart + saved reading</div>
 <script>
 (function(){
   var SYS = { vedic: { title: "Your Vedic Reading", line: "Vedic (Sidereal)", chart: "vedic-birth-chart.html?from=compare" },
@@ -139,7 +142,11 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
     if (!d || !d.documentElement) return;
     if (!d.getElementById("cozCompareEmbed")) {
       var st = d.createElement("style"); st.id = "cozCompareEmbed";
-      st.textContent = "#backBtn,#cozFoot{display:none !important} html,body{background:transparent !important}";
+      /* CSY1.2: the embedded page never scrolls on its own (iOS gave swipes to it while the frame was
+         catching up), and its full-screen minimum heights are released so the frame fits the content */
+      st.textContent = "#backBtn,#cozFoot{display:none !important} html,body{background:transparent !important}" +
+        " html,body{height:auto !important;min-height:0 !important;overflow:hidden !important;overscroll-behavior:none !important}" +
+        " .doc-shell,.report-shell{min-height:0 !important}";
       (d.head || d.documentElement).appendChild(st);
       d.addEventListener("click", function (e) {
         var a = e.target.closest && e.target.closest("a[href]"); if (!a) return;
@@ -147,9 +154,22 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
         e.preventDefault(); location.href = a.href;
       }, true);
     }
-    var size = function(){ try { fr.style.height = Math.max(d.documentElement.scrollHeight, d.body ? d.body.scrollHeight : 0) + "px"; } catch (e) {} };
+    /* CSY1.2: resize the moment the content changes (section opened or closed, chart drawn, image
+       loaded), again after the opening motion settles, and on a light steady check as a safety net */
+    var last = 0, size = function(){ try {
+      /* measured from the body, not the page, so the frame can shrink again when a section closes */
+      var b = d.body; if (!b) return;
+      var cs = d.defaultView.getComputedStyle(b);
+      var h = Math.ceil(b.scrollHeight + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0));
+      if (h && h !== last) { last = h; fr.style.height = h + "px"; }
+    } catch (e) {} };
+    var soon = function(){ size(); setTimeout(size, 60); setTimeout(size, 250); setTimeout(size, 600); };
     size();
-    try { new ResizeObserver(size).observe(d.body || d.documentElement); } catch (e) { setInterval(size, 1000); }
+    try { var ro = new ResizeObserver(size); ro.observe(d.documentElement); if (d.body) ro.observe(d.body); } catch (e) {}
+    try { new MutationObserver(soon).observe(d.body || d.documentElement, { childList: true, subtree: true, attributes: true, characterData: true }); } catch (e) {}
+    ["click", "toggle", "transitionend", "load"].forEach(function (ev) { d.addEventListener(ev, soon, true); });
+    if (fr._cozPoll) clearInterval(fr._cozPoll);
+    fr._cozPoll = setInterval(function(){ if (!fr.isConnected) return clearInterval(fr._cozPoll); size(); }, 500);
   }
   function frame(src){
     panel.innerHTML = "";
