@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Your Reading · CozAlyze</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500&family=Montserrat:wght@300;400;500&family=EB+Garamond:ital@1&display=swap" rel="stylesheet">
+<link rel="preload" as="image" href="compare-timing-reading-top.jpg?v=1">
+<style>
+/* COZALYZE · COMPARE · ONE SYSTEM, TWO TABS · CSY1.1 (Oct 1 2026, local build for review)
+   CSY1.1 (Chat): inactive tab brighter (.8); opens on READING; when there is no complete saved
+   reading, a second line points to the Birth Chart tab.
+   compare-system.html?sys=vedic | ?sys=tropical, opened from Your Birth Charts.
+   Tabs: BIRTH CHART | READING (#chart / #reading, so Back and refresh keep the tab).
+   BIRTH CHART shows the existing chart page for the chart now on this device
+   (vedic-birth-chart.html / tropical-birth-chart.html ?from=compare) inside the page.
+   READING shows the customer's SAVED six-section reading for the same run ID + birth fingerprint
+   (compare-saved-links.js) through the existing Saved document page
+   (saved-vedic-document.html / saved-tropical-document.html ?view=reading&id=...), so the text is the
+   saved text, rendered by the same page as Saved. No saved match: the .status line says why.
+   Nothing is generated. Neither chart page nor any Saved page is changed on disk; inside this page only,
+   their own Back button and footer nav are hidden so navigation stays on the Compare page.
+   Shell, type, divider, pager and nav: Your Birth Charts (BCH1.1) styles, reused as-is. */
+
+:root{ --cream:#EEE7D8; --gold:#D6B98C; --gold-soft:#B89A6E; --navy:rgb(0,2,8);
+  --head:"Cinzel",Georgia,serif; --sans:"Montserrat","Helvetica Neue",Arial,sans-serif; --body:"EB Garamond",Georgia,serif; }
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--navy);color:var(--cream);-webkit-text-size-adjust:100%;overflow-x:hidden}
+body{padding-bottom:env(safe-area-inset-bottom)}
+.page{position:relative;width:100%;max-width:640px;margin:0 auto;container-type:inline-size;text-align:center;
+  background:url("compare-timing-reading-top.jpg?v=1") center top/100% auto no-repeat, url("compare-timing-reading-mid.png?v=1") center top/100% 1px repeat-y, var(--navy)}
+.page,.page *{--k:calc(100cqw / 932);--K:calc(100cqw / 1206)}
+.content{padding-top:calc(350 * var(--K));min-height:calc(1500 * var(--K));padding-bottom:calc(40 * var(--K))}
+.content *{min-width:0}
+h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)));line-height:1.02;letter-spacing:.02em;color:var(--cream);
+  text-shadow:0 calc(3 * var(--k)) calc(10 * var(--k)) rgba(0,0,0,.65);padding:0 calc(40 * var(--k))}
+.full{font-family:var(--head);font-weight:400;font-size:max(17px,calc(44 * var(--k)));line-height:1.1;color:var(--cream);margin-top:calc(14 * var(--k))}
+.sys{font-family:var(--sans);font-weight:400;font-size:max(12px,calc(24 * var(--k)));letter-spacing:.04em;margin-top:calc(18 * var(--k));padding:0 calc(40 * var(--k))}
+.theme{font-family:var(--sans);font-weight:400;font-size:max(10.5px,calc(19 * var(--k)));line-height:1.62;letter-spacing:.2em;color:var(--gold);
+  margin-top:calc(26 * var(--k));padding:0 calc(50 * var(--k));overflow-wrap:anywhere}
+.theme span{white-space:nowrap}
+.status{font-family:var(--sans);font-weight:300;font-size:max(15px,calc(28 * var(--k)));line-height:1.5;color:var(--cream);margin:calc(40 * var(--k)) calc(110 * var(--k)) 0}
+.div{height:calc(28 * var(--k));margin:calc(38 * var(--k)) calc(90 * var(--k)) 0;display:flex;align-items:center}
+.div::before,.div::after{content:"";flex:1;height:1px;background:var(--gold-soft);opacity:.85}
+.div svg{width:calc(24 * var(--k));height:calc(24 * var(--k));margin:0 calc(6 * var(--k));color:var(--gold);flex:none}
+.sec{padding:0 calc(90 * var(--k))}
+.acc-btn{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;width:100%;min-height:44px;
+  display:flex;align-items:center;gap:calc(24 * var(--k));text-align:left;color:inherit;padding:calc(26 * var(--k)) 0 calc(8 * var(--k));
+  -webkit-tap-highlight-color:transparent}
+.acc-btn:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+.acc-btn .txt{flex:1;min-width:0}
+.acc-btn .t{display:block;font-family:var(--head);font-weight:500;font-size:max(16px,calc(38 * var(--k)));letter-spacing:.06em;line-height:1.15;color:var(--gold);overflow-wrap:anywhere}
+.acc-btn .sub{display:block;font-family:var(--sans);font-weight:300;font-size:max(13px,calc(25 * var(--k)));line-height:1.4;letter-spacing:.015em;color:var(--cream);margin-top:calc(8 * var(--k))}
+.acc-btn svg{width:max(18px,calc(34 * var(--k)));height:max(18px,calc(34 * var(--k)));flex:none;color:var(--gold);transition:transform .45s ease}
+.acc-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+.acc{display:grid;grid-template-rows:0fr;transition:grid-template-rows .45s ease}
+.acc.open{grid-template-rows:1fr}
+.acc-in{overflow:hidden;visibility:hidden;transition:visibility 0s .45s}
+.acc.open .acc-in{visibility:visible;transition:visibility 0s 0s}
+.body{text-align:left;padding:calc(18 * var(--k)) 0 calc(6 * var(--k))}
+.body p{font-family:var(--sans);font-weight:300;font-size:max(15px,calc(30 * var(--k)));line-height:1.6;color:var(--cream);overflow-wrap:anywhere}
+.body p+p{margin-top:.95em}
+.method{margin-top:calc(46 * var(--k))}
+.mlink{appearance:none;-webkit-appearance:none;background:none;border:0;cursor:pointer;min-height:44px;padding:0 12px;
+  font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--gold);-webkit-tap-highlight-color:transparent}
+.mlink:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+.note{font-family:var(--body);font-style:italic;font-size:clamp(15px,4.2vw,18px);color:var(--cream);opacity:.85;margin:calc(10 * var(--k)) calc(90 * var(--k)) 0}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:calc(46 * var(--k)) calc(90 * var(--k)) 0}
+.pager a{font-family:var(--head);font-weight:500;font-size:max(11.5px,calc(22 * var(--k)));letter-spacing:.18em;color:var(--gold);text-decoration:none;
+  padding:10px 4px;min-height:44px;display:inline-flex;align-items:center;-webkit-tap-highlight-color:transparent}
+.pager a:focus-visible{outline:1px solid var(--gold);outline-offset:4px}
+.art-bottom{position:relative;height:calc(282 * var(--K));background:url("compare-timing-reading-bottom.jpg?v=1") center top/100% auto no-repeat}
+.nav a{position:absolute;top:calc(172 * var(--K));height:calc(80 * var(--K));min-height:44px;display:block;-webkit-tap-highlight-color:transparent}
+.nav .home{left:calc(127 * var(--K));width:calc(240 * var(--K))}
+.nav .saved{left:calc(470 * var(--K));width:calc(225 * var(--K))}
+.nav .acct{left:calc(830 * var(--K));width:calc(219 * var(--K))}
+.nav a:focus-visible{outline:1px solid var(--gold);outline-offset:2px}
+
+.door{display:flex;align-items:center;justify-content:center;min-height:44px;margin:0 calc(90 * var(--k));padding:calc(30 * var(--k)) 0;
+  font-family:var(--head);font-weight:500;font-size:max(16px,calc(38 * var(--k)));letter-spacing:.06em;color:var(--gold);text-decoration:none;
+  -webkit-tap-highlight-color:transparent;overflow-wrap:anywhere}
+.door:focus-visible{outline:1px solid var(--gold);outline-offset:3px}
+.stamp{position:fixed;right:6px;bottom:2px;z-index:2;font:8px/1 var(--sans);letter-spacing:.08em;color:rgba(204,164,102,.45);pointer-events:none}
+.tabs{display:flex;justify-content:center;gap:calc(70 * var(--k));margin:calc(26 * var(--k)) calc(90 * var(--k)) 0}
+.tabs a{font-family:var(--head);font-weight:500;font-size:max(13px,calc(28 * var(--k)));letter-spacing:.18em;color:var(--gold);text-decoration:none;
+  padding:10px 4px;min-height:44px;display:inline-flex;align-items:center;opacity:.8;-webkit-tap-highlight-color:transparent}
+.tabs a[aria-selected="true"]{opacity:1;color:var(--cream)}
+.tabs a:focus-visible{outline:1px solid var(--gold);outline-offset:4px}
+.panel{margin:calc(30 * var(--k)) calc(20 * var(--k)) 0}
+.panel iframe{display:block;width:100%;border:0;min-height:60vh;background:transparent}
+</style>
+<script src="coz-saved.js?v=3"></script>
+<script src="compare-saved-links.js?v=1"></script>
+</head>
+<body>
+<main class="page">
+ <div class="content">
+  <h1 id="title">Your Reading</h1>
+  <p class="sys" id="sysline"></p>
+  <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
+  <nav class="tabs" role="tablist" aria-label="Chart or reading">
+    <a href="#chart" role="tab" id="tabChart" aria-selected="false">BIRTH CHART</a>
+    <a href="#reading" role="tab" id="tabReading" aria-selected="false">READING</a>
+  </nav>
+  <div class="panel" id="panel"></div>
+  <div class="div" aria-hidden="true"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0 13.6 10.4 24 12 13.6 13.6 12 24 10.4 13.6 0 12 10.4 10.4Z"/></svg></div>
+  <nav class="pager" aria-label="Page navigation">
+    <a href="compare-birth-charts.html">&lsaquo; YOUR BIRTH CHARTS</a>
+    <a href="compare-reading.html">COMPARE &rsaquo;</a>
+  </nav>
+ </div>
+ <div class="art-bottom">
+  <nav class="nav" aria-label="Main">
+    <a class="home" href="compare-reading.html" aria-label="Home"></a>
+    <a class="saved" href="#" aria-label="Saved"></a>
+    <a class="acct" href="#" aria-label="Profile"></a>
+  </nav>
+ </div>
+</main>
+<div class="stamp">COMPARE · CSY1.1 · chart + saved reading</div>
+<script>
+(function(){
+  var SYS = { vedic: { title: "Your Vedic Reading", line: "Vedic (Sidereal)", chart: "vedic-birth-chart.html?from=compare" },
+              tropical: { title: "Your Tropical Reading", line: "Tropical (Western)", chart: "tropical-birth-chart.html?from=compare" } };
+  var sys = new URLSearchParams(location.search).get("sys");
+  if (!SYS[sys]) { location.replace("compare-birth-charts.html"); return; }
+  var S = SYS[sys], panel = document.getElementById("panel");
+  document.getElementById("title").textContent = S.title;
+  document.getElementById("sysline").textContent = S.line;
+  document.title = S.title + " \u00B7 CozAlyze";
+  function esc(s){ return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  /* the embedded page keeps its own look; only its Back button and footer nav are hidden here,
+     and any link it still has opens at this page's level, never inside the frame */
+  function fit(fr){
+    var d; try { d = fr.contentDocument; } catch (e) { return; }
+    if (!d || !d.documentElement) return;
+    if (!d.getElementById("cozCompareEmbed")) {
+      var st = d.createElement("style"); st.id = "cozCompareEmbed";
+      st.textContent = "#backBtn,#cozFoot{display:none !important} html,body{background:transparent !important}";
+      (d.head || d.documentElement).appendChild(st);
+      d.addEventListener("click", function (e) {
+        var a = e.target.closest && e.target.closest("a[href]"); if (!a) return;
+        var h = a.getAttribute("href"); if (!h || h.charAt(0) === "#") return;
+        e.preventDefault(); location.href = a.href;
+      }, true);
+    }
+    var size = function(){ try { fr.style.height = Math.max(d.documentElement.scrollHeight, d.body ? d.body.scrollHeight : 0) + "px"; } catch (e) {} };
+    size();
+    try { new ResizeObserver(size).observe(d.body || d.documentElement); } catch (e) { setInterval(size, 1000); }
+  }
+  function frame(src){
+    panel.innerHTML = "";
+    var fr = document.createElement("iframe"); fr.title = S.title; fr.src = src; fr.setAttribute("scrolling", "no");
+    fr.addEventListener("load", function(){ fit(fr); });
+    panel.appendChild(fr);
+  }
+  function show(tab){
+    document.getElementById("tabChart").setAttribute("aria-selected", tab === "chart" ? "true" : "false");
+    document.getElementById("tabReading").setAttribute("aria-selected", tab === "reading" ? "true" : "false");
+    if (tab === "chart") return frame(S.chart);
+    var r = null; try { r = window.CozCompareSaved && window.CozCompareSaved.status()[sys]; } catch (e) {}
+    if (r && r.state === "complete" && r.href) return frame(r.href + "&from=compare");
+    var msg = r ? r.message : "No saved " + (sys === "vedic" ? "Vedic" : "Tropical") + " reading is available for this chart.";
+    panel.innerHTML = '<p class="status" data-state="' + esc(r ? r.state : "missing") + '">' + esc(msg) + '</p>' +
+      '<p class="status">You can still view your birth chart using the Birth Chart tab above.</p>';
+  }
+  function route(){ show(location.hash === "#chart" ? "chart" : "reading"); }
+  window.addEventListener("hashchange", route);
+  route();
+})();
+</script>
+</body>
+</html>
