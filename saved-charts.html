@@ -7,9 +7,19 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:wght@400;500&family=Montserrat:wght@300;400&display=swap" rel="stylesheet">
-<script src="coz-saved.js?v=3"></script>
+<script src="coz-saved.js?v=4"></script>
 <style>
-/* SAVED CHARTS · S1.2 (Sep 24): Home returns to the Tropical dashboard when this page was
+/* SAVED CHARTS · S1.4 (Oct 1, local build for review): removing a card asks on the page itself, no
+   Safari pop-up. Tapping the gold bookmark turns that card's meta line into "Remove this
+   chart?" and its pills into Cancel / Remove (existing .meta and .pill styles, nothing new
+   drawn). Remove deletes that card only; Cancel, the bookmark again, or a tap elsewhere on the card
+   puts the card back. A failed removal says so on the card. One card asks at a time. ?demo=1
+   previews the question; Remove there removes nothing.
+   S1.3 (Oct 1): Home returns to the dashboard of the package last in use on this
+   device (cozHomeDash, recorded by coz-saved.js CS1.5): Vedic -> vedic-reading.html#/dashboard,
+   Tropical -> tropical-reading.html#/dashboard, Compare -> compare-reading.html. Nothing
+   recorded yet: the S1.2 rule below. Create a New Chart still goes to index.html.
+   S1.2 (Sep 24): Home returns to the Tropical dashboard when this page was
    reached from a Tropical page; every other origin still leaves for index.html.
    S1.1 (Sep 23). Built from his blank bake IMG_0588 (1185 x 2576), cut into
    sc-top (rows 0-746), sc-card-chart (747-1079), sc-card-compare (1080-1412, his filled
@@ -78,7 +88,7 @@ h1{font-family:var(--head);font-weight:500;font-size:max(30px,calc(98 * var(--K)
       <a class="saved" href="saved-charts.html" aria-label="Saved Charts" aria-current="page"></a>
       <a class="acct" href="#" aria-label="Account"></a>
     </nav>
-    <div class="stamp">SAVED CHARTS · S1.2</div>
+    <div class="stamp">SAVED CHARTS · S1.4</div>
   </div>
 </main>
 <script>
@@ -119,13 +129,39 @@ h1{font-family:var(--head);font-weight:500;font-size:max(30px,calc(98 * var(--K)
       box.innerHTML = recs.map(card).join("");
     }, function(){ state("Your saved charts couldn't be read on this device."); });
   }
+  /* S1.4: on-page removal question, existing .meta and .pill styles only */
+  function ask(c){
+    box.querySelectorAll(".card.confirming").forEach(putBack);
+    var meta = c.querySelector(".meta"), pills = c.querySelector(".pills");
+    c.dataset.meta = meta.textContent; c.dataset.pills = pills.innerHTML;
+    c.classList.add("confirming");
+    meta.setAttribute("aria-live", "polite"); meta.textContent = "Remove this chart?";
+    pills.innerHTML = '<button class="pill" type="button" data-act="cancel">Cancel</button>' +
+                      '<button class="pill" type="button" data-act="remove">Remove</button>';
+    try { pills.querySelector('[data-act="cancel"]').focus({ preventScroll: true }); } catch (e) {}
+  }
+  function putBack(c, note){
+    if (!c.classList.contains("confirming")) return;
+    c.classList.remove("confirming");
+    c.querySelector(".pills").innerHTML = c.dataset.pills || "";
+    c.querySelector(".meta").textContent = note || c.dataset.meta || "";
+  }
   box.addEventListener("click", function(ev){
     var c = ev.target.closest(".card"); if (!c) return;
     var id = c.getAttribute("data-id");
     if (ev.target.closest(".mark")) {
-      if (DEMO) return;
-      if (!confirm("Remove " + c.getAttribute("data-name") + " from Saved Charts?")) return;
-      CozSaved.remove(id).then(render, function(){ alert("This saved chart couldn't be removed."); });
+      if (c.classList.contains("confirming")) putBack(c); else ask(c);
+      return;
+    }
+    if (c.classList.contains("confirming")) {
+      var act = ev.target.closest("[data-act]"), a = act && act.getAttribute("data-act");
+      if (a === "remove") {
+        if (DEMO) return putBack(c);                               /* preview only: nothing is removed */
+        act.disabled = true;
+        CozSaved.remove(id).then(render, function(){ putBack(c, "This saved chart couldn't be removed."); });
+        return;
+      }
+      putBack(c);                                                  /* Cancel, or any other tap on this card */
       return;
     }
     if (DEMO) return;
@@ -139,7 +175,12 @@ h1{font-family:var(--head);font-weight:500;font-size:max(30px,calc(98 * var(--K)
      page (the reading, its Birth Chart, Current Transits or a Tropical saved document), Home
      opens the Tropical dashboard; otherwise index.html as before. */
   function fromTropical(){ var r = ""; try { r = document.referrer || ""; } catch (e) {} return /\/(tropical-[a-z-]+|saved-tropical-[a-z-]+)\.html/.test(r); }
+  /* S1.3: the package dashboard last in use on this device */
+  var HOME = { vedic: "vedic-reading.html#/dashboard", tropical: "tropical-reading.html#/dashboard", compare: "compare-reading.html" };
+  function homeDash(){ try { var h = JSON.parse(localStorage.getItem("cozHomeDash") || "null"); return h && HOME[h.dash] ? HOME[h.dash] : null; } catch (e) { return null; } }
   document.querySelector(".nav .home").addEventListener("click", function(ev){
+    var to = homeDash();
+    if (to) { ev.preventDefault(); location.href = to; return; }
     if (!fromTropical()) return toIndex(ev);
     ev.preventDefault(); location.href = "tropical-reading.html#/dashboard";
   });
