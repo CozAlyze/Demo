@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Saved Reading · CozAlyze</title>
 <!--
-  COZALYZE · SAVED TROPICAL DOCUMENT · TD1.2 (Oct 1 2026)
+  COZALYZE · SAVED TROPICAL DOCUMENT · TD1.3 (Oct 2 2026)
+  TD1.3 (Jason): from Compare the Back button reads "Back to Your Tropical Birth Chart", matching the
+  Compare page title (CSY1.5+). From Saved, unchanged.
   TD1.2: opened from Compare (from=compare), Back returns to that Compare page
   (compare-system.html?sys=tropical#reading). Saved Library behavior unchanged.
   One renderer for the Tropical saved-document views:
@@ -100,7 +102,7 @@
   if (qp.get("from") === "compare") {                                  /* opened from Compare: go back there */
     var bb = document.getElementById("backBtn");
     bb.href = "compare-system.html?sys=tropical#reading";
-    bb.lastChild.textContent = " Back to Your Tropical Reading";
+    bb.lastChild.textContent = " Back to Your Tropical Birth Chart";
   }
   document.title = (TITLES[view] || "Saved Reading") + " \u00B7 CozAlyze";
 
