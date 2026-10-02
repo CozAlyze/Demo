@@ -1,4 +1,10 @@
-/* COZ SAVED · CS1.4 (Sep 24 2026) · library hook
+/* COZ SAVED · CS1.5 (Oct 1 2026) · library hook
+   CS1.5: (a) Home memory. Each visible page of a package records which dashboard is home
+   (localStorage "cozHomeDash": vedic / tropical / compare) so Saved Charts' Home returns to
+   that package's dashboard instead of the start of the platform. Not recorded from the hidden
+   pre-write page (?pregen=1) or from pages shown inside Compare (?from=compare).
+   (b) compare-system (Your Vedic / Tropical Reading inside Compare) is a Compare page, so its
+   center bookmark saves the Compare record, not a Vedic chart record.
    CS1.4: tropical-current-transits (the Tropical reading's Your Current Transits page) is a
    Tropical page: its Saved button saves a Tropical chart record and opens the Tropical Saved
    Library landing page. Nothing else changed.
@@ -38,7 +44,7 @@
                "cozAscendantPair", "cozVedicReadingComplete", "cozTropicalReadingComplete"];
   var RUN_PREFIX = ["cozCombinedReadingDEV:", "cozCombinedStep1DEV:", "cozAscReading:"];
   var COMPARE_PAGES = ["compare-reading", "combined-reading", "your-ascendants", "ascendant-reading",
-                       "compare-current-timing", "compare-current-timing-reading", "compare-birth-charts"];
+                       "compare-current-timing", "compare-current-timing-reading", "compare-birth-charts", "compare-system"];
   var TROPICAL_PAGES = ["tropical-reading", "tropical-birth-chart", "tropical-current-transits"];
   var VEDIC_LIBRARY_PAGES = ["vedic-reading", "vedic-birth-chart", "current-life-cycle", "current-season", "key-time-windows", "what-comes-next"];
   var TROPICAL_LIBRARY_PAGES = ["tropical-reading", "tropical-birth-chart", "tropical-current-transits"];
@@ -213,6 +219,17 @@
     else if (r.ok && TROPICAL_LIBRARY_PAGES.indexOf(p) >= 0) location.href = "tropical-birth-chart.html?saved=1&id=" + encodeURIComponent(r.record.id);
     else location.href = "saved-charts.html";
   }, true);
+
+  /* CS1.5: remember which package dashboard is home for Saved Charts' Home button */
+  (function () {
+    var p = pageName(), q = location.search, dash = null;
+    if (/[?&](pregen=1|from=compare)\b/.test(q)) return;
+    if (COMPARE_PAGES.indexOf(p) >= 0) dash = "compare";
+    else if (TROPICAL_PAGES.indexOf(p) >= 0 || p === "saved-tropical-document") dash = "tropical";
+    else if (VEDIC_LIBRARY_PAGES.indexOf(p) >= 0 || p === "saved-vedic-document") dash = "vedic";
+    if (!dash) return;
+    try { localStorage.setItem("cozHomeDash", JSON.stringify({ dash: dash, page: p, at: new Date().toISOString() })); } catch (e) {}
+  })();
 
   window.CozSaved = { list: list, remove: remove, restore: restore, saveCurrent: saveCurrent, isRestoredRun: isRestoredRun, registerPayload: registerPayload, get: get, currentRecord: currentRecord, _snapshotFor: snapshotFor, STORE: STORE };
 })();
