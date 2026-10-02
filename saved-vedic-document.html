@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Saved Reading · CozAlyze</title>
 <!--
-  COZALYZE · SAVED VEDIC DOCUMENT · SD1.4 (Oct 1 2026) · top-level print
+  COZALYZE · SAVED VEDIC DOCUMENT · SD1.5 (Oct 2 2026) · top-level print
+  SD1.5 (Jason): from Compare the Back button reads "Back to Your Vedic Birth Chart", matching the
+  Compare page title (CSY1.5+). From Saved, unchanged.
   SD1.4: opened from Compare (from=compare), Back returns to that Compare page
   (compare-system.html?sys=vedic#reading). Saved Library behavior unchanged.
   One renderer for the three clean Vedic saved-document views:
@@ -99,7 +101,7 @@
   if (qp.get("from") === "compare") {                                  /* opened from Compare: go back there */
     var bb = document.getElementById("backBtn");
     bb.href = "compare-system.html?sys=vedic#reading";
-    bb.lastChild.textContent = " Back to Your Vedic Reading";
+    bb.lastChild.textContent = " Back to Your Vedic Birth Chart";
   }
   document.title = (TITLES[view] || "Saved Reading") + " \u00B7 CozAlyze";
 
