@@ -10,6 +10,14 @@
 <link rel="preload" as="image" href="compare-timing-reading-top.jpg?v=1">
 <style>
 /* COZALYZE · COMPARE · ONE SYSTEM, TWO TABS · CSY1.3 (Oct 1 2026, local build for review)
+   CSY1.4 (device test, page jumped back to the top while scrolling): html,body{overflow-x:hidden}
+   made the BODY a second scroll area (overflow-y computes to auto), a known iOS Safari trap where
+   the page scrolls inside body and snaps back when content height changes. Now html keeps
+   overflow-x:hidden and body uses overflow-x:clip (no scroll area), so only the window scrolls.
+   ?debug=1 panel kept for the device check, now also showing body scrollTop.
+   CSY1.3d (diagnostic only): with ?debug=1 a small live panel logs page scroll position, sudden
+   jumps back toward the top, every frame height write (old, new, what triggered it), frame loads
+   and the framed page's own scroll. Without ?debug=1 behavior is identical to CSY1.3.
    CSY1.3 (device test): Print / Save PDF inside a tab opens the print page in THIS tab instead of a
    new Safari tab, so Safari's Back returns to this page on the same tab.
    CSY1.3 (device test): the Birth Chart tab frames the chart page only when the chart stored on
@@ -36,7 +44,9 @@
 :root{ --cream:#EEE7D8; --gold:#D6B98C; --gold-soft:#B89A6E; --navy:rgb(0,2,8);
   --head:"Cinzel",Georgia,serif; --sans:"Montserrat","Helvetica Neue",Arial,sans-serif; --body:"EB Garamond",Georgia,serif; }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:var(--navy);color:var(--cream);-webkit-text-size-adjust:100%;overflow-x:hidden}
+html,body{background:var(--navy);color:var(--cream);-webkit-text-size-adjust:100%}
+html{overflow-x:hidden}
+body{overflow-x:clip}
 body{padding-bottom:env(safe-area-inset-bottom)}
 .page{position:relative;width:100%;max-width:640px;margin:0 auto;container-type:inline-size;text-align:center;
   background:url("compare-timing-reading-top.jpg?v=1") center top/100% auto no-repeat, url("compare-timing-reading-mid.png?v=1") center top/100% 1px repeat-y, var(--navy)}
@@ -128,7 +138,7 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
   </nav>
  </div>
 </main>
-<div class="stamp">COMPARE · CSY1.3 · chart + saved reading</div>
+<div class="stamp">COMPARE · CSY1.4 · chart + saved reading</div>
 <script>
 (function(){
   var SYS = { vedic: { title: "Your Vedic Reading", line: "Vedic (Sidereal)", chart: "vedic-birth-chart.html?from=compare", key: "cozChartJSON", label: "Vedic" },
@@ -147,6 +157,30 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
   document.getElementById("title").textContent = S.title;
   document.getElementById("sysline").textContent = S.line;
   document.title = S.title + " \u00B7 CozAlyze";
+  /* CSY1.3d: diagnostic panel, ?debug=1 only */
+  var DBG = /[?&]debug=1\b/.test(location.search), dlog = [], dstate = { loads: 0, writes: 0, jumps: 0, lastY: 0, inner: 0, h: 0 };
+  function dnote(t){ if (!DBG) return; dlog.unshift((performance.now() / 1000).toFixed(1) + "s " + t); dlog.length = Math.min(dlog.length, 14); dpaint(); }
+  function dpaint(){
+    if (!DBG) return;
+    var el = document.getElementById("cozDbg");
+    if (!el) { el = document.createElement("pre"); el.id = "cozDbg";
+      el.style.cssText = "position:fixed;left:4px;top:4px;z-index:99999;max-width:62vw;margin:0;padding:6px;font:10px/1.3 ui-monospace,monospace;color:#0f0;background:rgba(0,0,0,.82);white-space:pre-wrap;pointer-events:none";
+      document.body.appendChild(el); }
+    el.textContent = "CSY1.4  scrollY " + Math.round(window.scrollY) + "  bodyY " + Math.round(document.body.scrollTop) + "  docH " + document.documentElement.scrollHeight +
+      "\nframeH " + dstate.h + "  writes " + dstate.writes + "  loads " + dstate.loads + "  jumps " + dstate.jumps + "  innerY " + dstate.inner +
+      "\n" + dlog.join("\n");
+  }
+  if (DBG) {
+    document.addEventListener("scroll", function(e){ if (e.target === document.body) dnote("BODY SCROLLED " + Math.round(document.body.scrollTop)); }, true);
+    window.addEventListener("scroll", function(){
+      var y = window.scrollY; if (dstate.lastY - y > 150) { dstate.jumps++; dnote("JUMP " + Math.round(dstate.lastY) + "->" + Math.round(y) + " docH " + document.documentElement.scrollHeight); }
+      dstate.lastY = y; dpaint();
+    }, { passive: true });
+    window.addEventListener("hashchange", function(){ dnote("hashchange " + location.hash); });
+    window.addEventListener("resize", function(){ dnote("viewport " + window.innerWidth + "x" + window.innerHeight); });
+    window.addEventListener("storage", function(ev){ dnote("storage " + (ev.key || "null")); });
+    document.addEventListener("DOMContentLoaded", dpaint);
+  }
   function esc(s){ return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
   /* the embedded page keeps its own look; only its Back button and footer nav are hidden here,
@@ -178,25 +212,26 @@ h1{font-family:var(--head);font-weight:500;font-size:max(24px,calc(66 * var(--k)
     }
     /* CSY1.2: resize the moment the content changes (section opened or closed, chart drawn, image
        loaded), again after the opening motion settles, and on a light steady check as a safety net */
-    var last = 0, size = function(){ try {
+    if (DBG) { try { d.defaultView.addEventListener("scroll", function(){ dstate.inner = Math.round(d.defaultView.scrollY); dnote("innerScroll " + dstate.inner); }, { passive: true }); } catch (e) {} }
+    var last = 0, size = function(why){ try {
       /* measured from the body, not the page, so the frame can shrink again when a section closes */
       var b = d.body; if (!b) return;
       var cs = d.defaultView.getComputedStyle(b);
       var h = Math.ceil(b.scrollHeight + (parseFloat(cs.marginTop) || 0) + (parseFloat(cs.marginBottom) || 0));
-      if (h && h !== last) { last = h; fr.style.height = h + "px"; }
+      if (h && h !== last) { if (DBG) { dstate.writes++; dstate.h = h; dnote("H " + last + "->" + h + " " + (typeof why === "string" ? why : "ro") + " y" + Math.round(window.scrollY)); } last = h; fr.style.height = h + "px"; }
     } catch (e) {} };
-    var soon = function(){ size(); setTimeout(size, 60); setTimeout(size, 250); setTimeout(size, 600); };
-    size();
-    try { var ro = new ResizeObserver(size); ro.observe(d.documentElement); if (d.body) ro.observe(d.body); } catch (e) {}
-    try { new MutationObserver(soon).observe(d.body || d.documentElement, { childList: true, subtree: true, attributes: true, characterData: true }); } catch (e) {}
+    var soon = function(e){ var w = e && e.type ? e.type : "mut"; size(w); setTimeout(function(){ size(w + "+60"); }, 60); setTimeout(function(){ size(w + "+250"); }, 250); setTimeout(function(){ size(w + "+600"); }, 600); };
+    size("fit");
+    try { var ro = new ResizeObserver(function(){ size("ro"); }); ro.observe(d.documentElement); if (d.body) ro.observe(d.body); } catch (e) {}
+    try { new MutationObserver(function(){ soon(); }).observe(d.body || d.documentElement, { childList: true, subtree: true, attributes: true, characterData: true }); } catch (e) {}
     ["click", "toggle", "transitionend", "load"].forEach(function (ev) { d.addEventListener(ev, soon, true); });
     if (fr._cozPoll) clearInterval(fr._cozPoll);
-    fr._cozPoll = setInterval(function(){ if (!fr.isConnected) return clearInterval(fr._cozPoll); size(); }, 500);
+    fr._cozPoll = setInterval(function(){ if (!fr.isConnected) return clearInterval(fr._cozPoll); size("poll"); }, 500);
   }
   function frame(src){
     panel.innerHTML = "";
     var fr = document.createElement("iframe"); fr.title = S.title; fr.src = src; fr.setAttribute("scrolling", "no");
-    fr.addEventListener("load", function(){ fit(fr); });
+    fr.addEventListener("load", function(){ if (DBG) { dstate.loads++; dnote("frame load " + src.split("?")[0]); } fit(fr); });
     panel.appendChild(fr);
   }
   function show(tab){
