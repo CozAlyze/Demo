@@ -1,4 +1,25 @@
-/* COZ SAVED · CS1.5 (Oct 1 2026) · library hook
+/* COZ SAVED · CS1.8 (Oct 2 2026, local build for review) · library hook
+   CS1.8 (Jason): Compare save messages are shown on the page, not with alert() (Safari dropped a
+   native dialog on his iPhone before). Styled like the S1.4 remove confirmation: Saved Charts'
+   message panel (sc-mid.png strip, .state), .meta text and one .pill button. Wording unchanged.
+   Vedic and Tropical save messages unchanged. Modal behavior (Chat review): while the message is up
+   the rest of the page is inert, Tab stays on OK, Escape works like OK, and when it closes on the
+   page (chart changed) focus returns to the bookmark that was tapped.
+   CS1.7 (Oct 2 2026):
+   CS1.7 (Chat): a Compare save is bound to the run current when Save was tapped. Its run ID and
+   fingerprint are captured at the tap, passed to the timing capture, and checked again inside
+   saveCurrent() immediately before anything is written; if either changed, nothing is written, the
+   prepared timing is discarded and the customer is told to save again. Other saves unchanged.
+   CS1.6 (Oct 2 2026):
+   CS1.6 (Compare Saved Library, Jason's rulings): (a) Saving on a Compare page first loads
+   saved-compare-library.js on demand and calculates Current Timing for this run (T2, no model
+   call), then saves; one save at a time; a full Compare slot is reported before any calculation.
+   (b) A Compare record is complete only with the Combined Reading (all three sections), all three
+   Ascendant readings, both birth charts (this run) and the timing snapshot, judged by
+   saved-compare-library.js parts() (the same rule the saved document uses; unavailable = Incomplete). (c) A saved comparison (card, Compare pill,
+   and right after saving) opens saved-compare-document.html?view=charts&id=... (d) Pages framed
+   with in=compare record no Home memory. Vedic and Tropical behavior unchanged.
+   CS1.5 (Oct 1 2026):
    CS1.5: (a) Home memory. Each visible page of a package records which dashboard is home
    (localStorage "cozHomeDash": vedic / tropical / compare) so Saved Charts' Home returns to
    that package's dashboard instead of the start of the platform. Not recorded from the hidden
@@ -102,9 +123,10 @@
   function kindForPage(p){ return COMPARE_PAGES.indexOf(p) >= 0 ? "compare" : "chart"; }
   function systemForPage(p){ return TROPICAL_PAGES.indexOf(p) >= 0 ? "tropical" : "vedic"; }
 
-  function saveCurrent(kind, system){
+  function saveCurrent(kind, system, expect){
     var bd = lsJSON("emergeBirthData");
     if (!bd || !bd.runId) return { ok: false, reason: "no_chart" };
+    if (expect && (bd.runId !== expect.runId || (bd.fingerprint || null) !== (expect.fingerprint || null))) return { ok: false, reason: "run_changed" };   /* CS1.7 */
     var s; try { s = readStore(); } catch (e) { return { ok: false, reason: "store_error" }; }
     var rec = null;
     s.records.forEach(function (r) { if (r.runId === bd.runId && r.kind === kind) rec = r; });
@@ -135,6 +157,14 @@
        not merely because a Sections 3-6 draft exists */
     function captured(cap){ return !!(cap && cap.sections && Array.isArray(cap.order) && cap.order.length &&
         cap.order.every(function (sec) { return Array.isArray(cap.sections[sec.id]) && cap.sections[sec.id].length > 0; })); }
+    /* CS1.6: a Compare record is complete only when every part would actually show in the saved
+       comparison. The rule lives in ONE place, saved-compare-library.js parts(); if that module is
+       not available, nothing is counted (fails closed: Incomplete). */
+    if (kind === "compare") {
+      var parts = null; try { parts = window.CozSavedCompare && window.CozSavedCompare.parts(rec); } catch (e) { parts = null; }
+      rec.readings = parts || { combined: false, ascTropical: false, ascVedic: false, ascCombined: false, vedicChart: false, tropicalChart: false, timing: false };
+      rec.complete = Object.keys(rec.readings).every(function (k) { return rec.readings[k]; });
+    }
     if (kind === "chart") {
       var flags = [];
       if (rec.systems.vedic) { rec.readings.vedicReading = captured(rec.library.vedic && rec.library.vedic.reading); flags.push(rec.readings.vedicReading); }
@@ -181,7 +211,7 @@
     var tlibrary = "tropical-birth-chart.html?saved=1&id=" + encodeURIComponent(rec.id);
     if (target === "tropical") return tlibrary;
     if (target === "vedic") return library;
-    if (rec.kind === "compare") return "compare-reading.html";
+    if (rec.kind === "compare") return "saved-compare-document.html?view=charts&id=" + encodeURIComponent(rec.id);   /* CS1.6 */
     return rec.systems && rec.systems.vedic ? library : tlibrary;
   }
 
@@ -211,6 +241,7 @@
     if (!t || p === "saved-charts" || p === "index") return;
     ev.preventDefault(); ev.stopImmediatePropagation();
     if (/\bsaved=1\b/.test(location.search)) { location.href = "saved-charts.html"; return; }   /* a Saved Library page: nothing new to save */
+    if (kindForPage(p) === "compare") { saveCompare(t); return; }                                 /* CS1.6 */
     var r = saveCurrent(kindForPage(p), systemForPage(p));
     if (!r.ok && r.reason === "slots_full") alert("Your Compare package includes one saved comparison. Remove the one on your Saved Charts page to save this one.");
     else if (!r.ok && r.reason === "storage_full") alert("There isn't enough space on this device to save this chart.");
@@ -220,11 +251,98 @@
     else location.href = "saved-charts.html";
   }, true);
 
+  /* CS1.6: Compare save. The slot is checked first; then Current Timing is calculated for this run
+     by saved-compare-library.js (loaded on demand), then the record is saved and its saved comparison
+     opens. A failed timing calculation still saves the record (marked incomplete, reason kept). */
+  var comparing = false;
+  function compareSlotFree(){
+    var bd = lsJSON("emergeBirthData"), s; if (!bd || !bd.runId) return true;
+    try { s = readStore(); } catch (e) { return true; }
+    if (s.records.some(function (r) { return r.kind === "compare" && r.runId === bd.runId; })) return true;
+    return s.records.filter(function (r) { return r.kind === "compare"; }).length < s.compareSlots;
+  }
+  var RUN_CHANGED = "Your chart changed while this comparison was being saved, so nothing was saved. Please tap Save again.";
+  var SLOT_FULL = "Your Compare package includes one saved comparison. Remove the one on your Saved Charts page to save this one.";
+  /* CS1.8: the on-page message. Saved Charts' own pieces only: its message panel (sc-mid.png strip,
+     .state type), .meta-style text, one .pill. Tapping the pill closes it, then runs after(). */
+  function note(text, after, from){
+    var old = document.getElementById("cozSaveNote"); if (old) old.remove();
+    if (!document.getElementById("cozSaveNoteCSS")) {
+      var st = document.createElement("style"); st.id = "cozSaveNoteCSS";
+      st.textContent =
+        "#cozSaveNote{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:transparent;" +
+          "padding:0 0 env(safe-area-inset-bottom);-webkit-tap-highlight-color:transparent}" +
+        "#cozSaveNote .box{width:min(100%,640px);container-type:inline-size;--K:calc(100cqw / 1185);" +
+          "background:url('sc-mid.png?v=1') center top/100% 1px repeat-y #00050f;color:#EEE7D8;text-align:center;" +
+          "padding:calc(40 * var(--K)) calc(120 * var(--K));display:flex;flex-direction:column;align-items:center;gap:calc(30 * var(--K))}" +
+        "#cozSaveNote .msg{font-family:'Montserrat','Helvetica Neue',Arial,sans-serif;font-weight:300;font-size:max(15px,calc(36 * var(--K)));line-height:1.5;margin:0}" +
+        "#cozSaveNote .pill{font-family:'Montserrat','Helvetica Neue',Arial,sans-serif;font-weight:300;font-size:max(12px,calc(30 * var(--K)));line-height:1;color:#EEE7D8;" +
+          "background:none;cursor:pointer;border:1.5px solid #C9A27C;border-radius:999px;height:calc(59 * var(--K));min-height:26px;" +
+          "padding:0 calc(36 * var(--K));display:inline-flex;align-items:center;-webkit-tap-highlight-color:transparent}" +
+        "#cozSaveNote .pill:focus-visible{outline:1px solid #F2C898;outline-offset:2px}";
+      document.head.appendChild(st);
+    }
+    var n = document.createElement("div"); n.id = "cozSaveNote"; n.setAttribute("role", "alertdialog"); n.setAttribute("aria-modal", "true");
+    var box = document.createElement("div"); box.className = "box";
+    var m = document.createElement("p"); m.className = "msg"; m.setAttribute("aria-live", "assertive"); m.textContent = text;
+    var b = document.createElement("button"); b.type = "button"; b.className = "pill"; b.textContent = "OK";
+    m.id = "cozSaveNoteMsg"; n.setAttribute("aria-describedby", "cozSaveNoteMsg"); n.setAttribute("aria-label", "Save");
+    var made = [];                                                                /* the page goes inert underneath */
+    Array.prototype.forEach.call(document.body.children, function (el) {
+      if (el !== n && el.tagName !== "SCRIPT" && el.tagName !== "STYLE" && !el.hasAttribute("inert")) { el.setAttribute("inert", ""); made.push(el); }
+    });
+    function close(){
+      n.remove(); made.forEach(function (el) { el.removeAttribute("inert"); });
+      if (after) after();
+      else if (from && from.isConnected) { try { from.focus({ preventScroll: true }); } catch (e) {} }
+    }
+    b.addEventListener("click", function (ev) { ev.preventDefault(); ev.stopPropagation(); close(); });
+    n.addEventListener("click", function (ev) { ev.stopPropagation(); });         /* taps on the message never reach the page */
+    n.addEventListener("keydown", function (ev) {
+      if (ev.key === "Tab") { ev.preventDefault(); try { b.focus({ preventScroll: true }); } catch (e) {} }
+      else if (ev.key === "Escape") { ev.preventDefault(); close(); }
+    });
+    box.appendChild(m); box.appendChild(b); n.appendChild(box); document.body.appendChild(n);
+    try { b.focus({ preventScroll: true }); } catch (e) {}
+    console.log("[COZ SAVED] note: " + text);
+  }
+  function toSaved(){ location.href = "saved-charts.html"; }
+  function saveCompare(from){
+    if (comparing) return; comparing = true;
+    var bd0 = lsJSON("emergeBirthData");                                                          /* CS1.7: the run at the tap */
+    var start = bd0 && bd0.runId ? { runId: bd0.runId, fingerprint: bd0.fingerprint || null } : null;
+    if (!compareSlotFree()) {
+      comparing = false;
+      note(SLOT_FULL, toSaved); return;                                                         /* CS1.8 */
+    }
+    var lib = window.CozSavedCompare ? Promise.resolve() : new Promise(function (res, rej) {
+      var sc = document.createElement("script"); sc.src = "saved-compare-library.js?v=1";
+      sc.onload = function () { res(); }; sc.onerror = function () { rej(new Error("saved-compare-library.js did not load")); };
+      document.head.appendChild(sc);
+    });
+    lib.then(function () { return window.CozSavedCompare.prepareSave(start); })
+      .catch(function (e) { console.log("[COZ SAVED] Compare timing capture unavailable: " + (e && e.message)); })
+      .then(function () {
+        var r = start ? saveCurrent("compare", undefined, start) : saveCurrent("compare");
+        comparing = false;
+        if (!r.ok && r.reason === "run_changed") {                                                  /* CS1.7: nothing written */
+          try { window.CozSavedCompare && window.CozSavedCompare.discard && window.CozSavedCompare.discard(); } catch (e) {}
+          console.log("[COZ SAVED] Compare save stopped: the chart run changed during the timing calculation");
+          note(RUN_CHANGED, null, from); return;                                                              /* CS1.8: stays on the page */
+        }
+        if (r.ok) { location.href = "saved-compare-document.html?view=charts&id=" + encodeURIComponent(r.record.id); return; }
+        if (r.reason === "slots_full") return note(SLOT_FULL, toSaved);                              /* CS1.8 */
+        if (r.reason === "storage_full") return note("There isn't enough space on this device to save this chart.", toSaved);
+        if (r.reason === "store_error") return note("Your saved charts couldn't be read on this device.", toSaved);
+        toSaved();
+      });
+  }
+
   /* CS1.5: remember which package dashboard is home for Saved Charts' Home button */
   (function () {
     var p = pageName(), q = location.search, dash = null;
-    if (/[?&](pregen=1|from=compare)\b/.test(q)) return;
-    if (COMPARE_PAGES.indexOf(p) >= 0) dash = "compare";
+    if (/[?&](pregen=1|from=compare|in=compare)\b/.test(q)) return;
+    if (COMPARE_PAGES.indexOf(p) >= 0 || p === "saved-compare-document") dash = "compare";
     else if (TROPICAL_PAGES.indexOf(p) >= 0 || p === "saved-tropical-document") dash = "tropical";
     else if (VEDIC_LIBRARY_PAGES.indexOf(p) >= 0 || p === "saved-vedic-document") dash = "vedic";
     if (!dash) return;
