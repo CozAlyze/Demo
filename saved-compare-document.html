@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Saved Comparison · CozAlyze</title>
+<!--
+  COZALYZE · SAVED COMPARE DOCUMENT · SCD1.0 (Oct 2 2026, local build for review)
+  One renderer for the saved comparison (the Compare Saved Library), same format as the Vedic and
+  Tropical saved libraries (saved-document.css, expandable sections, Expand All, Print / Save PDF):
+    saved-compare-document.html?view=charts&id=<compare record>       Your Birth Charts (landing)
+    saved-compare-document.html?view=combined&id=<compare record>     Your Combined Reading
+    saved-compare-document.html?view=ascendants&id=<compare record>   Your Ascendants
+    saved-compare-document.html?view=timing&id=<compare record>       Your Current Timing (As of ...)
+  Data: ONLY the selected Compare record (saved-compare-library.js load(), run ID + fingerprint
+  checked). Birth charts use the existing renderers (vedic-birth-chart.html / tropical-birth-chart.html
+  ?saved=1&id=<this record>&in=compare, read-only). No animation, no model request, no recalculation:
+  Current Timing is the snapshot taken when the comparison was saved. Loads no Vedic or Tropical
+  library module itself.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="saved-document.css?v=1">
+<style>
+/* SCD1.0: framed birth charts, and the chaining links (gold, like the chart pages' Saved Readings) */
+.doc-frame{display:block; width:100%; border:0; min-height:30rem; background:transparent; margin-top:.6rem}
+.doc-links p{margin:0 0 .5rem}
+.doc-links a{color:var(--coz-gold); text-decoration:none}
+.doc-links .here{color:var(--coz-ink-soft)}
+.doc-charts > .doc-section{width:min(100%,56rem); margin:1rem auto 0}
+@media print{ .doc-links{display:none} .doc-frame{min-height:0} }
+</style>
+<script src="coz-saved.js?v=5"></script>
+<script src="saved-compare-library.js?v=1"></script>
+</head>
+<body>
+<div class="doc-shell">
+  <div class="doc-toolbar">
+    <a class="doc-button" id="backBtn" href="saved-charts.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      Saved Charts
+    </a>
+    <div class="doc-actions">
+    <button type="button" class="doc-button" id="expandBtn">Expand All</button>
+    <button type="button" class="doc-button" id="printBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M7 8V3h10v5M7 17H4a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1h16a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-3M7 14h10v7H7z"/></svg>
+      Print / Save PDF
+    </button>
+    </div>
+  </div>
+  <div id="mount"></div>
+  <p class="doc-savednote" id="savedNote"></p>
+</div>
+<script>
+"use strict";
+(function(){
+  var MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var DISCLOSURE = "This AI-generated astrological content is provided for reflection and entertainment only. It is not scientific, medical, legal, financial, or professional advice.";
+  var VIEWS = [["charts","Your Birth Charts"],["combined","Your Combined Reading"],["ascendants","Your Ascendants"],["timing","Your Current Timing"]];
+  var TITLES = {}; VIEWS.forEach(function(v){ TITLES[v[0]] = v[1]; });
+  /* the fixed section previews, exactly as combined-reading.html shows them */
+  var COMBINED = [
+    ["sharedThemes","I","Shared Themes","The patterns that repeat across both charts\u2014showing where your outward expression and inner blueprint reinforce similar qualities, needs, and recurring life themes."],
+    ["differentEmphases","II","Different Emphases","Where the two systems place their attention differently\u2014revealing distinct perspectives on your personality, relationships, and direction, and how those perspectives may complement one another."],
+    ["integratedView","III","Your Integrated View","A unified interpretation that brings both perspectives together\u2014showing how your outward expression and inner blueprint may operate as parts of one more complete picture."]
+  ];
+  var ASC = [["tropical","Tropical Ascendant"],["vedic","Vedic Ascendant"],["combined","How They Work Together"]];
+  var MISSING = {
+    missing: "This part wasn't saved with this comparison.",
+    unverified: "This part couldn't be matched to this comparison, so it isn't shown.",
+    failed: "Current Timing couldn't be captured when this comparison was saved."
+  };
+
+  function el(tag,cls,text){ var n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; }
+  function paras(host, list){ (list || []).forEach(function(t){ t = t == null ? "" : String(t); if (!t.trim()) return; host.appendChild(t.indexOf("## ") === 0 ? el("h3",null,t.slice(3)) : el("p",null,t)); }); return host; }
+  function longDate(iso){ if (!iso) return ""; var d = new Date(iso); if (isNaN(d)) return String(iso); return MONTHS[d.getUTCMonth()] + " " + d.getUTCDate() + ", " + d.getUTCFullYear(); }
+  function section(number, title, open){
+    var d = el("details","doc-section"); if (open) d.open = true;
+    var sm = el("summary"); var h2 = el("h2");
+    if (number != null){ h2.appendChild(el("span","num",number + ".")); }
+    h2.appendChild(document.createTextNode(title));
+    sm.appendChild(h2); sm.appendChild(el("span","chev","\u203A")); d.appendChild(sm);
+    return d;
+  }
+  function note(text){ return el("p","doc-when",text); }
+  function empty(msg, heading){
+    var c = el("div","doc-empty");
+    c.appendChild(el("h2",null,heading || "This saved comparison could not be opened"));
+    var p = el("p",null,msg + " "); var a = el("a",null,"Open Saved Charts"); a.href = "saved-charts.html"; p.appendChild(a); c.appendChild(p);
+    return c;
+  }
+  function cozPrint(){
+    var framed = false; try { framed = window.top !== window; } catch (e) { framed = true; }
+    if (framed) { var u = new URL(location.href); u.searchParams.set("print", "1"); window.open(u.href, "_blank"); return; }
+    window.print();
+  }
+  function cozAutoPrint(){
+    if (!/[?&]print=1\b/.test(location.search)) return;
+    var go = function(){ setTimeout(function(){ window.print(); }, view === "charts" ? 1500 : 250); };
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(go); else go();
+  }
+
+  var qp = new URLSearchParams(location.search);
+  var view = TITLES[qp.get("view")] ? qp.get("view") : "charts";
+  var mount = document.getElementById("mount");
+  document.getElementById("printBtn").addEventListener("click", cozPrint);
+  document.getElementById("expandBtn").addEventListener("click", function(){
+    var all = document.querySelectorAll("details.doc-section"), open = Array.prototype.every.call(all, function(d){ return d.open; });
+    all.forEach(function(d){ d.open = !open; });
+    this.textContent = open ? "Expand All" : "Collapse All";
+  });
+  window.addEventListener("beforeprint", function(){ document.querySelectorAll("details.doc-section").forEach(function(d){ d.dataset.wasOpen = d.open ? "1" : "0"; d.open = true; }); });
+  window.addEventListener("afterprint", function(){ document.querySelectorAll("details.doc-section").forEach(function(d){ if (d.dataset.wasOpen === "0") d.open = false; }); });
+
+  var S = window.CozSavedCompare ? window.CozSavedCompare.load() : null;
+  if (!S){ mount.appendChild(empty("It may have been removed from this device.")); return; }
+  document.title = TITLES[view] + " \u00B7 CozAlyze";
+
+  function header(host){
+    host.appendChild(el("p","doc-kicker", TITLES[view]));
+    host.appendChild(el("h1",null, S.name || "Your Comparison"));
+    var b = S.birth || {}, bits = [b.date, b.time, b.location].filter(Boolean);
+    host.appendChild(el("p","doc-birthline", (bits.length ? bits.join("  \u2022  ") + "  \u2022  " : "") + "Tropical + Vedic"));
+  }
+  function links(host){
+    var box = el("div","doc-links");
+    box.appendChild(el("p","doc-label","Your Saved Comparison"));
+    VIEWS.forEach(function(v){
+      var p = el("p");
+      if (v[0] === view) p.appendChild(el("span","here",v[1]));
+      else { var a = el("a",null,v[1] + " \u203A"); a.href = "saved-compare-document.html?view=" + v[0] + "&id=" + encodeURIComponent(S.id); p.appendChild(a); }
+      box.appendChild(p);
+    });
+    host.appendChild(box);
+  }
+  function footer(host){
+    var foot = el("footer","doc-footer");
+    foot.appendChild(el("p",null,DISCLOSURE));
+    if (S.documentId) foot.appendChild(el("p",null,"Generated by CozAlyze \u00B7 " + S.documentId));
+    host.appendChild(foot);
+  }
+  function paper(){ var p = el("article","doc-paper"), i = el("div","doc-inner"); p.appendChild(i); mount.appendChild(p); return i; }
+
+  if (view === "charts"){
+    var top = paper(); header(top);
+    var wrap = el("div","doc-charts"); mount.appendChild(wrap);
+    [["tropical","Tropical Birth Chart","tropical-birth-chart.html"],["vedic","Vedic Birth Chart","vedic-birth-chart.html"]].forEach(function(c, i){
+      var d = section(null, c[1], i === 0); wrap.appendChild(d);
+      if (S.charts[c[0]].state !== "ok"){ d.appendChild(note(MISSING[S.charts[c[0]].state] || MISSING.missing)); return; }
+      var fr = el("iframe","doc-frame"); fr.title = c[1]; fr.setAttribute("scrolling","no");
+      fr.src = c[2] + "?saved=1&id=" + encodeURIComponent(S.id) + "&in=compare";
+      d.appendChild(fr);
+      function size(){ try { var b = fr.contentDocument && fr.contentDocument.body; if (b && b.scrollHeight) fr.style.height = Math.ceil(b.scrollHeight) + "px"; } catch (e) {} }
+      fr.addEventListener("load", function(){
+        size();
+        try { var ro = new ResizeObserver(size); ro.observe(fr.contentDocument.body); } catch (e) {}
+        try { fr.contentDocument.addEventListener("click", function(){ setTimeout(size, 60); setTimeout(size, 300); }, true); } catch (e) {}
+      });
+      d.addEventListener("toggle", function(){ if (d.open) { size(); setTimeout(size, 120); } });
+      window.addEventListener("beforeprint", size);
+    });
+    var bottom = paper(); links(bottom); footer(bottom);
+  }
+  else if (view === "combined"){
+    var inner = paper(); header(inner);
+    if (S.combined.state !== "ok") inner.appendChild(note(MISSING[S.combined.state]));
+    else COMBINED.forEach(function(c, i){
+      var d = section(c[1], c[2], i === 0), body = el("div","doc-copy");
+      body.appendChild(el("p","doc-when",c[3]));
+      paras(body, S.combined.data[c[0]]);
+      d.appendChild(body); inner.appendChild(d);
+    });
+    inner.appendChild(note("These themes describe possible patterns\u2014not fixed outcomes."));
+    links(inner); footer(inner);
+  }
+  else if (view === "ascendants"){
+    var inner2 = paper(); header(inner2);
+    ASC.forEach(function(a, i){
+      var r = S.ascendants[a[0]], d = section(null, a[1], i === 0), body = el("div","doc-copy");
+      if (r.state !== "ok") body.appendChild(note(MISSING[r.state]));
+      else {
+        if (r.sign) body.appendChild(el("p","doc-big", r.sign.replace("+", " + ")));
+        if (r.data.preview) body.appendChild(el("p","doc-when", r.data.preview));
+        paras(body, r.data.paragraphs);
+      }
+      d.appendChild(body); inner2.appendChild(d);
+    });
+    links(inner2); footer(inner2);
+  }
+  else if (view === "timing"){
+    var inner3 = paper(); header(inner3);
+    if (S.timing.state !== "ok"){
+      inner3.appendChild(note(MISSING[S.timing.state]));
+      if (S.timing.state === "failed" && S.timing.reason && /[?&]debug=1\b/.test(location.search)) inner3.appendChild(note("Reason: " + S.timing.reason));
+    } else {
+      var T = S.timing.data, asOf = new Date(T.asOf);
+      inner3.appendChild(el("p","doc-label","As of " + asOf.toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"}) + ", " + asOf.toLocaleTimeString("en-US",{hour:"numeric",minute:"2-digit"})));
+      if (T.tag && T.tag.length) inner3.appendChild(el("p","doc-when", T.tag.join("  \u2022  ")));
+      (T.sections || []).forEach(function(s, i){
+        var d = section(null, s.title, i === 0), body = el("div","doc-copy");
+        if (s.subtitle) body.appendChild(el("p","doc-when", s.subtitle));
+        paras(body, s.paras); d.appendChild(body); inner3.appendChild(d);
+      });
+      var m = section(null, "How This Was Calculated", false), mb = el("div","doc-copy");
+      (T.methodology || []).forEach(function(g){
+        mb.appendChild(el("h3",null,g.heading));
+        (g.rows || []).forEach(function(r){
+          var p = el("p"); p.appendChild(el("strong",null,r[0] + ". "));
+          String(r[1]).split("\n").forEach(function(line, k){ if (k) p.appendChild(el("br")); p.appendChild(document.createTextNode(line)); });
+          mb.appendChild(p);
+        });
+      });
+      mb.appendChild(el("p",null,"This is a saved snapshot. It shows the timing as of the date above and does not update."));
+      m.appendChild(mb); inner3.appendChild(m);
+      inner3.appendChild(note("These are themes that may be present, not predictions of what will happen."));
+    }
+    links(inner3); footer(inner3);
+  }
+
+  var savedAt = S.rec.updatedAt || S.rec.savedAt;
+  document.getElementById("savedNote").textContent = "These are your saved results. No animation. No rewrite." + (savedAt ? " \u00B7 Saved " + longDate(savedAt) : "");
+  cozAutoPrint();
+})();
+</script>
+</body>
+</html>
