@@ -113,7 +113,7 @@
       "applicationClaims":[
         {"claimId":"APP-S1-ASC-AQUARIUS-SYSTEMIC-ENTRY","purposes":["ascendant-orientation"],"classification":"EDITORIAL_SYNTHESIS_DRAFT","allowedMeaning":"With Aquarius rising, you may approach life by noticing the larger pattern or system in which an individual problem is operating."},
         {"claimId":"APP-S1-ASC-AQUARIUS-PRINCIPLED-ALTERNATIVE","purposes":["ascendant-application"],"classification":"EDITORIAL_SYNTHESIS_DRAFT","allowedMeaning":"You may sustain an alternative approach when it rests on a clear principle and improves how the larger arrangement functions."},
-        {"claimId":"APP-S1-ASC-AQUARIUS-ABSTRACTION-TENSION","purposes":["main-tension"],"classification":"EDITORIAL_SYNTHESIS_DRAFT","allowedMeaning":"System-level thinking may lose contact with lived reality when the principle becomes more important than the people or circumstances it is meant to serve."}
+        {"claimId":"APP-S1-ASC-AQUARIUS-ABSTRACTION-TENSION","purposes":["main-tension"],"classification":"EDITORIAL_SYNTHESIS_DRAFT","allowedMeaning":"System-level thinking may lose contact with lived reality when the principle becomes more important than the people or circumstances it serves."}
       ],
       "claimConditions":[{"claimId":"APP-S1-ASC-AQUARIUS-PRINCIPLED-ALTERNATIVE","requires":["APP-S1-ASC-AQUARIUS-SYSTEMIC-ENTRY"]},{"claimId":"APP-S1-ASC-AQUARIUS-ABSTRACTION-TENSION","requires":["APP-S1-ASC-AQUARIUS-SYSTEMIC-ENTRY"]}],
       "prohibitedExtensions":["automatic humanitarianism, rebellion, innovation, detachment or eccentricity","collective destiny or social status","mythology or sign imagery","claim that unconventional choices are inherently superior"]
