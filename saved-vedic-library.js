@@ -1,4 +1,7 @@
-/* SAVED VEDIC LIBRARY · SL1.5 (Sep 30 2026, local build for review)
+/* SAVED VEDIC LIBRARY · SL1.6 (Oct 2 2026, local build for review)
+   SL1.6: a chart page shown inside a saved comparison (?in=compare) is read-only: no capture, no
+   fill, no retries, no listeners. load() still reads the selected record. Nothing else changed.
+   SL1.5 (Sep 30 2026)
    SL1.5 (Chat's review of SL1.4):
    (a) Provenance must be explicit; unknown fails closed. A reading is stored only with evidence
        of the path that produced it:
@@ -393,11 +396,13 @@
     var done = restoredNow() || !L || (settled && !pending() && !retry);
     if (done && watch) { clearInterval(watch); watch = null; }
   }
+  if (!/[?&]in=compare\b/.test(location.search)) {                        /* SL1.6: read-only inside a saved comparison */
   pass();                                                                   /* before a Saved page renders */
   if (PAGE === "vedic-reading" && !restoredNow()) watch = setInterval(watchLive, 1000);
   ["COZ_VEDIC_READING_COMPLETE", "COZ_VEDIC_SERVER_UPDATE", "pageshow"].forEach(function (ev) { window.addEventListener(ev, pass); });
   window.addEventListener("storage", function (ev) { if (ev && (ev.key === CAP_KEY || ev.key === storeKey() || ev.key === null)) pass(); });
   if (document.readyState === "complete") setTimeout(pass, 0); else window.addEventListener("load", function () { setTimeout(pass, 0); });
+  }
 
   /* ---- read (unchanged) ---- */
   function load(){
