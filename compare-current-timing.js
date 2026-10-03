@@ -1,5 +1,8 @@
 /* ============================================================
-   COZALYZE · COMPARE · CURRENT TIMING · CT3.3 · shared engine
+   COZALYZE · COMPARE · CURRENT TIMING · CT3.4 · shared engine
+   CT3.4 (Oct 2 2026, local build for review): loadFresh() runs the same calculation as load()
+   but never reuses or replaces load()'s cached result, so a Compare save (T2) is calculated at the
+   moment Save is tapped. load() itself, the calculation, the policy and ENGINE are unchanged.
    Used by compare-current-timing.html and compare-current-timing-reading.html,
    and (CT3.2) by tropical-current-transits.html through loadTropical(),
    and (CT3.3) by saved-tropical-document.html through loadTropicalChart(chart).
@@ -670,10 +673,15 @@
   var loading = null;
   function load() {
     if (loading) return loading;
+    loading = compute();
+    return loading;
+  }
+  /* CT3.4: the calculation itself, uncached. load() caches it for the pages; loadFresh() is compute(). */
+  function compute() {
     var G = global.COZ_GRAHA, A = global.COZ_ASC;
-    if (!G || !A) return (loading = Promise.resolve({ ok: false, reason: 'coz-graha.js or ascendant-library.js missing' }));
-    if (typeof Astronomy === 'undefined') return (loading = Promise.resolve({ ok: false, reason: 'astronomy-engine failed to load' }));
-    loading = A.ensurePair().then(function (res) {
+    if (!G || !A) return Promise.resolve({ ok: false, reason: 'coz-graha.js or ascendant-library.js missing' });
+    if (typeof Astronomy === 'undefined') return Promise.resolve({ ok: false, reason: 'astronomy-engine failed to load' });
+    return A.ensurePair().then(function (res) {
       if (!res.ok) return { ok: false, reason: 'pair refused: ' + res.reason };
       var v = res.charts.vedic, t = res.charts.tropical;
       if (!v.lifeCycle) return { ok: false, reason: 'cozChartJSON has no lifeCycle block' };
@@ -702,7 +710,6 @@
       }
       return d;
     }).catch(function (e) { return { ok: false, reason: (e && e.message) || 'unknown error' }; });
-    return loading;
   }
 
 
@@ -885,7 +892,7 @@
     }).catch(function (e) { return { ok: false, reason: (e && e.message) || 'unknown error' }; });
   }
 
-  global.COZ_TIMING = { load: load, loadTropical: loadTropical, loadTropicalChart: loadTropicalChart, FAIL: FAIL, FAIL_TROPICAL: FAIL_TROPICAL, TGLYPH: TGLYPH, ENGINE: ENGINE, POLICY: TRANSIT_POLICY, DRISHTI: DRISHTI, BANK_STATUS: BANK_STATUS,
+  global.COZ_TIMING = { load: load, loadFresh: compute, loadTropical: loadTropical, loadTropicalChart: loadTropicalChart, FAIL: FAIL, FAIL_TROPICAL: FAIL_TROPICAL, TGLYPH: TGLYPH, ENGINE: ENGINE, POLICY: TRANSIT_POLICY, DRISHTI: DRISHTI, BANK_STATUS: BANK_STATUS,
     _test: { computeDrishti: computeDrishti, transitWindow: transitWindow, compose: compose, composeTropical: composeTropical, pairClass: pairClass, transitTags: transitTags,
              selectTransits: selectTransits, timingText: timingText, natalTargets: natalTargets } };
 })(window);
