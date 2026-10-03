@@ -1,4 +1,7 @@
-/* SAVED TROPICAL LIBRARY · TL1.1 (Sep 28 2026)
+/* SAVED TROPICAL LIBRARY · TL1.2 (Oct 2 2026, local build for review)
+   TL1.2: a chart page shown inside a saved comparison (?in=compare) is read-only: no Ascendant
+   capture, no in-place completion, no listeners. load() still reads the selected record.
+   TL1.1 (Sep 28 2026)
    TL1.1: (1) the composed Ascendant capture is stored when tropical-reading.html (the only page with the
    Rising bank) is open, tagged with runId + fingerprint, so a Tropical page without the bank (Current
    Transits) captures the same Ascendant for the SAME run only. (2) refreshCompleted(): a record the customer
@@ -158,9 +161,11 @@
     } catch (e) { return false; }
   }
   function refreshSoon(){ storeAscendantForCurrentRun(); refreshCompleted(); }
+  if (!/[?&]in=compare\b/.test(location.search)) {                                                 /* TL1.2: read-only inside a saved comparison */
   window.addEventListener("COZ_TROPICAL_SERVER_UPDATE", refreshSoon);                             /* the Stage 2A adapter, reading page */
   window.addEventListener("storage", function (ev) { if (ev && (ev.key === "cozTropicalReading" || ev.key === null)) refreshSoon(); });
   if (document.readyState === "complete") setTimeout(refreshSoon, 0); else window.addEventListener("load", function () { setTimeout(refreshSoon, 0); });
+  }
 
   window.CozSaved.registerPayload("tropical", function (rec) {
     if (!rec || !rec.systems || !rec.systems.tropical) return null;
