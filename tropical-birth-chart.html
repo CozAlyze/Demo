@@ -5,7 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tropical Birth Chart</title>
 <!--
-  COZALYZE · TROPICAL BIRTH CHART · TBC1.7 saved mode
+  COZALYZE · TROPICAL BIRTH CHART · TBC1.8 compare embed (Oct 2 2026, local build for review)
+  TBC1.8: ?saved=1&id=<compare record>&in=compare renders the chart only, inside the saved comparison
+  (saved-compare-document.html): no toolbar, no Saved Readings links, no footer nav, no build stamp,
+  transparent page. Data path unchanged (the record's own snapshot chart); saved-tropical-library.js
+  is read-only in this mode (TL1.2). Every other mode unchanged.
+  TBC1.7 saved mode
   TBC1.5: ?saved=1&id=<record> renders the selected cozSavedCharts record (Tropical Saved
   Library landing page): same renderer, data from the saved snapshot, toolbar becomes
   "Saved Charts" + Print / Save PDF, bottom Saved Readings links. Print opens at top level
@@ -221,6 +226,10 @@ button{font:inherit}
   .insight-content{margin-left:0; padding-right:1.6rem}
 }
 @page{size:Letter; margin:.35in}
+/* compare embed (in=compare): the chart only, framed by saved-compare-document.html */
+body.embed-compare .report-toolbar,body.embed-compare #cozFoot,body.embed-compare .saved-readings,body.embed-compare .build-stamp,body.embed-compare .sample-banner{display:none !important}
+body.embed-compare,html.embed-compare{background:transparent !important}
+body.embed-compare .report-shell{min-height:0; padding:0 0 1rem}
 @media print{
   :root{--background:#ffffff; --foreground:#07162b}
   html,body{background:#ffffff !important}
@@ -246,8 +255,9 @@ button{font:inherit}
   .report-footer{font-size:.6rem}
 }
 </style>
-<script src="coz-saved.js?v=4"></script>
-<script src="saved-tropical-library.js?v=2"></script>
+<!-- Oct 2: ?v=5 so this page loads coz-saved.js CS1.6, not a cached copy -->
+<script src="coz-saved.js?v=5"></script>
+<script src="saved-tropical-library.js?v=3"></script>
 </head>
 <body>
 <div class="report-shell">
@@ -267,7 +277,7 @@ button{font:inherit}
   <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
   <div id="reportMount"></div>
 </div>
-<div class="build-stamp">BIRTH CHART · TBC1.7 · saved mode</div>
+<div class="build-stamp">BIRTH CHART · TBC1.8 · compare embed</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -829,6 +839,7 @@ function renderSavedReadings(lib){
   var savedLib = null;
   if (qp.get("saved") === "1"){
     document.body.classList.add("saved-mode");
+    if (qp.get("in") === "compare"){ document.body.classList.add("embed-compare"); document.documentElement.classList.add("embed-compare"); }   /* TBC1.8 */
     document.getElementById("backBtn").lastChild.textContent = " Saved Charts";
     savedLib = window.CozSavedTropical ? window.CozSavedTropical.load() : null;
     if (!savedLib || !savedLib.chart){
@@ -859,7 +870,7 @@ function renderSavedReadings(lib){
   if (errsFinal.length){ mount.appendChild(renderEmptyState()); return; }
   if (isSample) banner.hidden = false;
   var report = renderReport(chart);
-  if (savedLib){ var innerEl = report.querySelector(".report-inner"); innerEl.insertBefore(renderSavedReadings(savedLib), innerEl.querySelector(".report-footer")); }
+  if (savedLib && qp.get("in") !== "compare"){ var innerEl = report.querySelector(".report-inner"); innerEl.insertBefore(renderSavedReadings(savedLib), innerEl.querySelector(".report-footer")); }
   mount.appendChild(report);
   cozAutoPrint();
 })();
