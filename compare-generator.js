@@ -1,4 +1,9 @@
-/* COZALYZE · COMBINED READING GENERATOR · CG0.7 (v10 · CR3.4) · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
+/* COZALYZE · COMBINED READING GENERATOR · CG0.8 (v11 · CR3.5) · DEVELOPMENT ONLY · NOT APPROVED LANGUAGE
+   CR3.5 (Oct 3): a repair line now names the exact words that broke a wording rule (for example
+   "meant to") and says they are refused in any sense. Before, the line only gave the rule's general
+   meaning ("Do not claim destiny..."), so a sentence using "meant to" for purpose was kept as it
+   was and step 1 failed twice. Nothing else changes: prompts, validator, budget, retries,
+   timeouts, checkpoint, cache keys.
    CR3.4 (Sep 25): step 2 sees each Section I and II paragraph labelled with the accepted step 1
    entry ids that cover it, and a buildsOn repair restates the exact valid entry list. Nothing
    else changes: validator, budget, retries, timeouts, checkpoint and step 1 are as before.
@@ -195,7 +200,8 @@
     return "";
   }
   function repairList(v, validEntries){
-    var lines = (v.details || []).map(function(d, i){ return (i + 1) + ". Sentence: \"" + d.sentence + "\"  Rule broken: " + d.rule + ". " + (RULE_TEXT[d.rule] || ""); });
+    var lines = (v.details || []).map(function(d, i){ return (i + 1) + ". Sentence: \"" + d.sentence + "\"  Rule broken: " + d.rule + ". " + (RULE_TEXT[d.rule] || "") +
+      (d.match ? " The exact words \"" + d.match + "\" are refused in any sense, including purpose; rewrite the sentence without them." : ""); });   /* CR3.5 */
     var other = v.hard.filter(function(h){ return !(v.details || []).some(function(d){ return h.indexOf(d.rule) >= 0 && h.indexOf(d.section) === 0; }); });
     other.forEach(function(h){
       /* CR3.4: an unknown buildsOn entry is answered with the complete valid list for THIS accepted step 1 */
