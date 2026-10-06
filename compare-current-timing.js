@@ -348,7 +348,7 @@
     Sun: "in how you see yourself and where you put your energy", Moon: "in your moods, your needs and how settled home feels",
     Mercury: "in conversations, decisions and how you take in information", Venus: "in your closest relationships and what you enjoy",
     Mars: "in how you act, compete and stand up for yourself", Jupiter: "in your beliefs, plans and sense of what is possible",
-    Saturn: "in your responsibilities, commitments and long-term plans", Uranus: "in where you want more freedom or change",
+    Saturn: "in your responsibilities, commitments and long-term plans", Uranus: "in the areas where you want more freedom or change",
     Neptune: "in your imagination, sensitivity and need for quiet", Pluto: "in deeper feelings and situations that ask for real change",
     'North Node': "in the direction you are trying to grow", 'South Node': "in old habits and familiar patterns",
     Ascendant: "in how you present yourself and meet new situations", Midheaven: "in your work, your public role and where you are heading"
