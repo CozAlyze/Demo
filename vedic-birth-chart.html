@@ -5,7 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Vedic Birth Chart</title>
 <!--
-  COZALYZE · VEDIC BIRTH CHART · BC2.6 compare embed (Oct 2 2026, local build for review)
+  COZALYZE · VEDIC BIRTH CHART · BC2.7 presentation fixes P1 (Oct 6 2026, local build for review)
+  BC2.7: a single body in house 9 sits at the mirror of house 5 (x 273), clear of the sign numeral; the
+  location adds the country when this chart run's own birth record (same run ID and fingerprint) names the
+  same place (display only).
   BC2.6: ?saved=1&id=<compare record>&in=compare renders the chart only, inside the saved comparison
   (saved-compare-document.html): no toolbar, no Saved Readings links, no footer nav, no build stamp,
   transparent page. Data path unchanged (the record's own snapshot chart); saved-vedic-library.js is
@@ -290,7 +293,7 @@ body.embed-compare .report-shell{min-height:0; padding:0 0 1rem}
     <a href="#" data-foot="account"><svg viewBox="0 0 24 24"><circle cx="12" cy="8.5" r="3.5"/><path d="M5 19.5c1.2-3.4 3.9-5 7-5s5.8 1.6 7 5"/></svg>Account</a>
   </div>
 </div>
-<div class="build-stamp">BIRTH CHART · BC2.6 · compare embed</div>
+<div class="build-stamp">BIRTH CHART · BC2.7 · presentation fixes</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -358,7 +361,7 @@ var HOUSE_PLANS = {
   11:flipPlans(PLANS_H3,true,false), 12:flipPlans(PLANS_H2,true,false)
 };
 /* single-body positions from the approved mockup override the mirrors */
-[[5,27,224],[6,73,270],[7,150,238],[8,227,270],[9,245,224],[12,227,25]].forEach(function(o){
+[[5,27,224],[6,73,270],[7,150,238],[8,227,270],[9,273,224],[12,227,25]].forEach(function(o){
   HOUSE_PLANS[o[0]][0] = {pts:[[o[1],o[2]]]};
 });
 var SIGN_POINTS = {1:[150,132],2:[72,61],3:[55,76],4:[132,150],5:[55,224],6:[72,239],7:[150,168],8:[228,239],9:[245,224],10:[168,150],11:[245,76],12:[228,61]};
@@ -451,6 +454,22 @@ function validatePayload(c){
 }
 
 /* ---------- Rendering ---------- */
+/* BC2.7 r1: "Paris" becomes "Paris, France" only when this chart run's own birth record (the saved snapshot,
+   or the live record) has the same run ID AND fingerprint as the chart and names the same place and a country.
+   Otherwise unchanged. */
+function fullLocation(chart){
+  var loc = (chart.birth && chart.birth.location) || "";
+  try {
+    var saved = /[?&]saved=1\b/.test(window.location.search), bd = null, raw = null;
+    if (saved){ var L = window.CozSavedVedic ? window.CozSavedVedic.load() : null; raw = L && L.rec && L.rec.snapshot ? L.rec.snapshot.emergeBirthData : null; }
+    else raw = localStorage.getItem("emergeBirthData");
+    bd = typeof raw === "string" ? JSON.parse(raw) : raw;
+    if (bd && chart.run && bd.runId && bd.runId === chart.run.runId && bd.fingerprint && bd.fingerprint === chart.run.fingerprint
+        && bd.location && bd.location.name === loc && bd.location.country && loc.indexOf(",") < 0)
+      return loc + ", " + bd.location.country;
+  } catch (e) {}
+  return loc;
+}
 function el(tag,cls,text){
   var n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -606,7 +625,7 @@ function renderReport(chart){
     identity.appendChild(who);
   }
   var dl = el("dl");
-  [["Date",chart.birth.date,null],["Time",chart.birth.time,chart.birth.timezone],["Location",chart.birth.location,null]].forEach(function(row){
+  [["Date",chart.birth.date,null],["Time",chart.birth.time,chart.birth.timezone],["Location",fullLocation(chart),null]].forEach(function(row){
     var d = el("div");
     d.appendChild(el("dt",null,row[0]));
     var dd = el("dd",null,row[1]);
