@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tropical Birth Chart</title>
 <!--
-  COZALYZE · TROPICAL BIRTH CHART · TBC1.8 compare embed (Oct 2 2026, local build for review)
+  COZALYZE · TROPICAL BIRTH CHART · TBC1.9 birth details (Oct 6 2026, presentation fixes P1, local build for review)
+  TBC1.9: date and time shown as "August 20, 1977" and "9:30 PM" (display only, stored values unchanged).
   TBC1.8: ?saved=1&id=<compare record>&in=compare renders the chart only, inside the saved comparison
   (saved-compare-document.html): no toolbar, no Saved Readings links, no footer nav, no build stamp,
   transparent page. Data path unchanged (the record's own snapshot chart); saved-tropical-library.js
@@ -277,7 +278,7 @@ body.embed-compare .report-shell{min-height:0; padding:0 0 1rem}
   <div class="sample-banner" id="sampleBanner" hidden>Sample report · Illustrative data for design review</div>
   <div id="reportMount"></div>
 </div>
-<div class="build-stamp">BIRTH CHART · TBC1.8 · compare embed</div>
+<div class="build-stamp">BIRTH CHART · TBC1.9 · birth details</div>
 <script>
 "use strict";
 /* Renderer only. This page never calculates astronomy; every value comes from
@@ -631,7 +632,11 @@ function renderReport(chart){
   }
   var dl = el("dl");
   var tzLine = [chart.client.timezoneAbbreviation, chart.client.utcOffset].filter(Boolean).join(" \u00B7 ");
-  [["Date",chart.client.birthDate,null],["Time",chart.client.birthTime,tzLine],["Location",chart.client.locationLabel,null]].forEach(function(row){
+  var P1_MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var dm = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(chart.client.birthDate || ""));
+  var dateShown = dm && +dm[2] >= 1 && +dm[2] <= 12 ? P1_MONTHS[+dm[2] - 1] + " " + (+dm[3]) + ", " + dm[1] : chart.client.birthDate;   /* TBC1.9 */
+  var timeShown = String(chart.client.birthTime || "").replace(/^0(\d:\d\d)/, "$1");                                                 /* TBC1.9 */
+  [["Date",dateShown,null],["Time",timeShown,tzLine],["Location",chart.client.locationLabel,null]].forEach(function(row){
     var d = el("div");
     d.appendChild(el("dt",null,row[0]));
     var dd = el("dd",null,row[1]);
