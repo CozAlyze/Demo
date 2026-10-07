@@ -1,4 +1,18 @@
-/* SAVED VEDIC LIBRARY · SL1.6 (Oct 2 2026, local build for review)
+/* SAVED VEDIC LIBRARY · SL1.7 r1 (Oct 6 2026, local build for review)
+   SL1.7 r1: a text counts as complete only with all three pages present, in order, each with content.
+   SL1.7: the full Current Life Cycle reading (Current Season, Key Time Windows, What Comes Next) is saved
+   with a Vedic chart. Those three pages compose their text at display time from the run's own
+   cozChartJSON (no model, nothing stored), so at the save tap the record is marked pending for that exact
+   run ID + fingerprint, the three live pages are rendered in hidden frames (opened read-only with
+   ?in=compare&lcCapture=1, so neither this library nor coz-saved.js acts inside them), and their rendered
+   text is copied, in order, into the same record (rec.library.vedic.lifeCycle.text), stamped with the
+   capture time. The live chart must match the record (run ID AND fingerprint) before and after rendering;
+   otherwise nothing is written and the text stays pending. A page that fails closed makes the text
+   "unavailable"; three timed-out attempts do too. A complete text is kept exactly on later saves.
+   Pending text is completed by any later page of the SAME live run (the save normally lands on the saved
+   chart page); a record whose text was never requested is never changed by opening anything. No model,
+   no new chart calculation, no change to the three Life Cycle pages.
+   SL1.6 (Oct 2 2026)
    SL1.6: a chart page shown inside a saved comparison (?in=compare) is read-only: no capture, no
    fill, no retries, no listeners. load() still reads the selected record. Nothing else changed.
    SL1.5 (Sep 30 2026)
@@ -57,6 +71,13 @@
   ];
   var CAP_KEY = "cozVedicSavedCapture", DIAG_KEY = "cozVedicSavedDiag", JOB_KEY = "cozVedicServerJob", MAX_RUNS = 4;
   var PAGE = (location.pathname.split("/").pop() || "").replace(/\.html$/, "");
+  var READ_ONLY = /[?&](in=compare|lcCapture=1)\b/.test(location.search);       /* SL1.7: lcCapture frames are read-only too */
+  var LC_PAGES = [                                                               /* SL1.7: in the order the live pages read */
+    { id: "current-season",   title: "Your Current Season", panel: "csPanel",  empty: ".cs-empty"  },
+    { id: "key-time-windows", title: "Key Time Windows",    panel: "ktwPanel", empty: ".ktw-empty" },
+    { id: "what-comes-next",  title: "What Comes Next",     panel: "wcnPanel", empty: ".wcn-empty" }
+  ];
+  var LC_TIMEOUT_MS = 15000, LC_MAX_ATTEMPTS = 3;
   var MEM = { s12Start: {}, diag: [], told: false, flagged: {}, unverified: {} };
 
   function parse(s){ try { return JSON.parse(s || "null"); } catch (e) { return null; } }
@@ -352,7 +373,7 @@
   /* ---- capture at save time, from any Vedic page; a present piece is never replaced ---- */
   function payload(rec){
     var lib = (rec.library && rec.library.vedic) || {};
-    var out = { reading: null, lagna: null, lifeCycle: captureLifeCycle(rec) };
+    var out = { reading: null, lagna: null, lifeCycle: lifeCycleOut(rec, lib) };
     if (present(lib.reading) && present(lib.lagna)) { planFor(rec); return out; }   /* both kept; flags if odd */
     storeLive();
     var e = entryFor(rec);
@@ -374,6 +395,97 @@
     if (!lc || !lc.mahadasha) return null;
     return { data: JSON.parse(JSON.stringify(lc)), capturedAt: new Date().toISOString() };
   }
+  /* ---- SL1.7: the full Life Cycle reading ---- */
+  function textComplete(t, rec){
+    return !!(t && t.status === "complete" && rec && t.runId === rec.runId && t.fingerprint === rec.fingerprint &&
+              Array.isArray(t.pages) && t.pages.length === LC_PAGES.length &&
+              LC_PAGES.every(function (pg, i) { var x = t.pages[i]; return x && x.id === pg.id && Array.isArray(x.blocks) && x.blocks.length > 0; }));   /* r1: all three, in order */
+  }
+  function lifeCycleOut(rec, lib){
+    var lc = captureLifeCycle(rec);
+    if (!lc) return null;
+    var prev = lib.lifeCycle && lib.lifeCycle.text;
+    if (!(rec.kind === "chart" && rec.systems && rec.systems.vedic)) { if (prev) lc.text = prev; return lc; }   /* Vedic chart records only */
+    if (textComplete(prev, rec)) { lc.text = prev; return lc; }                 /* a complete text is kept exactly */
+    var L = liveRun();
+    if (!READ_ONLY && L && strictMatch(L.run, rec)) {
+      lc.text = { status: "pending", runId: rec.runId, fingerprint: rec.fingerprint, requestedAt: new Date().toISOString(),
+                  attempts: (prev && prev.status === "pending" && prev.runId === rec.runId && prev.fingerprint === rec.fingerprint && prev.attempts) || 0 };
+      setTimeout(captureText, 0);                                               /* after the save has been written */
+    } else lc.text = prev || null;
+    return lc;
+  }
+  function pendingRecords(L){
+    var s = parse(lsGet(storeKey())), out = [];
+    (s && Array.isArray(s.records) ? s.records : []).forEach(function (r) {
+      var t = r && r.kind === "chart" && r.library && r.library.vedic && r.library.vedic.lifeCycle && r.library.vedic.lifeCycle.text;
+      if (t && t.status === "pending" && t.runId === r.runId && t.fingerprint === r.fingerprint && strictMatch(L.run, r)) out.push(r.id);
+    });
+    return out;
+  }
+  function blocksOf(panel){
+    var out = [];
+    Array.prototype.forEach.call(panel.querySelectorAll("p, h1, h2, h3"), function (n) {
+      if (n.closest(".cs-explore, .ktw-explore, .wcn-explore, nav, [aria-hidden='true']")) return;
+      var c = n.cloneNode(true);
+      Array.prototype.forEach.call(c.querySelectorAll("br"), function (b) { b.parentNode.replaceChild(document.createTextNode(" "), b); });
+      var t = (c.textContent || "").replace(/\s+/g, " ").trim();
+      if (t) out.push({ k: String(n.className || n.tagName.toLowerCase()).split(" ")[0], t: t });
+    });
+    return out;
+  }
+  function renderPage(pg){
+    return new Promise(function (resolve) {
+      var f = document.createElement("iframe"), t0 = Date.now(), timer = null, done = false;
+      f.setAttribute("aria-hidden", "true"); f.tabIndex = -1;
+      f.style.cssText = "position:fixed;left:-10000px;top:0;width:390px;height:844px;border:0;opacity:0;pointer-events:none";
+      function finish(r){ if (done) return; done = true; clearInterval(timer); try { f.remove(); } catch (e) {} resolve(r); }
+      timer = setInterval(function () {
+        var d = null; try { d = f.contentDocument; } catch (e) {}
+        var panel = d && d.getElementById(pg.panel);
+        if (panel && panel.querySelector(pg.empty)) return finish({ failed: true });
+        if (panel && panel.querySelector("h1") && panel.querySelector("p")) return finish({ blocks: blocksOf(panel) });
+        if (Date.now() - t0 > LC_TIMEOUT_MS) finish({ timeout: true });
+      }, 200);
+      f.src = pg.id + ".html?in=compare&lcCapture=1&t=" + Date.now();
+      document.body.appendChild(f);
+    });
+  }
+  var lcBusy = false;
+  function captureText(){
+    if (lcBusy || READ_ONLY || !document.body) return;
+    var L = liveRun(); if (!L) return;
+    var ids = pendingRecords(L); if (!ids.length) return;
+    lcBusy = true;
+    var results = [];
+    LC_PAGES.reduce(function (p, pg) { return p.then(function () { return renderPage(pg).then(function (r) { results.push(r); }); }); }, Promise.resolve())
+      .then(function () {
+        var L2 = liveRun();
+        if (!L2 || !strictMatch(L2.run, L.run)) { diag("life cycle text not written: the live chart changed while rendering", { records: ids }); return; }
+        var s = parse(lsGet(storeKey())); if (!s || !Array.isArray(s.records)) return;
+        var now = new Date().toISOString(), wrote = [];
+        s.records.forEach(function (r) {
+          if (ids.indexOf(r.id) < 0) return;
+          var lc = r.library && r.library.vedic && r.library.vedic.lifeCycle, t = lc && lc.text;
+          if (!t || t.status !== "pending" || t.runId !== r.runId || t.fingerprint !== r.fingerprint || !strictMatch(L2.run, r)) return;
+          if (results.some(function (x) { return x.failed; }))
+            lc.text = { status: "unavailable", reason: "a Life Cycle page could not compose this chart", runId: r.runId, fingerprint: r.fingerprint, requestedAt: t.requestedAt, at: now };
+          else if (results.some(function (x) { return x.timeout || !x.blocks || !x.blocks.length; })) {
+            t.attempts = (t.attempts || 0) + 1;
+            if (t.attempts >= LC_MAX_ATTEMPTS) lc.text = { status: "unavailable", reason: "the Life Cycle pages did not finish loading", runId: r.runId, fingerprint: r.fingerprint, requestedAt: t.requestedAt, at: now };
+          }
+          else lc.text = { status: "complete", runId: r.runId, fingerprint: r.fingerprint, requestedAt: t.requestedAt, capturedAt: now,
+                           pages: LC_PAGES.map(function (pg, i) { return { id: pg.id, title: pg.title, blocks: results[i].blocks }; }) };
+          r.updatedAt = now; wrote.push(r.id);
+        });
+        if (!wrote.length) return;
+        try { writeVerified(storeKey(), s); } catch (err) { fail("life cycle text for saved record " + wrote.join(","), err); return; }
+        diag("life cycle text saved", { records: wrote });
+        try { window.dispatchEvent(new CustomEvent("COZ_SAVED_VEDIC_LC_FILLED", { detail: { ids: wrote } })); } catch (e) {}
+      })
+      .catch(function (e) { diag("life cycle text capture error", { error: String(e && e.message) }); })
+      .then(function () { lcBusy = false; });
+  }
   window.CozSaved.registerPayload("vedic", payload);
 
   /* ---- triggers ---- */
@@ -388,6 +500,7 @@
   }
   function pass(){
     try { storeLive(); var r = fillAll(); if (r.pending) scheduleRetry(); } catch (e) {}
+    try { captureText(); } catch (e) {}                                        /* SL1.7: completes a pending Life Cycle text for the live run only */
   }
   function watchLive(){
     try { storeLive(); var r = fillAll(); if (r.pending) scheduleRetry(); } catch (e) {}
@@ -396,7 +509,7 @@
     var done = restoredNow() || !L || (settled && !pending() && !retry);
     if (done && watch) { clearInterval(watch); watch = null; }
   }
-  if (!/[?&]in=compare\b/.test(location.search)) {                        /* SL1.6: read-only inside a saved comparison */
+  if (!READ_ONLY) {                                                         /* SL1.6/SL1.7: read-only inside a saved comparison or a capture frame */
   pass();                                                                   /* before a Saved page renders */
   if (PAGE === "vedic-reading" && !restoredNow()) watch = setInterval(watchLive, 1000);
   ["COZ_VEDIC_READING_COMPLETE", "COZ_VEDIC_SERVER_UPDATE", "pageshow"].forEach(function (ev) { window.addEventListener(ev, pass); });
@@ -415,7 +528,8 @@
     var lib = (rec.library && rec.library.vedic) || {};
     return {
       rec: rec, id: rec.id, chart: chart, library: lib,
-      has: { reading: !!(lib.reading && lib.reading.sections), lagna: !!(lib.lagna && lib.lagna.sign), lifeCycle: !!(lib.lifeCycle && lib.lifeCycle.data) },
+      has: { reading: !!(lib.reading && lib.reading.sections), lagna: !!(lib.lagna && lib.lagna.sign), lifeCycle: !!(lib.lifeCycle && lib.lifeCycle.data),
+             lifeCycleText: textComplete(lib.lifeCycle && lib.lifeCycle.text, rec) },
       name: rec.name || (chart && chart.person && chart.person.name) || "",
       birth: (chart && chart.birth) || {}
     };
@@ -431,6 +545,8 @@
       " | record " + (rec ? rec.id + " reading " + (present(lib.reading) ? "yes" : "no") + ", lagna " + (present(lib.lagna) ? "yes" : "no") : "none") +
       " | pending " + pending() + " | last " + (last ? last.what + (last.detail ? " " + JSON.stringify(last.detail) : "") : "none");
   }
+  function lcLive(rec){ var L = liveRun(); return !!(L && rec && strictMatch(L.run, rec)); }      /* SL1.7: is this record's run the live chart? */
   window.CozSavedVedic = { load: load, href: href, SECTIONS: SECTIONS, fill: fillAll, pending: pending, status: status,
+                           LC_PAGES: LC_PAGES, lcLive: lcLive, captureLifeCycleText: captureText,
                            diagnostics: function () { return (parse(lsGet(DIAG_KEY)) || MEM.diag).slice(); }, _store: storeLive };
 })();
