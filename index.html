@@ -669,14 +669,14 @@
 </div>
 
 <div id="curtain">
-  <div id="enterPrompt"><div class="ep-text">Touch the Sky</div></div>
+  <div id="enterPrompt"><div class="ep-text">Tap the Sky</div></div>
 </div>
 
 <div id="soundGate">
   <div class="sg-stage">
-    <div class="sg-line" id="sgL1">Headphones on</div>
+    <div class="sg-line" id="sgL1">For the full experience</div>
     <div class="sg-line" id="sgL2">Sound up</div>
-    <div class="sg-line" id="sgL3">For the full experience</div>
+    <div class="sg-line" id="sgL3">Headphones on</div>
   </div>
   <div class="sg-tap" id="sgTap">tap to continue</div>
 </div>
@@ -808,7 +808,7 @@
   </div>
 </div>
 
-<div id="ver">SCENE 1 · v20.3 · engine versions · routes 1989 1885</div>
+<div id="ver">SCENE 1 · v20.5 · engine versions · routes 1989 1885</div>
 
 <script>
 function cozBirthFingerprint(bd){
@@ -1726,11 +1726,13 @@ document.getElementById('curtain').addEventListener('click', () => {
   const sgAt = (ms, fn) => sgTimers.push(setTimeout(fn, ms));
   const sgOn  = id => document.getElementById(id).classList.add('on');
   const sgOff = id => document.getElementById(id).classList.remove('on');
+  /* v20.4 (his ruling): order is now For the full experience, Sound up,
+     Headphones on. The longest line keeps the longest hold, total time unchanged. */
   sgAt(1500,  () => sgOn('sgL1'));
-  sgAt(3600,  () => sgOff('sgL1'));
-  sgAt(4900,  () => sgOn('sgL2'));
-  sgAt(7000,  () => sgOff('sgL2'));
-  sgAt(8300,  () => sgOn('sgL3'));
+  sgAt(4000,  () => sgOff('sgL1'));
+  sgAt(5300,  () => sgOn('sgL2'));
+  sgAt(7400,  () => sgOff('sgL2'));
+  sgAt(8700,  () => sgOn('sgL3'));
   sgAt(10800, () => sgOff('sgL3'));
   sgAt(12100, () => sgOn('sgTap'));
 
