@@ -60,7 +60,7 @@
     5:  'creativity, children, learning and what you enjoy expressing',
     6:  'work, service, routine, obstacles and the effort to resolve them',
     7:  'partnership, agreements and one-to-one relationship',
-    8:  'shared resources, change, research and what is held privately',
+    8:  'obstacles, sudden change, hidden matters and what is held privately',
     9:  'meaning, belief, teachers, higher study and long journeys',
     10: 'work in the world, visibility, responsibility and direction',
     11: 'networks, gains, community and longer-range hopes',
