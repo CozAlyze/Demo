@@ -672,14 +672,18 @@
 #bdaybar.dt .dt-ampm.away{display:none}
 #bdaybar.dt .dt-ampm.muted{opacity:.42}
 #bdaybar.dt .dt-ampm button{position:relative;min-height:44px;padding:4px 14px 9px;margin:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif;font-weight:600;font-size:22px;letter-spacing:.08em;line-height:1;color:#A9917F;text-shadow:0 1px 8px rgba(0,0,0,.95)}
-#bdaybar.dt .dt-ampm button[aria-pressed="true"]{color:#ECD9C0;text-shadow:0 0 14px rgba(236,217,192,.35),0 1px 8px rgba(0,0,0,.95)}
-#bdaybar.dt .dt-ampm button[aria-pressed="true"]::after{content:"";position:absolute;left:12px;right:12px;bottom:2px;height:1.5px;background:#D7C6B0}
+#bdaybar.dt .dt-ampm button[aria-pressed="true"]{color:#E8C7A6;text-shadow:0 0 16px rgba(232,199,166,.6),0 1px 8px rgba(0,0,0,.95)}
+#bdaybar.dt .dt-ampm button[aria-pressed="true"]::after{content:"";position:absolute;left:12px;right:12px;bottom:2px;height:1.5px;background:#E8C7A6}
 #bdaybar.dt .dt-div{width:1.5px;height:24px;background:#857260}
 #bdaybar.dt{bottom:calc(25vh - 24px)}
 /* DT1 r2 (his ruling): BACK and ENTER sit right under the boxes, BACK at the left and ENTER at the right, with AM | PM between them for the time; the city and country stay under the pin (no SV1 drop), and the Earth settles lower so they show clearly; the pin's Birthplace label stays hidden, as it was behind the old date row */
 #bdaybar.dt .entry-actions{top:calc(100% + 10px);left:0;right:0;transform:none;justify-content:space-between;gap:0}
 body:has(#bdaybar.dt.show:not(.done)) .marker .b-city,body:has(#bdaybar.dt.show:not(.done)) .marker .b-country{top:0}
-body:has(#bdaybar.dt.show:not(.done)) .marker .b-label{visibility:hidden}</style>
+body:has(#bdaybar.dt.show:not(.done)) .marker .b-label{visibility:hidden}
+/* v21.0 (his ruling): the name step takes the date step's layout: BACK and ENTER right under the name box, ENTER at its right; the city and country stay under the pin and the Birthplace label stays hidden; on a phone the name box sits under GO TO MY CHART and the birthplace half an inch below BACK and ENTER */
+#namebar .entry-actions{top:calc(100% + 10px);left:0;right:0;transform:none;justify-content:space-between;gap:0}
+body:has(#namebar.show:not(.done)) .marker .b-city,body:has(#namebar.show:not(.done)) .marker .b-country{top:0}
+body:has(#namebar.show:not(.done)) .marker .b-label{visibility:hidden}</style>
 </head>
 <body>
 <button type="button" class="coz-skip" id="cozSkipIntro" aria-label="Skip the introduction">Skip intro</button>
@@ -859,7 +863,7 @@ body:has(#bdaybar.dt.show:not(.done)) .marker .b-label{visibility:hidden}</style
   </div>
 </div>
 
-<div id="ver">SCENE 1 · v20.9 · engine versions · routes 1989 1885</div>
+<div id="ver">SCENE 1 · v21.0 · engine versions · routes 1989 1885</div>
 
 <script>
 function cozBirthFingerprint(bd){
@@ -1263,30 +1267,15 @@ if (typeof Globe === 'undefined') {
   }
   const obs = { lat:28, lon:-(new Date().getTimezoneOffset()/60)*15 };
 
-  // -- view: yaw/pitch steered by the phone; slow celestial drift when it can't be --
+  // -- view: the sky steers itself. v21.0 (his ruling): the phone is no longer asked for motion access (the
+  //    prompt made people nervous, and the field was never the real sky over them); a slow pre-set sway in the
+  //    frame loop gives the stars their depth instead --
   let yaw = 158, pitch = 24, tYaw = yaw, tPitch = pitch, gyro = false, skyStart = 0;
-  function onDO(e){
-    let h = (typeof e.webkitCompassHeading === 'number') ? e.webkitCompassHeading
-          : (e.alpha != null ? 360 - e.alpha : null);
-    if (h == null || e.beta == null) return;
-    if (!gyro) console.log('[SKY] gyro live — compass steering engaged');
-    gyro = true; tYaw = h;
-    // natural reading angle (~beta 50°) looks just above the horizon;
-    // tilting the phone up toward the sky sweeps the view to the zenith
-    tPitch = Math.max(-25, Math.min(85, e.beta - 38));
-  }
-  function armGyro(){  // must be born inside a user gesture on iOS
+  const SKY_SWAY = !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  function armGyro(){  // still called on the sound gate's tap: the living sky takes over, nothing is asked for
     // the flat field steps back the moment the living sky takes over
     const st = document.getElementById('stars');
     if (st) st.classList.add('dome-live');
-    try {
-      if (window.DeviceOrientationEvent && typeof DeviceOrientationEvent.requestPermission === 'function')
-        DeviceOrientationEvent.requestPermission()
-          .then(s => { console.log('[SKY] motion permission:', s);
-                       if (s === 'granted') window.addEventListener('deviceorientation', onDO, true); })
-          .catch(e => console.log('[SKY] motion permission error', e));
-      else window.addEventListener('deviceorientation', onDO, true);
-    } catch(_){}
   }
   skyStart = performance.now() + 700;      // the universe is first — before any interface
   // v19.82: motion is no longer asked for on the Touch the Sky tap. It is asked
@@ -1357,8 +1346,13 @@ if (typeof Globe === 'undefined') {
       yaw += dy*0.08; pitch += (tPitch - pitch)*0.08;
     } else {
       driftBase = (driftBase + 0.022) % 360;               // the sky glides on its own
-      const dy = ((driftBase + mx*16 - yaw + 540) % 360) - 180;
-      yaw += dy*0.05; pitch += ((22 - my*12) - pitch)*0.05; // ...and leans with the pointer
+      // v21.0: a slow pre-set sway in place of the phone's tilt, a few degrees left and right, up and down,
+      // on long uneven cycles that never line up, so the field keeps its depth (still when reduced motion is on)
+      const ts = now*0.001;
+      const swayY = SKY_SWAY ? 7*Math.sin(ts*0.23) + 3*Math.sin(ts*0.071 + 1.3) : 0;
+      const swayP = SKY_SWAY ? 5*Math.sin(ts*0.17 + 0.6) + 2*Math.sin(ts*0.053 + 2.1) : 0;
+      const dy = ((driftBase + swayY + mx*16 - yaw + 540) % 360) - 180;
+      yaw += dy*0.05; pitch += ((22 + swayP - my*12) - pitch)*0.05; // ...and leans with the pointer
     }
 
     const lst = (gmstDeg(new Date()) + obs.lon) * D2R;
@@ -1793,7 +1787,7 @@ document.getElementById('curtain').addEventListener('click', () => {
   window.__cozGateDismiss = () => {
     if (gate.classList.contains('gone')) return;
     sgTimers.forEach(clearTimeout);
-    try { if (window.EMERGE_ARM_GYRO) window.EMERGE_ARM_GYRO(); } catch(_){}   // the motion prompt, inside the gesture
+    try { if (window.EMERGE_ARM_GYRO) window.EMERGE_ARM_GYRO(); } catch(_){}   // the living sky takes over (v21.0: no motion prompt)
     gate.classList.remove('ready');
     gate.classList.add('gone');
   };
@@ -2370,7 +2364,7 @@ function cozSegField(cfg){
    Month 2-9 at once, 1 waits 1.2 s for 10, 11 or 12. Day: a digit that can start a two-digit day for
    that month waits, any other is entered at once. Year in four digits (two work too: 77 = 1977,
    04 = 2004). Hour 2-9 at once, 1 waits. Minute shows 0_: 0 and 6-9 finish it, 1-5 wait for 10-59.
-   Then AM or PM, then ENTER. A digit that cannot belong to the box starts the next one (1 then 5 =
+   Then AM or PM (v21.0: AM comes chosen and lit gold), then ENTER. A digit that cannot belong to the box starts the next one (1 then 5 =
    January, day 5); a real day the month does not have (April 31, February 29 in 1977) is refused
    with a short message instead, so a date is never guessed, and the box stays empty with ENTER off
    until it is fixed (r3: an earlier value is never kept behind a refusal). The prompt above keeps the two existing questions: "What is your date of birth?"
@@ -2441,6 +2435,7 @@ function cozSegField(cfg){
     const p = problem();
     if (p) { S[p.part] = null; active = p.part; message = p.text; render(); return; }
     active = nextAfter(part);
+    if (part === 'minute' && S.ampm === null) S.ampm = 'AM';   /* v21.0 (his ruling): AM comes chosen and lit gold, PM is one tap away */
     render();
   }
   function settleYear(y){
@@ -2629,8 +2624,8 @@ function cozSegField(cfg){
      question and the boxes sit at the top, just under GO TO MY CHART, with BACK and ENTER right under them. The
      Earth then settles lower so the birthplace pin, city and country show clearly half an inch below BACK and
      ENTER, measured on the glass (76 points; Safari's page zoom is allowed for, e.g. 89 page px at 85%). On a short
-     screen it stops at the bottom of the visible area, so the gap can be smaller. When the boxes close (name step,
-     or back to the birthplace) the Earth glides back to where it was. */
+     screen it stops at the bottom of the visible area, so the gap can be smaller. v21.0: the name step keeps the
+     same layout; when the rows close for the birthplace the Earth glides back to where it was. */
   const HALF_INCH_PT = 76, BOTTOM_ROOM = 8;
   function pageZoom(){   /* Safari's aA page zoom: screen.width stays in points while the page lays out wider or narrower */
     try {
@@ -2650,11 +2645,17 @@ function cozSegField(cfg){
     }
     return top;
   }
-  /* where the page's pinning code should put the middle of the boxes, in visible-screen pixels */
-  window.__dtCenter = function(){
-    const showQ = getComputedStyle(prompt).display !== 'none';
-    return panelTop() + (showQ ? prompt.offsetHeight + 12 : 0) + bar.offsetHeight / 2;
+  /* where the page's pinning code should put the middle of a row (the four boxes, or the name box), in
+     visible-screen pixels: under GO TO MY CHART, below its question */
+  window.__dtCenterFor = function(rowEl, promptEl){
+    const showQ = !!promptEl && getComputedStyle(promptEl).display !== 'none';
+    return panelTop() + (showQ ? promptEl.offsetHeight + 12 : 0) + rowEl.offsetHeight / 2;
   };
+  window.__dtCenter = function(){ return window.__dtCenterFor(bar, prompt); };
+  /* v21.0 (his ruling): the name step keeps this layout, so the Earth stays settled under whichever row is up */
+  const nameBar = document.getElementById('namebar');
+  const nameLive = () => !!nameBar && nameBar.classList.contains('show') && !nameBar.classList.contains('done');
+  const rowUp = () => live() ? bar : (nameLive() ? nameBar : null);
   function glideEarth(to, ms, done){
     if (typeof GLOBE === 'undefined' || typeof layoutGlobe !== 'function') return;
     if (glide) cancelAnimationFrame(glide);
@@ -2668,17 +2669,18 @@ function cozSegField(cfg){
       if (p >= 1 && done) done();
     })(t0);
   }
-  /* where BACK and ENTER end once the boxes have finished sliding in (their own 0.4 s slide is not waited for) */
-  function panelBottom(){
-    const acts = bar.querySelector('.entry-actions'), top = parseFloat(bar.style.top);
+  /* where BACK and ENTER end once the row has finished sliding in (its own 0.4 s slide is not waited for) */
+  function panelBottom(row){
+    const acts = row.querySelector('.entry-actions'), top = parseFloat(row.style.top);
     if (!acts || !isFinite(top)) return null;
-    return top - bar.offsetHeight / 2 + acts.offsetTop + acts.offsetHeight - vvp.offsetTop;
+    return top - row.offsetHeight / 2 + acts.offsetTop + acts.offsetHeight - vvp.offsetTop;
   }
   let checks = 0;
   function schedulePlace(ms){ clearTimeout(placeTimer); placeTimer = setTimeout(placeEarth, ms); }
   function placeEarth(){
-    if (!live() || !vvp || !bar.style.top || typeof GLOBE === 'undefined') return;   /* phone layout only */
-    const pin = document.querySelector('.marker .b-pin'), below = panelBottom();
+    const row = rowUp();
+    if (!row || !vvp || !row.style.top || typeof GLOBE === 'undefined') return;   /* phone layout only */
+    const pin = document.querySelector('.marker .b-pin'), below = panelBottom(row);
     if (!pin || below == null) return;
     const last = document.querySelector('.marker .b-country') || document.querySelector('.marker .b-city') || pin;
     if (earthBase === null) earthBase = GLOBE.shiftY;
@@ -2690,7 +2692,7 @@ function cozSegField(cfg){
     const target = GLOBE.shiftY + (want - pinTop);
     if (Math.abs(target - GLOBE.shiftY) < 2) return;   /* already there */
     /* once the glide ends, look once more (at most three times per arrival) in case anything was still settling */
-    glideEarth(target, 650, () => { if (live() && ++checks <= 3) schedulePlace(150); });
+    glideEarth(target, 650, () => { if (rowUp() && ++checks <= 3) schedulePlace(150); });
   }
   function releaseEarth(){
     clearTimeout(placeTimer);
@@ -2700,11 +2702,15 @@ function cozSegField(cfg){
     earthBase = null;
     glideEarth(base, 450);
   }
-  window.__dtAfterPlace = function(){ if (live()) schedulePlace(120); };
-  new MutationObserver(() => {
-    if (live()) { checks = 0; schedulePlace(120); }
-    else releaseEarth();
-  }).observe(bar, { attributes: true, attributeFilter: ['class'] });
+  window.__dtAfterPlace = function(){ if (rowUp()) schedulePlace(120); };
+  /* the Earth stays settled while either row is up; it glides back only when the rows close for the birthplace,
+     never when the name is confirmed (the Earth's exit then starts from where it is) */
+  const onRows = () => {
+    if (rowUp()) { checks = 0; schedulePlace(120); }
+    else if (window.__entryStep !== 'complete') releaseEarth();
+  };
+  new MutationObserver(onRows).observe(bar, { attributes: true, attributeFilter: ['class'] });
+  if (nameBar) new MutationObserver(onRows).observe(nameBar, { attributes: true, attributeFilter: ['class'] });
 
   /* back from the name step: the boxes return with TIME open and every value kept */
   window.__dtOpen = function(part){
@@ -2956,9 +2962,9 @@ window.__handleEntryBack = function() {
   function applyAll(){
     const topPx = heldCenter + vv.offsetTop;        // pan-compensated layout position
     entries.forEach(b => {
-      let t = topPx;   /* DT1 r2: the four boxes sit at the top on a phone; the other rows keep the shared spot */
-      if (b.bar.classList.contains('dt') && typeof window.__dtCenter === 'function') {
-        const c = window.__dtCenter();
+      let t = topPx;   /* DT1 r2 + v21.0: the four boxes and the name box sit at the top on a phone */
+      if ((b.bar.classList.contains('dt') || b.bar.id === 'namebar') && typeof window.__dtCenterFor === 'function') {
+        const c = window.__dtCenterFor(b.bar, b.prompt);
         if (c != null && isFinite(c)) t = c + vv.offsetTop;
       }
       b.bar.style.top = t + 'px';
