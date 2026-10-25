@@ -649,6 +649,37 @@
 <style id="coz-rd1">/* RD1 (Oct 22 2026): every tappable label at least 15px on a phone */html body .coz-skip{font-size:15px}html body .entry-enter{font-size:15px}html body #finale .fn-pill{font-size:clamp(15px, 3.6vw, 17px)}</style>
 <style id="coz-dv1">/* DV1 (Oct 22 2026): version stamps and the diagnostic launcher show only on a device with developer view on (localStorage cozDevView = "1") */html:not(.coz-dev) .stamp,html:not(.coz-dev) .stamp2,html:not(.coz-dev) .vedic-stamp,html:not(.coz-dev) .build-stamp,html:not(.coz-dev) .lc-stamp,html:not(.coz-dev) .cs-stamp,html:not(.coz-dev) .ktw-stamp,html:not(.coz-dev) .wcn-stamp,html:not(.coz-dev) #stamp,html:not(.coz-dev) #cozDiagLaunch{display:none!important}</style><script>try{if(localStorage.getItem("cozDevView")==="1")document.documentElement.classList.add("coz-dev")}catch(e){}</script>
 <style id="coz-sv1">/* SV1 (Oct 23 2026, his ruling, Option 1): beta testers missed SET in the BACK · SET · ENTER row, so SET now sits right under the date and time boxes, centered; the birthplace city and country move down under it; BACK · ENTER sit lower on every birth step (date, time, name) */.entry-set{position:absolute;left:50%;top:calc(100% + 12px);transform:translateX(-50%)}.entry-actions{top:calc(100% + 121px)}#bdaybar .entry-actions,#timebar .entry-actions{gap:26px}#bdaybar:not(.show) .entry-set,#bdaybar.done .entry-set,#timebar:not(.show) .entry-set,#timebar.done .entry-set{pointer-events:none!important}body:has(#bdaybar.show,#timebar.show,#namebar.show) .marker .b-city,body:has(#bdaybar.show,#timebar.show,#namebar.show) .marker .b-country{position:relative;top:46px}</style>
+<style id="coz-dt1">/* DT1 (Oct 25 2026, his ruling): the birth date and time are four boxes, MONTH · DAY · YEAR · TIME, typed on the number pad, each moving on by itself (approved test DW2.0). The boxes take the date row's place; the time row is no longer shown. */
+@font-face{font-family:"Cormorant Garamond";font-style:normal;font-weight:600;font-display:swap;src:url("cormorant-garamond-600.woff2") format("woff2")}
+#bdaybar.dt{width:min(96vw,400px);padding:0;gap:0;display:block;cursor:default;background:none;border:0;border-radius:0;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none}
+#bdaybar.dt .dt-boxes{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+#bdaybar.dt .dt-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:68px;padding:8px 3px;box-sizing:border-box;border-radius:12px;border:1.5px solid #4F4544;background:#121116;cursor:pointer;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none}
+#bdaybar.dt .dt-label{font-family:-apple-system,BlinkMacSystemFont,Inter,"Helvetica Neue",Arial,sans-serif;font-size:15px;letter-spacing:.1em;color:#B8A9A4}
+#bdaybar.dt .dt-value{display:flex;align-items:center;justify-content:center;min-height:24px;font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif;font-weight:600;font-size:21px;line-height:1.1;color:#E6D3BA;white-space:nowrap}
+#bdaybar.dt .dt-value.long{font-size:18px}
+#bdaybar.dt .dt-empty{color:#5C524D}
+#bdaybar.dt .dt-old{opacity:.4}
+#bdaybar.dt .dt-box.on{border-color:#E5C9BA;background:#31251F}
+#bdaybar.dt .dt-box.on .dt-label{color:#C7B2A8}
+#bdaybar.dt .dt-box.bad{border-color:#E39A8A}
+#bdaybar.dt .dt-caret{display:inline-block;width:2px;height:22px;margin-left:2px;background:#ECD9C0;animation:dtBlink 1s steps(1) infinite}
+@keyframes dtBlink{50%{opacity:0}}
+#bdaybar.dt #bd-typed{position:absolute;top:0;left:0;width:1px;height:1px;padding:0;border:0;margin:0;opacity:0;font-size:16px;color:transparent;caret-color:transparent;background:transparent;flex:none;z-index:0}
+#bdaybar.dt .dt-under{position:absolute;left:0;right:0;top:calc(100% + 10px);height:44px;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:3}
+#bdaybar.dt .dt-msg{position:absolute;left:0;right:0;top:calc(100% + 62px);min-height:0;margin:0;padding:0 8px;text-align:center;font-family:-apple-system,BlinkMacSystemFont,Inter,"Helvetica Neue",Arial,sans-serif;font-size:15px;line-height:1.35;color:#E39A8A;text-shadow:0 1px 8px rgba(0,0,0,.95)}
+#bdaybar.dt .dt-msg:empty{display:none}
+#bdaybar.dt .dt-ampm{display:flex;align-items:center;justify-content:center;pointer-events:auto}
+#bdaybar.dt .dt-ampm.away{display:none}
+#bdaybar.dt .dt-ampm.muted{opacity:.42}
+#bdaybar.dt .dt-ampm button{position:relative;min-height:44px;padding:4px 14px 9px;margin:0;border:0;background:none;cursor:pointer;-webkit-tap-highlight-color:transparent;font-family:"Cormorant Garamond",Georgia,"Times New Roman",serif;font-weight:600;font-size:22px;letter-spacing:.08em;line-height:1;color:#A9917F;text-shadow:0 1px 8px rgba(0,0,0,.95)}
+#bdaybar.dt .dt-ampm button[aria-pressed="true"]{color:#ECD9C0;text-shadow:0 0 14px rgba(236,217,192,.35),0 1px 8px rgba(0,0,0,.95)}
+#bdaybar.dt .dt-ampm button[aria-pressed="true"]::after{content:"";position:absolute;left:12px;right:12px;bottom:2px;height:1.5px;background:#D7C6B0}
+#bdaybar.dt .dt-div{width:1.5px;height:24px;background:#857260}
+#bdaybar.dt{bottom:calc(25vh - 24px)}
+/* DT1 r2 (his ruling): BACK and ENTER sit right under the boxes, BACK at the left and ENTER at the right, with AM | PM between them for the time; the city and country stay under the pin (no SV1 drop), and the Earth settles lower so they show clearly; the pin's Birthplace label stays hidden, as it was behind the old date row */
+#bdaybar.dt .entry-actions{top:calc(100% + 10px);left:0;right:0;transform:none;justify-content:space-between;gap:0}
+body:has(#bdaybar.dt.show:not(.done)) .marker .b-city,body:has(#bdaybar.dt.show:not(.done)) .marker .b-country{top:0}
+body:has(#bdaybar.dt.show:not(.done)) .marker .b-label{visibility:hidden}</style>
 </head>
 <body>
 <button type="button" class="coz-skip" id="cozSkipIntro" aria-label="Skip the introduction">Skip intro</button>
@@ -710,17 +741,26 @@
 </div>
 
 <div id="bdayPrompt" class="bd-prompt">✦&nbsp;&nbsp;What is your date of birth?</div>
-<div id="bdaybar">
-  <span class="bd-star">✦</span>
-  <span class="gm-wrap">
-    <span class="gm-ghost" id="bd-ghost"><span class="gm-typed"></span><span class="gm-rest">MM – DD – YYYY</span></span>
-    <input type="text" id="bd-typed" inputmode="numeric" autocomplete="off"
-           placeholder="" aria-label="Birthdate" maxlength="14">
-  </span>
-  <button type="button" id="bdSet" class="entry-enter entry-set" aria-label="Set this part of the date">SET</button>
+<div id="bdaybar" class="dt">
+  <input type="text" id="bd-typed" inputmode="numeric" pattern="[0-9]*" autocomplete="off" autocorrect="off"
+         autocapitalize="off" spellcheck="false" aria-label="Type your birth date and time">
+  <div class="dt-boxes">
+    <div class="dt-box" data-box="month"><span class="dt-label">MONTH</span><span class="dt-value" id="dt-month"></span></div>
+    <div class="dt-box" data-box="day"><span class="dt-label">DAY</span><span class="dt-value" id="dt-day"></span></div>
+    <div class="dt-box" data-box="year"><span class="dt-label">YEAR</span><span class="dt-value" id="dt-year"></span></div>
+    <div class="dt-box" data-box="time"><span class="dt-label">TIME</span><span class="dt-value" id="dt-time"></span></div>
+  </div>
+  <p class="dt-msg" id="dtMsg" role="status" aria-live="polite"></p>
+  <div class="dt-under">
+    <div class="dt-ampm away" id="dtAmPm" role="group" aria-label="AM or PM">
+      <button type="button" data-ampm="AM" aria-pressed="false">AM</button>
+      <span class="dt-div" aria-hidden="true"></span>
+      <button type="button" data-ampm="PM" aria-pressed="false">PM</button>
+    </div>
+  </div>
   <div class="entry-actions">
     <button type="button" class="entry-enter entry-back" aria-label="Back to birthplace">BACK</button>
-    <button type="button" id="bdEnter" class="entry-enter" aria-label="Confirm date of birth">ENTER</button>
+    <button type="button" id="bdEnter" class="entry-enter" aria-label="Confirm date and time of birth">ENTER</button>
   </div>
 </div>
 <div id="timePrompt" class="bd-prompt">✦&nbsp;&nbsp;What time were you born?</div>
@@ -819,7 +859,7 @@
   </div>
 </div>
 
-<div id="ver">SCENE 1 · v20.6 · engine versions · routes 1989 1885</div>
+<div id="ver">SCENE 1 · v20.9 · engine versions · routes 1989 1885</div>
 
 <script>
 function cozBirthFingerprint(bd){
@@ -2325,59 +2365,354 @@ function cozSegField(cfg){
   return api;
 }
 
-// ---------- birthdate: tap the bar -> native calendar ----------
+// ---------- DT1 (Oct 25 2026, his ruling): birth date and time as four typed boxes ----------
+/* MONTH · DAY · YEAR · TIME on the number pad (approved test DW2.0), each box moving on by itself.
+   Month 2-9 at once, 1 waits 1.2 s for 10, 11 or 12. Day: a digit that can start a two-digit day for
+   that month waits, any other is entered at once. Year in four digits (two work too: 77 = 1977,
+   04 = 2004). Hour 2-9 at once, 1 waits. Minute shows 0_: 0 and 6-9 finish it, 1-5 wait for 10-59.
+   Then AM or PM, then ENTER. A digit that cannot belong to the box starts the next one (1 then 5 =
+   January, day 5); a real day the month does not have (April 31, February 29 in 1977) is refused
+   with a short message instead, so a date is never guessed, and the box stays empty with ENTER off
+   until it is fixed (r3: an earlier value is never kept behind a refusal). The prompt above keeps the two existing questions: "What is your date of birth?"
+   for the date boxes, "What time were you born?" for TIME. ENTER sets window.__birthDate (YYYY-MM-DD)
+   and window.__birthTime (HH:MM AM) exactly as the old date and time rows did, then opens the name
+   step. BACK steps back one box; on MONTH it returns to the birthplace, as before. */
 (function(){
+  const PAUSE = 1200;
+  const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const MONTHS_LONG = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const PARTS = ['month','day','year','hour','minute','ampm'];
+  const BOX_OF = { month:'month', day:'day', year:'year', hour:'time', minute:'time', ampm:'time' };
+  const DASH = '—';
+  const Q_DATE = '✦  What is your date of birth?';
+  const Q_TIME = '✦  What time were you born?';
   const bar = document.getElementById('bdaybar');
-  const inp = document.getElementById('bd-typed');
-  bar.addEventListener('click', () => inp.focus());
-  /* v19.86: the cursor always starts at the MONTH — caret to the front when the
-     field is empty, everything selected when a previous date is there, so the
-     first keystroke is always the month, never the middle of the string. */
-  inp.addEventListener('focus', () => {
-    requestAnimationFrame(() => {
-      try {
-        if (inp.value) inp.select();
-        else inp.setSelectionRange(0, 0);
-      } catch(_){}
+  const keys = document.getElementById('bd-typed');
+  const prompt = document.getElementById('bdayPrompt');
+  const enterEl = document.getElementById('bdEnter');
+  const msgEl = document.getElementById('dtMsg');
+  const ampmEl = document.getElementById('dtAmPm');
+  const vals = {}, boxes = {};
+  ['month','day','year','time'].forEach(b => {
+    vals[b] = document.getElementById('dt-' + b);
+    boxes[b] = bar.querySelector('.dt-box[data-box="' + b + '"]');
+  });
+
+  let S = { month:null, day:null, year:null, hour:null, minute:null, ampm:null };
+  let active = 'month', pend = '', timer = null, zeroAt = 0, message = '';
+
+  const pad2 = n => (n < 10 ? '0' : '') + n;
+  const isLeap = y => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+  const daysIn = (m, y) => m === null ? 31 : (m === 2 ? (y === null ? 29 : (isLeap(y) ? 29 : 28)) : [31,28,31,30,31,30,31,31,30,31,30,31][m - 1]);
+  const to24 = (h, ap) => ap === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12);
+  const allIn = () => PARTS.every(p => S[p] !== null);
+  const live = () => bar.classList.contains('show') && !bar.classList.contains('done');
+  const pulse = () => { try { EMERGE_SOUND.play('pulse'); } catch(_){} };
+
+  function clearTimer(){ if (timer) { clearTimeout(timer); timer = null; } }
+  function arm(){ clearTimer(); timer = setTimeout(() => { timer = null; settlePending(); }, PAUSE); }
+  /* a single waiting digit settles as a one-digit value (1 = January, the 3rd, 1 o'clock, :05) */
+  function settlePending(){
+    if (pend === '' || pend === '0' || active === 'year') return;
+    settle(active, Number(pend));
+  }
+  /* the cursor always moves on to the next box (a box that already has a value shows it faintly
+     until it is retyped, and ENTER can finish); after AM/PM it goes to any box still empty */
+  function nextAfter(part){
+    const i = PARTS.indexOf(part);
+    if (i + 1 < PARTS.length) return PARTS[i + 1];
+    for (let j = 0; j < PARTS.length; j++) if (S[PARTS[j]] === null) return PARTS[j];
+    return 'ready';
+  }
+  function problem(){
+    if (S.month !== null && S.day !== null && S.day > daysIn(S.month, S.year)) {
+      const where = (S.month === 2 && S.year !== null) ? 'February ' + S.year : MONTHS_LONG[S.month - 1];
+      return { part:'day', text: where + ' has ' + daysIn(S.month, S.year) + ' days.' };
+    }
+    if (S.month !== null && S.day !== null && S.year !== null) {
+      const now = new Date();
+      if (S.year * 10000 + S.month * 100 + S.day > now.getFullYear() * 10000 + (now.getMonth() + 1) * 100 + now.getDate())
+        return { part:'year', text:'That date hasn’t happened yet.' };
+    }
+    return null;
+  }
+  function settle(part, value){
+    clearTimer(); pend = ''; S[part] = value; message = '';
+    const p = problem();
+    if (p) { S[p.part] = null; active = p.part; message = p.text; render(); return; }
+    active = nextAfter(part);
+    render();
+  }
+  function settleYear(y){
+    const thisYear = new Date().getFullYear();
+    if (y > thisYear) { pend = ''; S.year = null; message = y + ' hasn’t happened yet.'; render(); return; }
+    if (y < 1900) { pend = ''; S.year = null; message = 'Type a year from 1900 on.'; render(); return; }
+    settle('year', y);
+  }
+  function spill(d){ if (active !== 'ready' && active !== 'done' && active !== 'ampm') feed(d); }
+
+  function feed(d){
+    const part = active, p = pend;
+    clearTimer(); message = '';
+    if (part === 'month') {
+      if (p === '') { if (d === 0) pend = '0'; else if (d === 1) { pend = '1'; arm(); } else settle('month', d); }
+      else if (p === '0') { if (d !== 0) settle('month', d); }
+      else if (d <= 2) settle('month', 10 + d);
+      else { settle('month', 1); spill(d); }
+    } else if (part === 'day') {
+      const maxD = daysIn(S.month, S.year);
+      if (p === '') { if (d === 0) pend = '0'; else if (d * 10 <= maxD) { pend = String(d); arm(); } else settle('day', d); }
+      else if (p === '0') { if (d !== 0) settle('day', d); }
+      else {
+        const v = Number(p) * 10 + d;
+        if (v <= maxD) settle('day', v);
+        else if (v <= 31) {   /* a real day, just not in this month: say so, never guess another date. The box is
+                                 emptied, not left on the day it had before, so ENTER waits for a day the month has */
+          pend = ''; S.day = null;
+          message = ((S.month === 2 && S.year !== null) ? 'February ' + S.year : MONTHS_LONG[S.month - 1]) + ' has ' + maxD + ' days.';
+        }
+        else { settle('day', Number(p)); spill(d); }   /* 32 to 39 cannot be a day: the second digit starts the year */
+      }
+    } else if (part === 'year') {
+      if (p.length === 1 && p !== '1' && p !== '2') { const two = Number(p) * 10 + d; settleYear(p === '0' ? 2000 + two : 1900 + two); return; }
+      pend = p + String(d);
+      if (pend.length === 4) { settleYear(Number(pend)); return; }
+    } else if (part === 'hour') {
+      if (p === '') { if (d === 0) pend = '0'; else if (d === 1) { pend = '1'; arm(); } else settle('hour', d); }
+      else if (p === '0') { if (d !== 0) settle('hour', d); }
+      else if (d <= 2) settle('hour', 10 + d);
+      else { settle('hour', 1); spill(d); }
+    } else if (part === 'minute') {
+      if (p === '') { if (d === 0) { settle('minute', 0); zeroAt = Date.now(); } else if (d >= 6) settle('minute', d); else { pend = String(d); arm(); } }
+      else settle('minute', Number(p) * 10 + d);
+    }
+    render();
+  }
+  function digit(d){
+    if (active === 'done') return;
+    pulse();
+    if (active === 'ampm' || active === 'ready') {
+      /* 0 then 5 still means :05 */
+      if (zeroAt && Date.now() - zeroAt < PAUSE && S.minute === 0) { S.minute = d; zeroAt = 0; render(); }
+      return;
+    }
+    zeroAt = 0;
+    if (active === 'hour' || active === 'minute') { try { uncleJohnIn(); } catch(_){} }   /* v19.90 cue: first digit of the birth TIME */
+    feed(d);
+  }
+  function deleteKey(){
+    clearTimer(); message = '';
+    if (active === 'done') return;
+    if (pend !== '') { pend = pend.slice(0, -1); render(); return; }
+    if (active !== 'ready' && S[active] !== null) { S[active] = null; render(); return; }
+    const i = active === 'ready' ? PARTS.length : PARTS.indexOf(active);
+    if (i > 0) { active = PARTS[i - 1]; S[active] = null; }
+    render();
+  }
+  function pickAmPm(v){
+    if (active === 'done') return;
+    if (pend !== '' && (active === 'hour' || active === 'minute')) settlePending();
+    S.ampm = v; message = '';
+    active = nextAfter('ampm');
+    render();
+  }
+  function finish(){
+    if (!allIn() || pend !== '' || active === 'done') return;
+    const bad = problem();   /* DT1 r3: never hand on a date the calendar does not have */
+    if (bad) { S[bad.part] = null; active = bad.part; message = bad.text; render(); return; }
+    const now = new Date();
+    const today = S.year === now.getFullYear() && S.month === now.getMonth() + 1 && S.day === now.getDate();
+    if (today && to24(S.hour, S.ampm) * 60 + S.minute > now.getHours() * 60 + now.getMinutes()) {
+      S.hour = S.minute = S.ampm = null; active = 'hour'; message = 'That time hasn’t happened yet today.'; render(); return;
+    }
+    window.__birthDate = S.year + '-' + pad2(S.month) + '-' + pad2(S.day);
+    window.__birthTime = pad2(S.hour) + ':' + pad2(S.minute) + ' ' + S.ampm;
+    console.log('[Birth data] date:', window.__birthDate);
+    console.log('[Birth data] time:', window.__birthTime);
+    clearTimer(); active = 'done'; render();
+    /* the name step opens inside this tap, so the keyboard never drops (as the time row did) */
+    window.__setEntryStep('name');
+    bar.classList.add('done');
+    document.getElementById('namebar').classList.add('show');
+    const nmi = document.getElementById('nm-typed');
+    try { nmi.focus({ preventScroll:true }); if (nmi.value) nmi.select(); } catch(_){}
+    document.getElementById('nmEnter').classList.toggle('ready', nmi.value.trim().length >= 2);
+  }
+
+  const caret = () => '<span class="dt-caret"></span>';
+  const old = t => '<span class="dt-old">' + t + '</span>';
+  const empty = () => '<span class="dt-empty">' + DASH + '</span>';
+  function show(box, html, len){ vals[box].innerHTML = html; vals[box].classList.toggle('long', len > 7); }
+  function render(){
+    const a = active;
+    if (a === 'month') show('month', pend !== '' ? pend + caret() : (S.month !== null ? old(MONTHS_SHORT[S.month - 1]) : '') + caret(), 3);
+    else show('month', S.month !== null ? MONTHS_SHORT[S.month - 1] : empty(), 3);
+    if (a === 'day') show('day', pend !== '' ? pend + caret() : (S.day !== null ? old(S.day) : '') + caret(), 2);
+    else show('day', S.day !== null ? String(S.day) : empty(), 2);
+    if (a === 'year') show('year', pend !== '' ? pend + caret() : (S.year !== null ? old(S.year) : '') + caret(), 4);
+    else show('year', S.year !== null ? String(S.year) : empty(), 4);
+    let t, n;
+    if (a === 'hour') { t = pend !== '' ? pend + caret() : (S.hour !== null ? old(S.hour) : '') + caret(); n = 2; }
+    else if (a === 'minute') {
+      t = (S.hour === null ? DASH : String(S.hour)) + ':' + (pend !== '' ? '0' + pend : (S.minute !== null ? old(pad2(S.minute)) : '0')) + caret();
+      n = 5;
+    } else if (S.hour === null && S.minute === null && S.ampm === null) { t = empty(); n = 1; }
+    else { t = (S.hour === null ? DASH : String(S.hour)) + ':' + (S.minute === null ? DASH + DASH : pad2(S.minute)) + (S.ampm ? ' ' + S.ampm : ''); n = t.length; }
+    show('time', t, n);
+
+    const onBox = (a === 'ready' || a === 'done') ? null : BOX_OF[a];
+    Object.keys(boxes).forEach(b => {
+      boxes[b].classList.toggle('on', b === onBox);
+      boxes[b].classList.toggle('bad', !!message && b === onBox);
+    });
+    const timeOn = onBox === 'time' || a === 'ready';
+    if (a !== 'done') prompt.textContent = timeOn ? Q_TIME : Q_DATE;
+    ampmEl.classList.toggle('away', !timeOn && S.ampm === null);
+    ampmEl.classList.toggle('muted', a !== 'ampm' && a !== 'ready');
+    ampmEl.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', String(x.getAttribute('data-ampm') === S.ampm)));
+    msgEl.textContent = message;
+    enterEl.classList.toggle('ready', allIn() && pend === '' && a !== 'done' && !problem());
+  }
+
+  /* the number pad: two spaces sit in the field, so deleting one means the delete key */
+  const SENT = '  ';
+  function resetKeys(){ keys.value = SENT; try { keys.setSelectionRange(SENT.length, SENT.length); } catch(_){} }
+  function focusKeys(){ if (active === 'done') return; try { keys.focus({ preventScroll:true }); } catch(_){ keys.focus(); } resetKeys(); }
+  keys.addEventListener('focus', resetKeys);
+  keys.addEventListener('input', () => {
+    const v = keys.value, typed = v.replace(/\s/g, ''), spaces = (v.match(/\s/g) || []).length;
+    if (live()) {
+      if (typed) {
+        for (const c of typed) {
+          if (c >= '0' && c <= '9') digit(c.charCodeAt(0) - 48);
+          else if (c === 'a' || c === 'A') pickAmPm('AM');
+          else if (c === 'p' || c === 'P') pickAmPm('PM');
+        }
+      } else if (spaces < SENT.length) deleteKey();
+    }
+    resetKeys();
+  });
+  keys.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); finish(); } });
+
+  Object.keys(boxes).forEach(b => {
+    boxes[b].addEventListener('click', ev => {
+      ev.stopPropagation();
+      if (active === 'done') return;
+      if (pend !== '') { if (pend === '0' || active === 'year') { pend = ''; clearTimer(); } else settlePending(); }
+      active = b === 'time' ? 'hour' : b;
+      message = '';
+      render();
+      focusKeys();
     });
   });
-  const bdEnterEl = document.getElementById('bdEnter');
-  /* ED3: right-filling month and day windows (cozSegField). The day window allows only days that month
-     can have (29 for February); ENTER also needs a real calendar date, so February 29 is refused in a
-     year that is not a leap year. */
-  const DIM = [31,29,31,30,31,30,31,31,30,31,30,31];
-  const monthMax = f => DIM[(+f.shown(0) || 1) - 1];
-  const bdField = cozSegField({ input: inp, ghost: document.getElementById('bd-ghost'), setBtn: document.getElementById('bdSet'),
-    sizes: [2, 2, 4], sep: ' – ', mask: 'MM – DD – YYYY',
-    allow: (i, n, f) => i === 0 ? n <= 12 : n <= monthMax(f),
-    ok: (i, n, f) => i === 0 ? n >= 1 && n <= 12 : n >= 1 && n <= monthMax(f),
-    onDigit: () => { try { EMERGE_SOUND.play('pulse'); } catch(_){} },
-    onChange: () => { bdEnterEl.classList.toggle('ready', bdValid()); } });
-  function bdValid(){
-    const f = bdField; if (!f || f.cur() !== 2 || f.segs[2].length !== 4) return false;
-    const m = +f.shown(0), d = +f.shown(1), y = +f.segs[2];
-    if (m < 1 || m > 12 || d < 1) return false;
-    const t = new Date(Date.UTC(2000, 0, 1)); t.setUTCFullYear(y, m, 0);
-    return d <= t.getUTCDate();
+  ampmEl.addEventListener('click', ev => {
+    ev.stopPropagation();
+    const btn = ev.target.closest('button');
+    if (!btn) return;
+    pickAmPm(btn.getAttribute('data-ampm'));
+    focusKeys();
+  });
+  bar.addEventListener('click', ev => { if (!ev.target.closest('button')) focusKeys(); });
+  enterEl.addEventListener('click', ev => { ev.stopPropagation(); finish(); });
+
+  /* BACK on this step: one box back; on MONTH, the birthplace (window.__handleEntryBack asks first) */
+  window.__dtBack = function(){
+    clearTimer(); message = '';
+    if (active === 'done') return false;
+    if (pend !== '') { pend = ''; render(); focusKeys(); return true; }
+    const i = active === 'ready' ? PARTS.length : PARTS.indexOf(active);
+    if (i > 0) { active = PARTS[i - 1]; render(); focusKeys(); return true; }
+    render();
+    return false;
+  };
+  /* DT1 r2 (Oct 25 2026, his ruling): on a phone (once the keyboard has opened and the page pins the rows), the
+     question and the boxes sit at the top, just under GO TO MY CHART, with BACK and ENTER right under them. The
+     Earth then settles lower so the birthplace pin, city and country show clearly half an inch below BACK and
+     ENTER, measured on the glass (76 points; Safari's page zoom is allowed for, e.g. 89 page px at 85%). On a short
+     screen it stops at the bottom of the visible area, so the gap can be smaller. When the boxes close (name step,
+     or back to the birthplace) the Earth glides back to where it was. */
+  const HALF_INCH_PT = 76, BOTTOM_ROOM = 8;
+  function pageZoom(){   /* Safari's aA page zoom: screen.width stays in points while the page lays out wider or narrower */
+    try {
+      if (window.innerWidth > window.innerHeight) return 1;
+      const z = Math.min(screen.width, screen.height) / window.innerWidth;
+      return (isFinite(z) && z >= 0.5 && z <= 3) ? z : 1;
+    } catch(_) { return 1; }
   }
-  function bdCommit(){
-    const dig = inp.value.replace(/\D/g, '');
-    if (dig.length !== 8 || !bdValid()) return;
-    window.__birthDate = dig.slice(4,8) + '-' + dig.slice(0,2) + '-' + dig.slice(2,4);
-    console.log('[Birth data] date:', window.__birthDate);
-    window.__setEntryStep('time');
-    // hand focus straight to the time field -- the keyboard never drops
-    document.getElementById('bdaybar').classList.add('done');
-    document.getElementById('timebar').classList.add('show');
-    const tmi = document.getElementById('tm-typed');
-    tmi.focus({ preventScroll: true });
-    // v19.52: Back -> Date -> Time fix — a previously entered time is
-    // highlighted so the first keystroke replaces it cleanly; the HH:MM
-    // field and AM/PM pills behave exactly like fresh entry.
-    if (tmi.value) { try { tmi.select(); } catch(_){} }
+  const vvp = window.visualViewport;
+  let earthBase = null, glide = null, placeTimer = null;
+  function panelTop(){
+    let top = 12;
+    const link = document.getElementById('cozGoChart');
+    if (link) {
+      const cs = getComputedStyle(link), r = link.getBoundingClientRect();
+      if (cs.display !== 'none' && cs.visibility !== 'hidden' && r.height > 0) top = Math.max(top, r.bottom - (vvp ? vvp.offsetTop : 0) + 4);   /* its box already has 10 px under the words */
+    }
+    return top;
   }
-  bdEnterEl.addEventListener('click', ev => { ev.stopPropagation(); bdCommit(); });
-  inp.addEventListener('keydown', e => { if (e.key === 'Enter') bdCommit(); });
+  /* where the page's pinning code should put the middle of the boxes, in visible-screen pixels */
+  window.__dtCenter = function(){
+    const showQ = getComputedStyle(prompt).display !== 'none';
+    return panelTop() + (showQ ? prompt.offsetHeight + 12 : 0) + bar.offsetHeight / 2;
+  };
+  function glideEarth(to, ms, done){
+    if (typeof GLOBE === 'undefined' || typeof layoutGlobe !== 'function') return;
+    if (glide) cancelAnimationFrame(glide);
+    const from = GLOBE.shiftY, t0 = performance.now();
+    const ease = typeof easeInOutCubic === 'function' ? easeInOutCubic : (x => x);
+    (function step(now){
+      const p = Math.min((now - t0) / ms, 1);
+      GLOBE.shiftY = from + (to - from) * ease(p);
+      layoutGlobe();
+      glide = p < 1 ? requestAnimationFrame(step) : null;
+      if (p >= 1 && done) done();
+    })(t0);
+  }
+  /* where BACK and ENTER end once the boxes have finished sliding in (their own 0.4 s slide is not waited for) */
+  function panelBottom(){
+    const acts = bar.querySelector('.entry-actions'), top = parseFloat(bar.style.top);
+    if (!acts || !isFinite(top)) return null;
+    return top - bar.offsetHeight / 2 + acts.offsetTop + acts.offsetHeight - vvp.offsetTop;
+  }
+  let checks = 0;
+  function schedulePlace(ms){ clearTimeout(placeTimer); placeTimer = setTimeout(placeEarth, ms); }
+  function placeEarth(){
+    if (!live() || !vvp || !bar.style.top || typeof GLOBE === 'undefined') return;   /* phone layout only */
+    const pin = document.querySelector('.marker .b-pin'), below = panelBottom();
+    if (!pin || below == null) return;
+    const last = document.querySelector('.marker .b-country') || document.querySelector('.marker .b-city') || pin;
+    if (earthBase === null) earthBase = GLOBE.shiftY;
+    const pr = pin.getBoundingClientRect(), lr = last.getBoundingClientRect();
+    const pinTop = pr.top - vvp.offsetTop, locH = Math.max(lr.bottom, pr.bottom) - pr.top;
+    let want = below + HALF_INCH_PT / pageZoom();
+    const lowest = vvp.height - BOTTOM_ROOM;   /* the visible area already stops at Safari's address pill */
+    if (want + locH > lowest) want = Math.max(below + 12, lowest - locH);
+    const target = GLOBE.shiftY + (want - pinTop);
+    if (Math.abs(target - GLOBE.shiftY) < 2) return;   /* already there */
+    /* once the glide ends, look once more (at most three times per arrival) in case anything was still settling */
+    glideEarth(target, 650, () => { if (live() && ++checks <= 3) schedulePlace(150); });
+  }
+  function releaseEarth(){
+    clearTimeout(placeTimer);
+    checks = 0;
+    if (earthBase === null) return;
+    const base = earthBase;
+    earthBase = null;
+    glideEarth(base, 450);
+  }
+  window.__dtAfterPlace = function(){ if (live()) schedulePlace(120); };
+  new MutationObserver(() => {
+    if (live()) { checks = 0; schedulePlace(120); }
+    else releaseEarth();
+  }).observe(bar, { attributes: true, attributeFilter: ['class'] });
+
+  /* back from the name step: the boxes return with TIME open and every value kept */
+  window.__dtOpen = function(part){
+    clearTimer(); pend = ''; message = '';
+    active = part || 'month';
+    render();
+  };
+  render();
 })();
 
 // ---------- birth time: typed digital clock + AM/PM ----------
@@ -2542,22 +2877,16 @@ window.__handleEntryBack = function() {
     EMERGE_SOUND.play('pulse');
   } catch(_){}
   if (step === 'name') {
-    // Return to TIME. Navigation, not reset: the name keeps its value.
+    // DT1: return to the four boxes with TIME open. Navigation, not reset: every value stays.
     const nmBar = document.getElementById('namebar');
-    const tmBar = document.getElementById('timebar');
+    const bdBar = document.getElementById('bdaybar');
     nmBar.classList.remove('show', 'done');
-    tmBar.classList.remove('done');
-    tmBar.classList.add('show');
-    window.__setEntryStep('time');
-    try { document.getElementById('nm-typed').blur(); } catch(_){}
-    requestAnimationFrame(() => {
-      try {
-        const tmInput = document.getElementById('tm-typed');
-        tmInput.focus({ preventScroll:true });
-        tmInput.select();
-      } catch(_){}
-    });
-    console.log('[EMERGE FLOW] back — name → birth time');
+    bdBar.classList.remove('done');
+    bdBar.classList.add('show');
+    window.__setEntryStep('date');
+    if (typeof window.__dtOpen === 'function') window.__dtOpen('hour');
+    try { document.getElementById('bd-typed').focus({ preventScroll:true }); } catch(_){}
+    console.log('[EMERGE FLOW] back — name → birth date and time');
     return;
   }
   if (step === 'time') {
@@ -2586,6 +2915,7 @@ window.__handleEntryBack = function() {
     return;
   }
   if (step === 'date') {
+    if (typeof window.__dtBack === 'function' && window.__dtBack()) return;   /* DT1: one box back first */
     const bdInput = document.getElementById('bd-typed');
     try {
       bdInput.blur();
@@ -2626,17 +2956,23 @@ window.__handleEntryBack = function() {
   function applyAll(){
     const topPx = heldCenter + vv.offsetTop;        // pan-compensated layout position
     entries.forEach(b => {
-      b.bar.style.top = topPx + 'px';
+      let t = topPx;   /* DT1 r2: the four boxes sit at the top on a phone; the other rows keep the shared spot */
+      if (b.bar.classList.contains('dt') && typeof window.__dtCenter === 'function') {
+        const c = window.__dtCenter();
+        if (c != null && isFinite(c)) t = c + vv.offsetTop;
+      }
+      b.bar.style.top = t + 'px';
       b.bar.style.bottom = 'auto';
       b.bar.style.transform = 'translate(-50%, -50%)';
       b.bar.style.zIndex = '1000';
       if (b.prompt){
-        b.prompt.style.top = (topPx - 34) + 'px';   // banner bottom edge sits ~11px above the bar
+        b.prompt.style.top = (t - Math.max(34, b.bar.offsetHeight / 2 + 12)) + 'px';   // banner bottom edge sits ~11px above the bar (DT1: of any height)
         b.prompt.style.bottom = 'auto';
         b.prompt.style.transform = 'translate(-50%, -100%)';
         b.prompt.style.zIndex = '1000';
       }
     });
+    if (typeof window.__dtAfterPlace === 'function') window.__dtAfterPlace();   /* DT1 r2: the Earth makes room under the boxes */
   }
   function releaseAll(){
     entries.forEach(b => {
