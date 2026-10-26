@@ -48,6 +48,27 @@
      2. The claims a record lists in "presentTogether" stay in one paragraph, in the record's order.
      Section 1, Sections 3-6 and the Compare selections (selectRecords, selectAscendantEvidence) are unchanged. */
   var s2cOn = false;
+  /* SW1 (Oct 26 2026, offline): the Sections 1-2 wording developed on Oct 14, used only when the page asks with
+     { sw1: true }. A page that doesn't ask, such as a copy cached before this change, gets the Sections 1-2 it always
+     assembled. Three changes:
+     1. Section 1 opens by explaining Vedic astrology, the rising sign, its ruler (the guiding planet, now "a central
+        influence in this reading"), what "influence" means in this reading and the twelve areas. The "--" dash goes,
+        and the Sun and the Moon take "the".
+     2. Section 2 opens by explaining the nakshatras (27 divisions of the zodiac) and why the Moon's matters. "Sits inside"
+        becomes "is in". The Moon's nakshatra is still named exactly once.
+     Chat's review (Oct 26) changed two phrases of the Oct 14 wording: "a central influence in this reading" and "27
+     divisions of the zodiac" (with "division" and "nakshatra" in place of "star group" after it).
+     3. Three pronoun errors in claim sentences are corrected (SW1_FIX).
+     Each opening is its own paragraph; the claim sentences are split into paragraphs as before. No claim is added,
+     removed or reworded beyond SW1_FIX. Sections 3-6 and the Compare selections are unchanged. */
+  var sw1On = false;
+  var SW1_FIX = [
+    ["central and genuinely their own.", "central and truly your own."],
+    ["the feelings or responses of someone close to them.", "the feelings or responses of someone close to you."],
+    ["discovering what allows them to remain internally centered.", "discovering what allows you to remain internally centered."]
+  ];
+  function sw1Fix(t) { SW1_FIX.forEach(function (f) { t = String(t).split(f[0]).join(f[1]); }); return t; }
+  function sw1Lord(code) { var n = CODE_TO_NAME[code]; return (code === "su" || code === "mo") ? "the " + n : n; }
   function nakKey(name) { var k = String(name || "").toLowerCase().trim().replace(/\s+/g, "-"); return (aliasOn && NAK_KEY_ALIAS[k]) || k; }
   function signName(signNumber) { return SIGN_NAMES[(signNumber - 1 + 12) % 12]; }
   function findPlanet(chart, name) {
@@ -183,8 +204,9 @@
   /* ---------- Public API ---------- */
   /* SR1 bridge: the alias applies to this draft only when the page passes { sr1: true } */
   function generateDevReview(chart, claimData, snippets36, firstName, opts) {
-    var was = aliasOn, wasS2c = s2cOn; aliasOn = !!(opts && opts.sr1); s2cOn = !!(opts && opts.s2c);   /* S2C: { s2c: true } */
-    try { return draftReview(chart, claimData, snippets36, firstName); } finally { aliasOn = was; s2cOn = wasS2c; }
+    var was = aliasOn, wasS2c = s2cOn, wasSw1 = sw1On; aliasOn = !!(opts && opts.sr1); s2cOn = !!(opts && opts.s2c);   /* S2C: { s2c: true } */
+    sw1On = !!(opts && opts.sw1);   /* SW1: { sw1: true } */
+    try { return draftReview(chart, claimData, snippets36, firstName); } finally { aliasOn = was; s2cOn = wasS2c; sw1On = wasSw1; }
   }
   function draftReview(chart, claimData, snippets36, firstName) {
     var s1 = computeS1Keys(chart);
@@ -192,12 +214,29 @@
 
     var openingName = (firstName && String(firstName).trim()) ? String(firstName).trim() + ", " : "";
     var introS1 = [openingName + "your Vedic chart begins with " + capitalize(s1.ascSign) + " rising."];
-    if (s1.ascLordCode) introS1.push(capitalize(CODE_TO_NAME[s1.ascLordCode]) + " rules " + capitalize(s1.ascSign) + ", which makes it your guiding planet -- the strongest single influence on how you move through the world.");
+    if (sw1On) {   /* SW1: the Oct 14 opening, the same for every chart apart from the sign and its ruler */
+      introS1.push("Vedic astrology is the traditional astrology of India.",
+                   "Your rising sign is the sign that was coming up over the eastern horizon when you were born.",
+                   "It sets the starting point for the whole chart.",
+                   "Each sign is linked to one planet, its ruler.");
+      if (s1.ascLordCode) introS1.push(capitalize(sw1Lord(s1.ascLordCode)) + " rules " + capitalize(s1.ascSign) + ", so " + sw1Lord(s1.ascLordCode) + " is your guiding planet: a central influence in this reading.");
+      introS1.push("In this reading, a planet's influence means the kind of energy it brings.",
+                   "A Vedic chart also divides life into twelve areas, such as home, work and partnership, and a planet's area shows where its energy tends to show up.");
+    }
+    else if (s1.ascLordCode) introS1.push(capitalize(CODE_TO_NAME[s1.ascLordCode]) + " rules " + capitalize(s1.ascSign) + ", which makes it your guiding planet -- the strongest single influence on how you move through the world.");
 
     var s2 = computeS2Match(chart, claimData.section2Files);
     var introS2 = [
       "In Vedic astrology, every planet in your chart sits inside one of 27 star groups called nakshatras. This reading focuses mainly on your Moon's nakshatra, because the Moon shapes your emotional world most directly.",
       "Your Moon is in " + capitalize(s2.moonSign) + ", and its nakshatra is " + capitalize(s2.moon.nakshatra) + "."
+    ];
+    if (sw1On) introS2 = [   /* SW1: the Oct 14 opening; the Moon's nakshatra is named here and nowhere else */
+      "As the Moon travels around the sky each month, it passes through 27 divisions of the zodiac, called nakshatras.",
+      "Each division covers a smaller slice of the sky than a sign and has its own character.",
+      "Every planet in your chart is in one of them.",
+      "This reading focuses mainly on your Moon's nakshatra, because the Moon shapes your emotional world most directly.",
+      "In Vedic astrology, the Moon stands for the mind and feelings.",
+      "Your Moon is in " + capitalize(s2.moonSign) + ", in the nakshatra called " + capitalize(s2.moon.nakshatra) + "."
     ];
 
     var asc = s1.asc;
@@ -232,7 +271,10 @@
                                          .filter(function (u) { return u.length; }).map(function (u) { return u.join(" "); })
                                : s2.sentences.filter(s2Keep).map(s2Voice);
 
-    var reading = {
+    var reading = sw1On ? {   /* SW1: each opening is its own paragraph, the claims follow as before, SW1_FIX applied */
+      "essential-nature": [introS1.join(" ")].concat(toParagraphs(s1Match.sentences.map(sw1Fix), [])),
+      "mind-intuition": [introS2.join(" ")].concat(toParagraphs(s2Sentences.map(sw1Fix), []))
+    } : {
       "essential-nature": toParagraphs(s1Match.sentences, introS1),
       "mind-intuition": toParagraphs(s2Sentences, introS2)
     };
@@ -258,7 +300,7 @@
       reading["essential-takeaway"] = ["This synthesis is not yet available in the development-review draft for charts outside the two reviewed reference readings."];
     }
 
-    return {
+    var out = {
       reading: reading,
       meta: {
         mode: "development-review-draft",
@@ -269,6 +311,8 @@
         identityKey: identityKey
       }
     };
+    if (sw1On) out.meta.sw1 = true;   /* SW1: marks Sections 1-2 assembled with the SW1 wording (absent otherwise) */
+    return out;
   }
 
   function houseOccupants(chart, houseNum) {
@@ -325,5 +369,6 @@
   }
 
   global.CozDevReview = { generateDevReview: generateDevReview, selectAscendantEvidence: selectAscendantEvidence, selectRecords: selectRecords,
-                          s2c: true };   /* S2C: this engine understands { s2c: true }; a page asks only an engine that says so */
+                          s2c: true,     /* S2C: this engine understands { s2c: true }; a page asks only an engine that says so */
+                          sw1: true };   /* SW1: the same, for { sw1: true } */
 })(typeof window !== "undefined" ? window : globalThis);

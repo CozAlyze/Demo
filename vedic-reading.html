@@ -706,10 +706,10 @@ body[data-view="reading"] .vedic-reading-page { animation: none; }
   </div>
 </div>
 
-<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write · VD1.2 diagnostic · VW1 waiting · VSP1.2 server switch · DV1 load order · DV2 tap guard · S2C section 2</div>
+<div class="vedic-stamp" aria-hidden="true">VEDIC READING · R5.2 · quiet pre-write · VD1.2 diagnostic · VW1 waiting · VSP1.2 server switch · DV1 load order · DV2 tap guard · S2C section 2 · SW1 r3 sections 1-2</div>
 
 <script src="ascendant-library.js"></script>
-<script src="dev-review-engine.js?v=9"></script>
+<script src="dev-review-engine.js?v=10"></script>
 <script src="coz-vedic-server.js?v=1"></script>
 <script>
 /* ============================================================
@@ -1109,11 +1109,33 @@ function cozNoteJobStart(run, reading12) {           /* before a job can start f
     var j = cozKey("cozVedicServerJob");
     if (j && j.jobId && j.runId === run.runId && j.fingerprint === run.fingerprint) return;   /* already started: followed */
     var m = cozJobNotes();
-    m.runs[run.runId] = { fingerprint: run.fingerprint, s12: cozS12(reading12), at: new Date().toISOString() };
+    m.runs[run.runId] = { fingerprint: run.fingerprint, s12: cozS12(reading12), at: new Date().toISOString(),
+                          text: { "essential-nature": (reading12["essential-nature"] || []).slice(), "mind-intuition": (reading12["mind-intuition"] || []).slice() } };   /* SW1 r3: the exact Sections 1-2 */
     Object.keys(m.runs).sort(function (a, b) { return String((m.runs[b] || {}).at).localeCompare(String((m.runs[a] || {}).at)); })
       .slice(12).forEach(function (id) { delete m.runs[id]; });
     localStorage.setItem(COZ_JOB_START, JSON.stringify(m));
   } catch (e) {}
+}
+/* SW1 r3 (Oct 26 2026, from Chat's review of SW1 r2): two safeguards for the SW1 bridge.
+   1. A start sent but still without a job ID (this device's job record for the run, with no jobId) counts as started,
+      from the Sections 1-2 its note records ("unrecorded" without a note). A reload then never sends a start with
+      other Sections 1-2, so it can never open a second job.
+   2. The note keeps the exact Sections 1-2 sent with the start. A run whose server work started from Sections 1-2 this
+      page can't assemble, such as an SW1 run reopened with a cached engine from before SW1, shows those, checked by hash. */
+function cozPendingStart(run) {
+  var j = cozKey("cozVedicServerJob");
+  return !!(run && j && !j.jobId && j.runId === run.runId && j.fingerprint === run.fingerprint);
+}
+function cozStartedS12(run) {                          /* as cozJobStartS12, and a start still waiting for its job ID too */
+  var s = cozJobStartS12(run);
+  if (s !== null || !cozPendingStart(run)) return s;
+  var n = cozJobNotes().runs[run.runId];
+  return n && n.fingerprint === run.fingerprint && n.s12 ? n.s12 : "unrecorded";
+}
+function cozStartedText(run, s12) {                    /* the Sections 1-2 recorded with that start, only if they hash to s12 */
+  var n = run && cozJobNotes().runs[run.runId], t = n && n.text;
+  if (!n || n.fingerprint !== run.fingerprint || n.s12 !== s12 || !t || !Array.isArray(t["essential-nature"]) || !Array.isArray(t["mind-intuition"])) return null;
+  return cozS12(t) === s12 ? { "essential-nature": t["essential-nature"].slice(), "mind-intuition": t["mind-intuition"].slice() } : null;
 }
 window.COZ_PARTIAL_READY = new Promise(function (r) { window.__cozPartialResolve = r; });
 var COZ_READING_READY = requestChartData().then(function (chart) {
@@ -1159,6 +1181,7 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
     if (!window.CozDevReview) throw new Error("dev-review-engine.js did not load (window.CozDevReview missing)");
     var firstName = chart.person && (chart.person.firstName || String(chart.person.name || "").split(/\s+/)[0]);
     var result = window.CozDevReview.generateDevReview(chart, claimData, snippets36, firstName, { sr1: true });
+    var chosen = { data: claimData, opts: { sr1: true } };   /* SW1: the files and options that assembled result */
     var before = window.CozDevReview.generateDevReview(chart, claimData, snippets36, firstName);   /* SR1 bridge: as assembled before SR1 */
     var cozSr1Differs = cozS12(before.reading) !== cozS12(result.reading);
     if (cozSr1Differs) {
@@ -1166,7 +1189,7 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
       var fromNew = !!cozBrowserPinned(chart, result.reading, firstName) || job12 === cozS12(result.reading);
       var fromOld = !!cozBrowserPinned(chart, before.reading, firstName) || job12 === cozS12(before.reading) || job12 === "unrecorded";
       if (!fromNew && fromOld) {
-        result = before;
+        result = before; chosen = { data: claimData, opts: {} };
         try{(window.COZ_DIAG&&COZ_DIAG.log)("sections 1-2","kept as first written: this run's Sections 3-6 were written from them (SR1 bridge)");}catch(_d){}
       }
     }
@@ -1183,8 +1206,34 @@ var COZ_READING_READY = requestChartData().then(function (chart) {
         var job12s = cozJobStartS12(chart.run);
         var fromCorrected = !!cozBrowserPinned(chart, corrected.reading, firstName) || job12s === cozS12(corrected.reading);
         var fromChosen = !!cozBrowserPinned(chart, result.reading, firstName) || job12s === cozS12(result.reading) || job12s === "unrecorded";
-        if (fromCorrected || !fromChosen) result = corrected;
+        if (fromCorrected || !fromChosen) { result = corrected; chosen = { data: s2cData, opts: { sr1: true, s2c: true } }; }
         else { try{(window.COZ_DIAG&&COZ_DIAG.log)("sections 1-2","kept as first written: this run's Sections 3-6 were written from them (S2C bridge)");}catch(_d){} }
+      }
+    }
+    /* SW1 bridge (Oct 26 2026): the Sections 1-2 wording (dev-review-engine.js with { sw1: true }: the Oct 14 openings
+       for Sections 1 and 2 and three pronoun corrections) changes Sections 1-2 for every chart. As with SR1 and S2C, a run
+       whose Sections 3-6 were already written, or are being written, from the Sections 1-2 chosen above keeps them, and so
+       does a run whose server job was started from them or by a page from before the SR1 bridge. A run written from the
+       SW1 wording, or with nothing written yet, gets it. With an engine from before SW1 (it has no CozDevReview.sw1), the
+       Sections 1-2 above are used. */
+    if (window.CozDevReview.sw1 === true) {
+      var worded = window.CozDevReview.generateDevReview(chart, chosen.data, snippets36, firstName, Object.assign({}, chosen.opts, { sw1: true }));
+      if (cozS12(worded.reading) !== cozS12(result.reading)) {
+        var job12w = cozStartedS12(chart.run);   /* r3: a start still waiting for its job ID counts */
+        var fromWorded = !!cozBrowserPinned(chart, worded.reading, firstName) || job12w === cozS12(worded.reading);
+        var fromChosenW = !!cozBrowserPinned(chart, result.reading, firstName) || job12w === cozS12(result.reading) || job12w === "unrecorded";
+        if (fromWorded || !fromChosenW) result = worded;
+        else { try{(window.COZ_DIAG&&COZ_DIAG.log)("sections 1-2","kept as first written: this run's Sections 3-6 were written from them (SW1 bridge)");}catch(_d){} }
+      }
+    }
+    /* SW1 r3 pin: server work already started (or starting) from Sections 1-2 other than the ones chosen above keeps
+       exactly the Sections 1-2 recorded with that start. Without such a record nothing changes here. */
+    var startedS12 = cozStartedS12(chart.run);
+    if (startedS12 && startedS12 !== "unrecorded" && startedS12 !== cozS12(result.reading)) {
+      var sent12 = cozStartedText(chart.run, startedS12);
+      if (sent12) {
+        result = { reading: Object.assign({}, result.reading, sent12), meta: Object.assign({}, result.meta, { s12Pinned: true }) };
+        try{(window.COZ_DIAG&&COZ_DIAG.log)("sections 1-2","shown exactly as sent with this run's server start (SW1 r3 pin)");}catch(_d){}
       }
     }
     window.COZ_VEDIC_REVIEW_META = result.meta;

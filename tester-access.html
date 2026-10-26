@@ -1,7 +1,14 @@
 <!doctype html>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CozAlyze · tester access</title>
-<!-- TA1.3 (Oct 22 2026): storage refusals reported honestly. Turning Compare off is verified by reading the switch back
+<!-- TA1.5 (Oct 26 2026, from Chat's review of TA1.4): only the latest password check counts. Each tap of Check and
+     save starts a new check, and a newer Check and save or a Turn off makes every earlier check stale. A stale answer
+     saves nothing, shows nothing and never calls turnOn(). That covers Turn off tapped while a check is pending, and
+     password A's late answer arriving after password B's. No wording or other behavior changed.
+     TA1.4 (Oct 26 2026): one tap. A password accepted and saved in Step 1 runs Step 2 at once, exactly as a tap on
+     Turn on would, so a tester who stops after Step 1 still has every reading turned on. The Turn on button stays for a
+     repeat. No wording or other behavior changed.
+     TA1.3 (Oct 22 2026): storage refusals reported honestly. Turning Compare off is verified by reading the switch back
      (OFF written, else the switch removed); if it is still on, activation stops and Turn off says so. The status line
      shows Compare ON whenever the stored switch is on, as the Compare adapter reads it.
      TA1.2 (Oct 22 2026): Compare activation made safe against late or failed answers. Every Turn on writes Compare
@@ -42,16 +49,20 @@
       "Tropical readings on this device: " + (code ? "ON" : "OFF") + "\n" +
       "Compare readings on this device: " + (cmpOn() ? "ON" : "OFF");
   }
+  var saveSeq = 0;   /* TA1.5: only the latest Check and save may save; a newer one or Turn off makes older checks stale */
   document.getElementById("save").onclick = function(){
     var box = document.getElementById("code"), t = box.value.trim(); box.value = "";
-    if (!t) { show("Enter the tester password first."); return; }
+    if (!t) { show("Enter the tester password first."); return; }   /* an empty tap (the box clears after each check) cancels nothing */
+    var mySave = ++saveSeq;   /* TA1.5: this tap's check; any earlier check still pending is now stale */
     show("Checking the password…");
     fetch(SERVER + "/.netlify/functions/vedic-status?job=00000000000000000000000000000000", { headers: { "Authorization": "Bearer " + t }, cache: "no-store" })
       .then(function (r) { return r.status; }, function () { return 0; })
       .then(function (s) {
+        if (mySave !== saveSeq) return;   /* TA1.5: stale, a newer Check and save or Turn off came first: nothing saved, shown or turned on */
         if (s === 404) {
           try { var was = localStorage.getItem(CODE_KEY); if (was && was !== t) localStorage.setItem(PREV_KEY, was); localStorage.setItem(CODE_KEY, t); show("Password accepted and saved."); }
-          catch (e) { show("The password was accepted, but this browser would not save it. Private browsing can block saving; try a normal tab."); }
+          catch (e) { show("The password was accepted, but this browser would not save it. Private browsing can block saving; try a normal tab."); return; }
+          turnOn();   /* TA1.4: Step 2 runs at once, as if Turn on had been tapped */
         }
         else if (s === 401) show("That tester password wasn’t accepted. Nothing was saved.");
         else show("The password couldn’t be checked right now. Nothing was saved. Try again in a moment.");
@@ -65,7 +76,7 @@
   }
   var STUCK = "Compare is still ON on this device: this browser would not change the setting. Try a normal (not private) tab, or clear this site's data in Settings.";
   function failed(why, hint){ show(cmpOff() ? why + ", so Compare is off." + (hint ? " " + hint : "") : why + ". " + STUCK); }
-  document.getElementById("on").onclick = function(){
+  function turnOn(){   /* TA1.4: named so Step 1 can run it; the body is TA1.3's Turn on, unchanged */
     var my = ++seq, code = get(CODE_KEY);
     if (!cmpOff()) { show("Nothing was turned on. " + STUCK); return; }   /* Compare stays off unless this check succeeds */
     if (!code) { show("Save the tester password first (Step 1)."); return; }
@@ -84,9 +95,11 @@
         else if (s === 401 || s === 403) { failed("Vedic and Tropical readings are on. The Compare server did not accept the password"); }
         else { failed("Vedic and Tropical readings are on. Compare couldn’t be checked right now", "Tap Step 2 again in a moment."); }
       });
-  };
+  }
+  document.getElementById("on").onclick = turnOn;
   document.getElementById("off").onclick = function(){
     seq++;   /* cancels any Compare check still pending */
+    saveSeq++;   /* TA1.5: and any password check still pending */
     try { localStorage.removeItem(SWITCH); } catch (e) {}
     var vOff = get(SWITCH) === null, cOff = cmpOff();   /* TA1.3: report what is actually stored */
     if (vOff && cOff) show("Vedic and Compare readings are off for this device.");
